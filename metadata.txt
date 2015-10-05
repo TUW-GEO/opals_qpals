@@ -1,0 +1,39 @@
+; the next section is mandatory
+
+[general]
+name=qpals
+email=lukas.winiwarter@tuwien.ac.at
+author=Lukas Winiwarter
+qgisMinimumVersion=2.8
+description=OPALS LiDAR software integrated into QGIS, 
+ support for project management and a tasklist
+about=Developed at Vienna University of Technology
+version=version 0.1a
+tracker=http://bitbucket.org/Meep001/qgis
+repository=http://bitbucket.org/Meep001/qgis
+; end of mandatory metadata
+
+; start of optional metadata
+category=Raster
+changelog=Prior versions:
+ 0.1a added Metadata
+ 0.1 
+
+; Tags are in comma separated value format, spaces are allowed within the
+; tag name.
+; Tags should be in English language. Please also check for existing tags and
+; synonyms before creating a new one.
+tags=lidar,laser scanning,opals,als
+
+; these metadata can be empty, they will eventually become mandatory.
+homepage=http://bitbucket.org/Meep001/qgis
+icon=icon.png
+
+; experimental flag (applies to the single version)
+experimental=True
+
+; deprecated flag (applies to the whole plugin and not only to the uploaded version)
+deprecated=False
+
+; if empty, it will be automatically set to major version + .99
+;qgisMaximumVersion=2.0

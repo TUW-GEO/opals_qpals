@@ -24,6 +24,7 @@ from qgis.core import *
 import resources
 # Import the code for the dialog
 from qpalsDialog import qpalsDialog
+from opalsLayer import opalsLayer
 
 class qpals: 
 
@@ -33,19 +34,40 @@ class qpals:
 
   def initGui(self):  
     # Create action that will start plugin configuration
-    self.action = QAction(QIcon(":/plugins/qpals/icon.png"), \
-        "qpals", self.iface.mainWindow())
-    # connect the action to the run method
-    QObject.connect(self.action, SIGNAL("activated()"), self.run) 
+    # self.action = QAction(QIcon(":/plugins/qpals/icon.png"), \
+    #     "qpals", self.iface.mainWindow())
+    # # connect the action to the run method
+    # QObject.connect(self.action, SIGNAL("activated()"), self.run)
+    #
+    # # Add toolbar button and menu item
+    # self.iface.addToolBarIcon(self.action)
+    # self.iface.addPluginToMenu("&qpals", self.action)
+    self.menu = QMenu(self.iface.mainWindow())
+    self.menu.setObjectName("qpalsMenu")
+    self.menu.setTitle("qpals")
+    self.action = QAction(QIcon(":/plugins/qpals/icon.png"), "Start QPALS", self.iface.mainWindow())
+    self.action.setObjectName("startQpals")
+    self.action.setWhatsThis("Starts the qpals main screen")
+    self.action.setStatusTip("Start qpals")
+    QObject.connect(self.action, SIGNAL("triggered()"), self.run)
+    self.menu.addAction(self.action)
 
-    # Add toolbar button and menu item
-    self.iface.addToolBarIcon(self.action)
-    self.iface.addPluginToMenu("&qpals", self.action)
+    menuBar = self.iface.mainWindow().menuBar()
+    menuBar.insertMenu(self.iface.firstRightStandardMenu().menuAction(), self.menu)
+
+    a = QAction( u"opalsInfo", self.iface.legendInterface() )
+    b = QAction( u"opalsExport", self.iface.legendInterface() )
+    c = QAction( u"opalsHisto", self.iface.legendInterface() )
+    self.iface.legendInterface().addLegendLayerAction( a, u"qpals", u"qpals1", QgsMapLayer.PluginLayer, True )
+    self.iface.legendInterface().addLegendLayerAction( b, u"qpals", u"qpals1", QgsMapLayer.PluginLayer, True )
+    self.iface.legendInterface().addLegendLayerAction( c, u"qpals", u"qpals1", QgsMapLayer.PluginLayer, True )
+
 
   def unload(self):
     # Remove the plugin menu item and icon
-    self.iface.removePluginMenu("&qpals",self.action)
-    self.iface.removeToolBarIcon(self.action)
+    # self.iface.removePluginMenu("&qpals",self.action)
+    # self.iface.removeToolBarIcon(self.action)
+    self.menu.deleteLater()
 
   # run method that performs all the real work
   def run(self): 
@@ -56,6 +78,6 @@ class qpals:
     result = dlg.exec_() 
     # See if OK was pressed
     if result == 1: 
-      # do something useful (delete the line containing pass and
-      # substitute with your code
+      testlayer = opalsLayer()
+      QgsMapLayerRegistry.instance().addMapLayer(testlayer)
       pass 
