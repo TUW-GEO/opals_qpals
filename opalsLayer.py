@@ -23,9 +23,10 @@ class opalsLayer(QgsPluginLayer):
 
   LAYER_TYPE="opals"
 
-  def __init__(self):
-    QgsPluginLayer.__init__(self, opalsLayer.LAYER_TYPE, "qpals plugin layer")
+  def __init__(self, name="qpals plugin layer"):
+    QgsPluginLayer.__init__(self, opalsLayer.LAYER_TYPE, name)
     self.setValid(True)
+    #self.draw()
 
   def draw(self, rendererContext):
     image = QImage("icon.png")

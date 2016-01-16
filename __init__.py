@@ -17,6 +17,7 @@ email                : lukas.winiwarter@tuwien.ac.at
  ***************************************************************************/
  This script initializes the plugin, making it known to QGIS.
 """
+
 def name(): 
   return "qpals lidar tools" 
 def description():
