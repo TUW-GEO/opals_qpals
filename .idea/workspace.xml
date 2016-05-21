@@ -3,7 +3,9 @@
   <component name="ChangeListManager">
     <list default="true" id="004b25d6-43ec-47d2-aa11-23cf390251e5" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/qpals.py" afterPath="$PROJECT_DIR$/qpals.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/test/QpalsModuleBase.py" afterPath="$PROJECT_DIR$/test/QpalsModuleBase.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/test/moduleSelector.py" afterPath="$PROJECT_DIR$/test/moduleSelector.py" />
     </list>
     <ignored path="qpals.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -70,22 +72,22 @@
       <file leaf-file-name="qpals.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/qpals.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="998">
-              <caret line="96" column="31" selection-start-line="96" selection-start-column="31" selection-end-line="96" selection-end-column="31" />
+            <state relative-caret-position="404">
+              <caret line="81" column="32" selection-start-line="81" selection-start-column="32" selection-end-line="81" selection-end-column="32" />
               <folding>
                 <element signature="e#1066#1092#0" expanded="true" />
-                <marker date="1463826261775" expanded="true" signature="5278:5305" placeholder="Select a mod... " />
-                <marker date="1463826261775" expanded="true" signature="5354:5377" placeholder="Select modul... " />
+                <marker date="1463866076494" expanded="true" signature="5282:5309" placeholder="Select a mod... " />
+                <marker date="1463866076494" expanded="true" signature="5358:5381" placeholder="Select modul... " />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="moduleSelector.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="moduleSelector.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/test/moduleSelector.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="616">
-              <caret line="28" column="82" selection-start-line="28" selection-start-column="28" selection-end-line="28" selection-end-column="82" />
+            <state relative-caret-position="573">
+              <caret line="179" column="26" selection-start-line="179" selection-start-column="13" selection-end-line="179" selection-end-column="26" />
               <folding>
                 <element signature="e#1022#1053#0" expanded="true" />
               </folding>
@@ -96,18 +98,18 @@
       <file leaf-file-name="QpalsListWidgetItem.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/test/QpalsListWidgetItem.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="0">
-              <caret line="0" column="3" selection-start-line="0" selection-start-column="3" selection-end-line="0" selection-end-column="3" />
+            <state relative-caret-position="506">
+              <caret line="23" column="8" selection-start-line="23" selection-start-column="8" selection-end-line="23" selection-end-column="8" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="QpalsModuleBase.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="QpalsModuleBase.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/test/QpalsModuleBase.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="771">
-              <caret line="120" column="36" selection-start-line="120" selection-start-column="36" selection-end-line="120" selection-end-column="36" />
+            <state relative-caret-position="237">
+              <caret line="78" column="47" selection-start-line="78" selection-start-column="47" selection-end-line="78" selection-end-column="47" />
               <folding>
                 <element signature="e#1027#1058#0" expanded="true" />
               </folding>
@@ -178,10 +180,10 @@
         <option value="$PROJECT_DIR$/test/logparse.py" />
         <option value="$PROJECT_DIR$/test/__init__.py" />
         <option value="$PROJECT_DIR$/test/QpalsListWidget.py" />
-        <option value="$PROJECT_DIR$/qpals.py" />
         <option value="$PROJECT_DIR$/test/QpalsListWidgetItem.py" />
-        <option value="$PROJECT_DIR$/test/moduleSelector.py" />
+        <option value="$PROJECT_DIR$/qpals.py" />
         <option value="$PROJECT_DIR$/test/QpalsModuleBase.py" />
+        <option value="$PROJECT_DIR$/test/moduleSelector.py" />
       </list>
     </option>
   </component>
@@ -671,7 +673,14 @@
       <option name="project" value="LOCAL" />
       <updated>1463845715493</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="validator feedback - colors and icons">
+      <created>1463859896637</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1463859896637</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="ToolWindowManager">
@@ -741,7 +750,8 @@
     <MESSAGE value="module access in framework" />
     <MESSAGE value="feedback from modules" />
     <MESSAGE value="validating function" />
-    <option name="LAST_COMMIT_MESSAGE" value="validating function" />
+    <MESSAGE value="validator feedback - colors and icons" />
+    <option name="LAST_COMMIT_MESSAGE" value="validator feedback - colors and icons" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -1101,40 +1111,40 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/qpals.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="998">
-          <caret line="96" column="31" selection-start-line="96" selection-start-column="31" selection-end-line="96" selection-end-column="31" />
+        <state relative-caret-position="404">
+          <caret line="81" column="32" selection-start-line="81" selection-start-column="32" selection-end-line="81" selection-end-column="32" />
           <folding>
             <element signature="e#1066#1092#0" expanded="true" />
-            <marker date="1463826261775" expanded="true" signature="5278:5305" placeholder="Select a mod... " />
-            <marker date="1463826261775" expanded="true" signature="5354:5377" placeholder="Select modul... " />
+            <marker date="1463866076494" expanded="true" signature="5282:5309" placeholder="Select a mod... " />
+            <marker date="1463866076494" expanded="true" signature="5358:5381" placeholder="Select modul... " />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/test/moduleSelector.py">
+    <entry file="file://$PROJECT_DIR$/test/QpalsModuleBase.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="616">
-          <caret line="28" column="82" selection-start-line="28" selection-start-column="28" selection-end-line="28" selection-end-column="82" />
+        <state relative-caret-position="237">
+          <caret line="78" column="47" selection-start-line="78" selection-start-column="47" selection-end-line="78" selection-end-column="47" />
           <folding>
-            <element signature="e#1022#1053#0" expanded="true" />
+            <element signature="e#1027#1058#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/test/QpalsListWidgetItem.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="3" selection-start-line="0" selection-start-column="3" selection-end-line="0" selection-end-column="3" />
+        <state relative-caret-position="506">
+          <caret line="23" column="8" selection-start-line="23" selection-start-column="8" selection-end-line="23" selection-end-column="8" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/test/QpalsModuleBase.py">
+    <entry file="file://$PROJECT_DIR$/test/moduleSelector.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="771">
-          <caret line="120" column="36" selection-start-line="120" selection-start-column="36" selection-end-line="120" selection-end-column="36" />
+        <state relative-caret-position="573">
+          <caret line="179" column="26" selection-start-line="179" selection-start-column="13" selection-end-line="179" selection-end-column="26" />
           <folding>
-            <element signature="e#1027#1058#0" expanded="true" />
+            <element signature="e#1022#1053#0" expanded="true" />
           </folding>
         </state>
       </provider>

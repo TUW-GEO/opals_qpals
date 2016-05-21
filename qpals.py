@@ -79,7 +79,7 @@ class qpals:
 
   def showModuleSelector(self):
     from test.moduleSelector import moduleSelector
-    modSel = moduleSelector()
+    modSel = moduleSelector(None)
     result = modSel.exec_()
 
   def initGui(self):  

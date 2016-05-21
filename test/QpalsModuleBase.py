@@ -22,6 +22,7 @@ import subprocess
 from xml.dom import minidom
 
 WaitIcon = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\wait_icon.png")
+WaitIconMandatory = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\wait_icon_mandatory.png")
 ErrorIcon = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\error_icon.png")
 
 def parseXML(xml):
@@ -75,12 +76,15 @@ class QpalsModuleBase():
         for param in self.params:
             l1 = QtGui.QLabel(param['name'])
             param['field'] = QtGui.QLineEdit(param['val'])
+            param['icon'] = QtGui.QToolButton()
+            param['icon'].setToolTip(param['opt'])
+            param['icon'].setIcon(WaitIcon)
+            param['icon'].setStyleSheet("border-style: none;")
             if param['opt'] == 'mandatory':
-                param['field'].setStyleSheet("background-color: rgb(255,240,230);")
+                param['icon'].setIcon(WaitIconMandatory)
             param['field'].textChanged.connect(self.updateVals)
             param['field'].editingFinished.connect(self.validate)
-            param['icon'] = QtGui.QToolButton()
-            param['icon'].setIcon(WaitIcon)
+
             l2 = QtGui.QHBoxLayout()
             l2.addWidget(param['field'], stretch=1)
             l2.addWidget(param['icon'])
@@ -97,9 +101,9 @@ class QpalsModuleBase():
         paramlist = []
         for param in self.params:
             if param['opt'] == 'mandatory':
-                param['field'].setStyleSheet('background-color: rgb(255,240,230);')
-                param['field'].setToolTip("")
-                param['icon'].setIcon(WaitIcon)
+                param['field'].setToolTip('')
+                param['field'].setStyleSheet('')
+                param['icon'].setIcon(WaitIconMandatory)
                 if not param['val']:
                     allmandatoryset = False
             else:
@@ -128,7 +132,7 @@ class QpalsModuleBase():
                         if param['name'] == errormodule:
                             param['field'].setToolTip(errortext)
                             param['icon'].setIcon(ErrorIcon)
-                            param['field'].setStyleSheet('background-color: rgb(255,120,120);')
+                            param['field'].setStyleSheet('background-color: rgb(255,140,140);')
                             break
                 else:
                     raise Exception('Call failed:\n %s' % stdout)

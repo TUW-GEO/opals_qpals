@@ -38,8 +38,8 @@ class moduleSelector(QtGui.QDialog):
         self.modulesAvailiable.append({'name': "User-defined cmd", 'icon': self.cmdIcon, 'class': QpalsRunBatch()})
 
 
-    def __init__(self):
-        super(moduleSelector, self).__init__()
+    def __init__(self, *args):
+        super(moduleSelector, self).__init__(*args)
 
         self.curmodel=None
         self.modulesAvailiable = []
@@ -84,13 +84,18 @@ class moduleSelector(QtGui.QDialog):
         self.moduleparamBox.setTitle("Module parameters")
         self.moduleparamBox.setLayout(self.moduleparamLayout)
 
-        runlist = QtGui.QGroupBox()
-        runlist.setTitle("Run list")
+        rungroup = QtGui.QGroupBox()
+        rungroup.setTitle("Run list")
+        self.runListWidget = QtGui.QListWidget()
+
+        runvbox = QtGui.QVBoxLayout()
+        runvbox.addWidget(self.runListWidget, stretch=1)
+        rungroup.setLayout(runvbox)
 
         grpBoxContainer = QtGui.QHBoxLayout()
         grpBoxContainer.addWidget(groupSelect)
         grpBoxContainer.addWidget(self.moduleparamBox, stretch=1)
-        grpBoxContainer.addWidget(runlist)
+        grpBoxContainer.addWidget(rungroup)
 
         lowerhbox = QtGui.QHBoxLayout()
         exitBtn = QtGui.QPushButton("Exit")
@@ -125,6 +130,7 @@ class moduleSelector(QtGui.QDialog):
             resetbtn.clicked.connect(lambda: self.resetModule(module))
             runbtn = QtGui.QPushButton("Run now")
             addbtn = QtGui.QPushButton("Add to run list >")
+            addbtn.clicked.connect(self.addToRunList)
             viewbox = QtGui.QCheckBox("Add result to canvas")
             resetbar.addStretch(1)
             resetbar.addWidget(resetbtn)
@@ -132,6 +138,7 @@ class moduleSelector(QtGui.QDialog):
             resetbar.addWidget(addbtn)
             resetbar.addWidget(viewbox)
             form.addLayout(resetbar)
+            self.curmodel = module
         else:
             form = QtGui.QHBoxLayout()
             l1 = QtGui.QLabel("No module selected...")
@@ -167,3 +174,15 @@ class moduleSelector(QtGui.QDialog):
             except Exception as e:
                 print e
         self.loadAllBtn.hide()
+
+    def addToRunList(self):
+        print self.curmodel
+        self.runListWidget.addItem(self.curmodel)
+        self.moduleList.removeItemWidget(self.curmodel)
+        for module in self.modulesAvailiable:
+            if module['name'] == self.curmodel.name:
+                replacementModel = module
+                break
+        newModule = QpalsListWidgetItem(replacementModel)
+        self.moduleList.addItem(newModule)
+        self.loadModule(newModule)
