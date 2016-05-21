@@ -21,6 +21,33 @@ from PyQt4 import QtCore, QtGui
 import subprocess
 from xml.dom import minidom
 
+WaitIcon = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\wait_icon.png")
+ErrorIcon = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\error_icon.png")
+
+def parseXML(xml):
+    dom = minidom.parseString(xml)
+    elements = []
+    specOptsNode = dom.getElementsByTagName('Specific')[0]
+    specOpts = specOptsNode.getElementsByTagName('Parameter')
+    for opt in specOpts:
+        values = opt.getElementsByTagName('Val')
+        if values:
+            if len(values) > 1:
+                valString = ""
+                for val in values:
+                    valString += val.firstChild.nodeValue + ";"
+                valString = valString[:-1]
+            else:
+                if values[0].firstChild:
+                    valString = values[0].firstChild.nodeValue
+                else:
+                    valString = ""
+        else:
+            valString = ""
+        elements.append({'name': opt.attributes['Name'].value, 'val': valString,
+                        'opt': opt.attributes['Opt'].value})
+    return elements
+
 class QpalsModuleBase():
 
     def __init__(self, execName):
@@ -28,38 +55,17 @@ class QpalsModuleBase():
         self.execName = execName
         self.loaded=False
 
-    def load(self, params = None):
+    def load(self):
         info = subprocess.STARTUPINFO()
         info.dwFlags = subprocess.STARTF_USESHOWWINDOW
         info.wShowWindow = 0 # HIDE
-        callparams = [self.execName, '--options']
-        if params:
-            callparams = callparams + [1] + params
-        proc = subprocess.Popen(callparams, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        proc = subprocess.Popen([self.execName, '--options'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 cwd=r"C:\Users\Lukas\Desktop", startupinfo=info)
         stdout, stderr = proc.communicate()
         if proc.returncode != 0:
             raise Exception('Call failed:\n %s' % stdout)
-        dom = minidom.parseString(stderr)
-        specOptsNode = dom.getElementsByTagName('Specific')[0]
-        specOpts = specOptsNode.getElementsByTagName('Parameter')
-        for opt in specOpts:
-            values = opt.getElementsByTagName('Val')
-            print values
-            if values:
-                if len(values) > 1:
-                    valString = ""
-                    for val in values:
-                        valString += val.firstChild.nodeValue+";"
-                    valString = valString[:-1]
-                else:
-                    if values[0].firstChild:
-                        valString = values[0].firstChild.nodeValue
-                    else:
-                        valString = ""
-            else:
-                valString = ""
-            self.params.append({'name': opt.attributes['Name'].value, 'val': valString, 'opt': opt.attributes['Opt'].value})
+        self.params = parseXML(stderr)
+
         self.loaded = True
 
     def getParamUi(self):
@@ -73,7 +79,12 @@ class QpalsModuleBase():
                 param['field'].setStyleSheet("background-color: rgb(255,240,230);")
             param['field'].textChanged.connect(self.updateVals)
             param['field'].editingFinished.connect(self.validate)
-            form.addRow(l1, param['field'])
+            param['icon'] = QtGui.QToolButton()
+            param['icon'].setIcon(WaitIcon)
+            l2 = QtGui.QHBoxLayout()
+            l2.addWidget(param['field'], stretch=1)
+            l2.addWidget(param['icon'])
+            form.addRow(l1, l2)
         return form
 
     def updateVals(self, string):
@@ -85,13 +96,49 @@ class QpalsModuleBase():
         allmandatoryset = True
         paramlist = []
         for param in self.params:
-            if param['opt'] == 'mandatory' and not param['val']:
-                allmandatoryset = False
-            paramlist.append('-' + param['name'])
-            for item in param['val'].split(";"):
-                paramlist.append(item)
+            if param['opt'] == 'mandatory':
+                param['field'].setStyleSheet('background-color: rgb(255,240,230);')
+                param['field'].setToolTip("")
+                param['icon'].setIcon(WaitIcon)
+                if not param['val']:
+                    allmandatoryset = False
+            else:
+                param['field'].setStyleSheet('')
+                param['field'].setToolTip("")
+                param['icon'].setIcon(WaitIcon)
+            if param['val']:
+                paramlist.append('-' + param['name'])
+                for item in param['val'].split(";"):
+                    paramlist.append(item)
         if allmandatoryset:
-            self.load(paramlist)
+            info = subprocess.STARTUPINFO()
+            info.dwFlags = subprocess.STARTF_USESHOWWINDOW
+            info.wShowWindow = 0  # HIDE
+            callparams = [self.execName, '--options', '1'] + paramlist
+            proc = subprocess.Popen(callparams, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    cwd=r"C:\Users\Lukas\Desktop", startupinfo=info)
+            stdout, stderr = proc.communicate()
+            if proc.returncode != 0:
+                if "Error in parameter" in stdout:
+                    errortext = stdout.split("Error in parameter ")[1].split("\n")[0]
+                    errormodule = errortext.split(":")[0]
+                    errortext = ":".join(errortext.split(":")[1:])
+                    print errormodule, errortext
+                    for param in self.params:
+                        if param['name'] == errormodule:
+                            param['field'].setToolTip(errortext)
+                            param['icon'].setIcon(ErrorIcon)
+                            param['field'].setStyleSheet('background-color: rgb(255,120,120);')
+                            break
+                else:
+                    raise Exception('Call failed:\n %s' % stdout)
+            else:
+                parsedXML = parseXML(stderr)
+                for param in self.params:
+                    for parsedParam in parsedXML:
+                        if param['name'] == parsedParam['name']:
+                            param['field'].setText(parsedParam['val'])
+                            break
 
     def run(self):
         pass
@@ -121,4 +168,3 @@ class QpalsRunBatch():
     def reset(self):
         self.e1 = ""
         self.e2 = ""
-
