@@ -155,21 +155,26 @@ class Ui_%(module_name)s(object):
         getVals = """
     def getValues(self):
         return { """
+
+        setVals = """
+    def setValues(self, valdict):"""
+
         buttonDef = ""
         paramCount = 0
         for param in self.paramList:
-            [setupUiString, retranslateUiString, buttonDefString, getValsString] = param.getPythonCode(label_id=paramCount,
+            [setupUiString, retranslateUiString, buttonDefString, getValsString, setValsString] = param.getPythonCode(label_id=paramCount,
                                                                                       field_name=param.name[1:],
                                                                                       y_pos=10+paramCount*25)
             setupUi += "\n" + setupUiString
             retranslateUi += "\n" + retranslateUiString
             buttonDef += "\n" + buttonDefString
             getVals += "\n" + getValsString + ","
+            setVals  += "\n" + setValsString
 
             paramCount += 1
 
         getVals = getVals[:-1] + " }" # Get rid of trailing ",", add }
-        outtext = setupUi + "\n" + retranslateUi + "\n" + buttonDef + "\n" + getVals
+        outtext = setupUi + "\n" + retranslateUi + "\n" + buttonDef + "\n" + getVals + "\n" + setVals
         with open(outPath + outName+".py", 'w') as f:
             f.write(outtext)
 
@@ -193,13 +198,17 @@ email                : lukas.winiwarter@tuwien.ac.at
  ***************************************************************************/
  \"\"\"
 import subprocess
+import os
+from bs4 import BeautifulSoup
+from .. import Module, Parameter
 
-class %(name)s():
-    def __init__(self, execpath=None, cwd=None):
-        self.executable = execpath if execpath else "C:\Program Files (x86)\opals\opals\Opals%(name)s"
-        self.cwd = cwd if cwd else "C:\Users\Lukas\.qgis2\python\plugins\qpals\log"
-        self.params = {
-        %(allinit)s}
+
+class %(name)s(Module.Module):
+    def __init__(self, execpath=None, cwd=None, logpath=None):
+        self.executable = execpath if execpath else r"C:\Program Files (x86)\opals\opals\Opals%(name)s"
+        self.cwd = cwd if cwd else r"C:\Users\Lukas\.qgis2\python\plugins\qpals\log"
+        self.logpath = logpath if logpath else r"C:\Users\Lukas\.qgis2\python\plugins\qpals\log\opalsLog.xml"
+        self.params = {%(allinit)s}
 """% {'allinit': ','.join([param.getInitClause() for param in self.paramList]),
         'name': className.split("Module")[1],
       'today':         strftime("%Y-%m-%d"),
@@ -210,17 +219,6 @@ class %(name)s():
             code += getter_setter
 
         code += """
-    def run(self):
-        args = [self.executable]
-        for key in self.params.iterkeys():
-            val = self.params[key]
-            if val:
-                args.append("-" + str(key))
-                args.append(str(val))
-        return subprocess.Popen(args=args, cwd=self.cwd)
-
-    def validate(self):
-        return True
 """
         with open(outPath + outName+".py", 'w') as f:
             f.write(code)
@@ -248,6 +246,8 @@ email                : lukas.winiwarter@tuwien.ac.at
 from PyQt4 import QtCore, QtGui
 from %(className)s import %(className)s
 import %(opalsName)s
+
+
 # create the dialog for qpals
 class %(outName)s(QtGui.QDialog):
     def __init__(self):
@@ -261,7 +261,7 @@ class %(outName)s(QtGui.QDialog):
 
     def getModule(self):
         instance = %(opalsName)s.%(opalsName)s()
-        instance.params = self.getValues()
+        instance.set_params(self.getValues())
         return instance
     """%{
             'className': className,
@@ -308,7 +308,7 @@ class %(outName)s(QtGui.QDialog):
             f.write(loadDialogCode)
 
 if __name__ == "__main__":
-
+    modules = []
     for file in glob.glob(r'C:\Program Files (x86)\opals\doc\html\Module*.html'):
         print "Processing ", file
         if file in [r'C:\Program Files (x86)\opals\doc\html\ModuleDeleter_8hpp_source.html',
@@ -327,6 +327,8 @@ if __name__ == "__main__":
         ui_creator_inst = ui_creator(args = args)
         ui_creator_inst.run()
         print ui_creator_inst
+        modules.append(ui_creator_inst.moduleName)
+        #continue
         with open(outUI, 'w') as f:
             f.write(ui_creator_inst.getAsQt())
         ui_creator_inst.writePyFile(className=name, outPath=outPyPath, outName='Ui_'+name)
@@ -339,3 +341,16 @@ if __name__ == "__main__":
         #ui_creator_inst.writeMenuEntryCode(className=name,
         #                                   outPath="C:\Users\Lukas\.qgis2\python\plugins\qpals\\",
         #                                   outName="menuentries")
+
+    #
+    with open(r'C:\Users\Lukas\.qgis2\python\plugins\qpals\modules\__init__.py', 'w') as f:
+        for module in modules:
+            f.write("\nimport %(name)s.%(name)s"%{'name':module.strip()})
+        f.write("\nmoddict = {")
+        for module in modules[:-1]:
+            f.write("\n'%(name)s': %(name)s.%(name)s.%(name)s(),"%{'name': module.strip()})
+        # last one closing bracket
+        f.write("\n'%(name)s': %(name)s.%(name)s.%(name)s()}"%{'name': modules[-1].strip()})
+        f.write("""
+def getFromName(Name):
+    return moddict[Name]""")

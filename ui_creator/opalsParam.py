@@ -210,10 +210,7 @@ class opalsParam(object):
     <string/>
    </property>
    <property name="maximum">
-    <number>99999</number>
-   </property>
-   <property name="value">
-    <number>1</number>
+    <number>999999999</number>
    </property>
   </widget>
             """%(x_field, y_pos)
@@ -222,6 +219,7 @@ class opalsParam(object):
 
     def getPythonCode(self, label_id, field_name, y_pos, x_label=10, x_field=190):
         getValsString = ""
+        setValsString = ""
         setupUiString = """
         self.label_%(label_id)s = QtGui.QLabel(Dialog)
         self.label_%(label_id)s.setGeometry(QtCore.QRect(%(x_pos)s, %(y_pos)s, 100, 10))
@@ -253,6 +251,10 @@ class opalsParam(object):
                 'name': self.name[1:],
                 'field_name': field_name
             }
+            setValsString += "        self.%(field_name)s.setText(valdict['%(name)s'])"%{
+                'name': self.name[1:],
+                'field_name': field_name
+            }
 
         elif self.qtType == "QLineEdit+Path":
             setupUiString += """
@@ -277,10 +279,15 @@ class opalsParam(object):
             buttonDefString += """
     def com%(field_name)s_clicked(self):
         filename= QtGui.QFileDialog.getOpenFileNames(None, 'File for %(field_name)s', self.lastpath) # 0x4 for no confirmation on overwrite
-        self.lastpath = os.path.dirname(filename[0])
+        if filename:
+            self.lastpath = os.path.dirname(filename[0])
         self.%(field_name)s.setText(_fromUtf8(", ".join(filename)))\n"""%{
                 'field_name':field_name}
             getValsString += "        '%(name)s': self.%(field_name)s.text()"%{
+                'name': self.name[1:],
+                'field_name': field_name
+            }
+            setValsString += "        self.%(field_name)s.setText(valdict['%(name)s'])"%{
                 'name': self.name[1:],
                 'field_name': field_name
             }
@@ -302,13 +309,18 @@ class opalsParam(object):
                 'name': self.name[1:],
                 'field_name': field_name
             }
+            setValsString += "        self.%(field_name)s.setChecked(valdict['%(name)s'])"%{
+                'name': self.name[1:],
+                'field_name': field_name
+            }
+
         elif self.qtType == "QSpinBox":
             setupUiString += """
         self.%(field_name)s = QtGui.QSpinBox(Dialog)
         self.%(field_name)s.setGeometry(QtCore.QRect(%(x_pos)s, %(y_pos)s, 190, 20))
         self.%(field_name)s.setSuffix(_fromUtf8(""))
-        self.%(field_name)s.setMaximum(99999)
-        self.%(field_name)s.setProperty("value", 1)\n"""%{
+        self.%(field_name)s.setMaximum(1000000000)
+        #self.%(field_name)s.setProperty("value", 1)\n"""%{
                 'field_name': field_name,
                 'x_pos':        x_field,
                 'y_pos':        y_pos}
@@ -319,6 +331,11 @@ class opalsParam(object):
                 'name': self.name[1:],
                 'field_name': field_name
             }
+            setValsString += "        self.%(field_name)s.setValue(valdict['%(name)s'])"%{
+                'name': self.name[1:],
+                'field_name': field_name
+            }
+
         elif "QComboBox" in self.qtType:
             setupUiString += """
         self.%(field_name)s = QtGui.QComboBox(Dialog)
@@ -345,6 +362,11 @@ class opalsParam(object):
                 'name': self.name[1:],
                 'field_name': field_name
             }
+            setValsString += """        idx = self.%(field_name)s.findText(valdict['%(name)s'], QtCore.Qt.MatchFixedString)
+        if idx >=0: self.%(field_name)s.setCurrentIndex(idx)"""%{
+                'name': self.name[1:],
+                'field_name': field_name
+            }
 
         if self.remarks.strip() == "mandatory":
             setupUiString += "        self.%(field_name)s.setStyleSheet(" \
@@ -361,17 +383,17 @@ class opalsParam(object):
 
 
 
-        return [setupUiString, retranslateUiString, buttonDefString, getValsString]
+        return [setupUiString, retranslateUiString, buttonDefString, getValsString, setValsString]
 
     def getGetterSetter(self):
         getter = """
     def get_%(name)s(self):
-        return self.params['%(name)s']\n"""%{'name': self.name[1:]} #get rid of - (-inFile)
+        return self.params['%(name)s'].value\n"""%{'name': self.name[1:]} #get rid of - (-inFile)
         setter = """
     def set_%(name)s(self, val):
-        self.params['%(name)s'] = val\n"""%{'name': self.name[1:]} #get rid of - (-inFile)
+        self.params['%(name)s'].value = val\n"""%{'name': self.name[1:]} #get rid of - (-inFile)
         return getter+setter
 
     def getInitClause(self):
         return """
-    '%(name)s': None"""%{'name': self.name[1:]}
+    '%(name)s': Parameter.Parameter()"""%{'name': self.name[1:]}

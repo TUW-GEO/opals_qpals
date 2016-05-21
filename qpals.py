@@ -26,6 +26,7 @@ import resources
 # Import the code for the dialog
 from qpalsDialog import qpalsDialog
 from opalsLayer import opalsLayer
+from visualize import visualize
 
 from modules.AddInfo.ModuleAddInfo import ModuleAddInfo
 from modules.Algebra.ModuleAlgebra import ModuleAlgebra
@@ -67,6 +68,20 @@ class qpals:
     # Save reference to the QGIS interface
     self.iface = iface
 
+  def __del__(self):
+      import os
+      import glob
+
+      files = glob.glob(r'C:\Users\Lukas\.qgis2\python\plugins\qpals\log\*')
+      files += glob.glob(r'C:\Users\Lukas\.qgis2\python\plugins\qpals\tmp\*')
+      for f in files:
+        os.remove(f)
+
+  def showModuleSelector(self):
+    from test.moduleSelector import moduleSelector
+    modSel = moduleSelector()
+    result = modSel.exec_()
+
   def initGui(self):  
     # Create action that will start plugin configuration
     # self.action = QAction(QIcon(":/plugins/qpals/icon.png"), \
@@ -80,7 +95,7 @@ class qpals:
     self.menu = QMenu(self.iface.mainWindow())
     self.menu.setObjectName("qpalsMenu")
     self.menu.setTitle("qpals")
-    self.action = QAction(QIcon(":/plugins/qpals/icon.png"), "Start QPALS", self.iface.mainWindow())
+    self.action = QAction(QIcon(":/plugins/qpals/icon.png"), "Plot an odm", self.iface.mainWindow())
     self.action.setObjectName("startQpals")
     self.action.setWhatsThis("Starts the qpals main screen")
     self.action.setStatusTip("Start qpals")
@@ -94,7 +109,14 @@ class qpals:
     QObject.connect(self.menuItemImport, SIGNAL("triggered()"), self.loadDialogImport)
     self.menu.addAction(self.menuItemImport)
 
+    # ------- next module -------
 
+    self.menuItemModuleSelector = QAction(QIcon("icon.png"), "Module Selector", self.iface.mainWindow())
+    self.menuItemModuleSelector.setObjectName("menuModSel")
+    self.menuItemModuleSelector.setWhatsThis("Select a module from a list")
+    self.menuItemModuleSelector.setStatusTip("Select module from list")
+    QObject.connect(self.menuItemModuleSelector, SIGNAL("triggered()"), self.showModuleSelector)
+    self.menu.addAction(self.menuItemModuleSelector)
 
 #------- next module -------
 
@@ -372,9 +394,19 @@ class qpals:
     dlg.show()
     result = dlg.exec_() 
     # See if OK was pressed
-    if result == 1: 
-      testlayer = opalsLayer()
-      QgsMapLayerRegistry.instance().addMapLayer(testlayer)
+    if result == 1:
+      self.iface.messageBar().pushMessage("opals Vis", dlg.getFileName(), level=QgsMessageBar.INFO)
+      type = dlg.getVisType()
+      if type == "zcolor":
+        visualize.show_as_zcolor(dlg.getFileName())
+      elif type == "mbr":
+        visualize.show_as_oriented_rectange(dlg.getFileName())
+      elif type == "alpha":
+        visualize.show_as_alphashape(dlg.getFileName())
+      elif type == "convexhull":
+        visualize.show_as_convexhull(dlg.getFileName())
+      elif type == "boundingbox":
+        visualize.show_as_boundingbox(dlg.getFileName())
 
   def run_a(self):
     # create and show the dialog
@@ -394,13 +426,15 @@ class qpals:
     result = dlg.exec_()
     if result == 1:
       ImportInst = dlg.getModule()
-      try:
-        ImportInst.run()
+      if True:
+      #try:
+        ImportInst.run().wait()
         self.iface.messageBar().pushMessage("opals import ended", level=QgsMessageBar.SUCCESS)
-      except:
-        self.iface.messageBar().pushMessage("opals import failed", level=QgsMessageBar.CRITICAL)
-      newlayer = opalsLayer(name=ImportInst.get_inFile())
-      QgsMapLayerRegistry.instance().addMapLayer(newlayer)
+      #except:
+      #  self.iface.messageBar().pushMessage("opals import failed", level=QgsMessageBar.CRITICAL)
+      #visualize.show_as_boundingbox(ImportInst.get_inFile().replace("las", "odm"))
+      #newlayer = opalsLayer(name=ImportInst.get_inFile())
+      #QgsMapLayerRegistry.instance().addMapLayer(newlayer)
 
 
 

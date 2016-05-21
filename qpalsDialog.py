@@ -25,3 +25,7 @@ class qpalsDialog(QtGui.QDialog):
     # Set up the user interface from Designer. 
     self.ui = Ui_qpals ()
     self.ui.setupUi(self)
+  def getFileName(self):
+    return self.ui.getFileName()
+  def getVisType(self):
+    return self.ui.getVisType()
