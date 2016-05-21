@@ -22,7 +22,7 @@ from PyQt4 import QtCore, QtGui
 class QpalsListWidgetItem(QtGui.QListWidgetItem):
 
     def __init__(self, defdict):
-        name = defdict['name']
-        icon = defdict['icon']
+        self.name = defdict['name']
+        self.icon = defdict['icon']
         self.paramClass = defdict['class']
-        super(QpalsListWidgetItem, self).__init__(icon, name)
+        super(QpalsListWidgetItem, self).__init__(self.icon, self.name)

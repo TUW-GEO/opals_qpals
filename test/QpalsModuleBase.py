@@ -28,8 +28,15 @@ class QpalsModuleBase():
         self.execName = execName
         self.loaded=False
 
-    def load(self):
-        proc = subprocess.Popen([self.execName, '--options'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=r"C:\Users\Lukas\Desktop")
+    def load(self, params = None):
+        info = subprocess.STARTUPINFO()
+        info.dwFlags = subprocess.STARTF_USESHOWWINDOW
+        info.wShowWindow = 0 # HIDE
+        callparams = [self.execName, '--options']
+        if params:
+            callparams = callparams + [1] + params
+        proc = subprocess.Popen(callparams, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                cwd=r"C:\Users\Lukas\Desktop", startupinfo=info)
         stdout, stderr = proc.communicate()
         if proc.returncode != 0:
             raise Exception('Call failed:\n %s' % stdout)
@@ -38,7 +45,21 @@ class QpalsModuleBase():
         specOpts = specOptsNode.getElementsByTagName('Parameter')
         for opt in specOpts:
             values = opt.getElementsByTagName('Val')
-            self.params.append({'name': opt.attributes['Name'].value , 'val': ";".join([x.firstChild.nodeValue for x in values]) if values else "" })
+            print values
+            if values:
+                if len(values) > 1:
+                    valString = ""
+                    for val in values:
+                        valString += val.firstChild.nodeValue+";"
+                    valString = valString[:-1]
+                else:
+                    if values[0].firstChild:
+                        valString = values[0].firstChild.nodeValue
+                    else:
+                        valString = ""
+            else:
+                valString = ""
+            self.params.append({'name': opt.attributes['Name'].value, 'val': valString, 'opt': opt.attributes['Opt'].value})
         self.loaded = True
 
     def getParamUi(self):
@@ -48,6 +69,8 @@ class QpalsModuleBase():
         for param in self.params:
             l1 = QtGui.QLabel(param['name'])
             param['field'] = QtGui.QLineEdit(param['val'])
+            if param['opt'] == 'mandatory':
+                param['field'].setStyleSheet("background-color: rgb(255,240,230);")
             param['field'].textChanged.connect(self.updateVals)
             param['field'].editingFinished.connect(self.validate)
             form.addRow(l1, param['field'])
@@ -59,7 +82,16 @@ class QpalsModuleBase():
                 param['val'] = param['field'].text()
 
     def validate(self):
-        pass
+        allmandatoryset = True
+        paramlist = []
+        for param in self.params:
+            if param['opt'] == 'mandatory' and not param['val']:
+                allmandatoryset = False
+            paramlist.append('-' + param['name'])
+            for item in param['val'].split(";"):
+                paramlist.append(item)
+        if allmandatoryset:
+            self.load(paramlist)
 
     def run(self):
         pass
@@ -77,11 +109,16 @@ class QpalsRunBatch():
         form = QtGui.QFormLayout()
 
         l1 = QtGui.QLabel("Command")
-        e1 = QtGui.QLineEdit()
+        self.e1 = QtGui.QLineEdit()
         l2 = QtGui.QLabel("Working directory")
-        e2 = QtGui.QLineEdit()
+        self.e2 = QtGui.QLineEdit()
 
-        form.addRow(l1, e1)
-        form.addRow(l2, e2)
+        form.addRow(l1, self.e1)
+        form.addRow(l2, self.e2)
 
         return form
+
+    def reset(self):
+        self.e1 = ""
+        self.e2 = ""
+
