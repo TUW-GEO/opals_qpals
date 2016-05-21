@@ -19,22 +19,34 @@ email                : lukas.winiwarter@tuwien.ac.at
 
 from PyQt4 import QtCore, QtGui
 from QpalsListWidgetItem import QpalsListWidgetItem
-from QpalsModuleBase import QpalsModuleBase
+from QpalsModuleBase import QpalsModuleBase, QpalsRunBatch
+import glob, os
 
 class moduleSelector(QtGui.QDialog):
 
+    opalsPath = r"D:\01_opals\01_nightly\opals\\"
+
     opalsIcon = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\icon.png")
     cmdIcon = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\cmd_icon.png")
-    modulesAvailiable = [{'name': "opalsAlgebra", 'icon': opalsIcon, 'class': QpalsModuleBase(r'D:\01_opals\01_nightly\opals\opalsAlgebra.exe')},
-                         {'name': "opalsAddInfo", 'icon': opalsIcon, 'class': None},
-                         {'name': "opalsHisto", 'icon': opalsIcon, 'class': None},
-                         {'name': "opalsRobFilter", 'icon': opalsIcon, 'class': None},
-                         {'name': "User-defined cmd", 'icon': cmdIcon, 'class': None}]
+
+    def getModulesAvaliable(self):
+        for opalsexe in glob.glob(self.opalsPath + "opals*.exe"):
+            self.modulesAvailiable.append({'name': os.path.basename(opalsexe).split(".exe")[0],
+                                           'icon': self.opalsIcon,
+                                           'class': QpalsModuleBase(opalsexe + r'opalsAlgebra.exe')})
+        self.modulesAvailiable.append({'name': "User-defined cmd", 'icon': self.cmdIcon, 'class': QpalsRunBatch()})
+
 
     def __init__(self):
         super(moduleSelector, self).__init__()
+
+        self.curmodel=None
+        self.ModulesAvaliable = []
+
+        self.getModulesAvaliable()
         self.initUi()
         self.resize(800,600)
+
 
     def initUi(self):
 
@@ -53,7 +65,7 @@ class moduleSelector(QtGui.QDialog):
         filterClear = QtGui.QPushButton()
         filterClear.setText("X")
         filterClear.pressed.connect(self.clearFilterText)
-        filterBox.addWidget(filterClear, stretch=0)
+        filterBox.addWidget(filterClear)
 
         groupSelect.setTitle("Module Selector")
         vbox = QtGui.QVBoxLayout()
@@ -95,16 +107,15 @@ class moduleSelector(QtGui.QDialog):
                 self.moduleList.addItem(module)
 
     def loadModule(self, module):
-        form = None
         if module:  # can happen if it gets filtered away
             form = QtGui.QVBoxLayout()
             self.moduleparamBox.setTitle("Parameters for " + module.text())
-            module.paramClass.load()
             parameterform = module.paramClass.getParamUi()
             form.addLayout(parameterform, stretch=1)
             # reset / run / add to list / add to view
             resetbar = QtGui.QHBoxLayout()
             resetbtn = QtGui.QPushButton("Reset")
+            resetbtn.clicked.connect(lambda: self.resetModule(module))
             runbtn = QtGui.QPushButton("Run now")
             addbtn = QtGui.QPushButton("Add to run list >")
             viewbox = QtGui.QCheckBox("Add result to canvas")
@@ -122,6 +133,10 @@ class moduleSelector(QtGui.QDialog):
 
         self.clearLayout(self.moduleparamLayout)
         self.moduleparamLayout.addLayout(form)
+
+    def resetModule(self, module):
+        self.clearLayout(self.moduleparamLayout)
+        self.loadModule(module)
 
     def clearFilterText(self):
         self.filterText.setText("")
