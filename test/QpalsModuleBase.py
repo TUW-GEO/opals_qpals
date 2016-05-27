@@ -19,7 +19,9 @@ email                : lukas.winiwarter@tuwien.ac.at
 
 from PyQt4 import QtCore, QtGui
 import subprocess
+import threading
 from xml.dom import minidom
+
 
 WaitIcon = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\wait_icon.png")
 WaitIconMandatory = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\wait_icon_mandatory.png")
@@ -49,24 +51,56 @@ def parseXML(xml):
                         'opt': opt.attributes['Opt'].value})
     return elements
 
-class QpalsModuleBase():
+class ModuleWorker(QtCore.QObject):
+    def __init__(self, module):
+        QtCore.QObject.__init__(self)
+        self.module = module
+        self.killed = False
 
+    def run(self):
+        ret = None
+        try:
+            self.module.paramClass.load()
+            if not self.killed:
+                self.progress.emit(100)
+                ret = (self.module, "42",)
+        except Exception as e:
+            self.error.emit(e, str(e))
+        self.finished.emit(ret)
+
+    def kill(self):
+        self.killed = True
+
+    finished = QtCore.pyqtSignal(object)
+    error = QtCore.pyqtSignal(Exception, basestring)
+    progress = QtCore.pyqtSignal(float)
+
+class QpalsModuleBase():
     def __init__(self, execName):
         self.params = []
         self.execName = execName
         self.loaded=False
 
-    def load(self):
+
+    def call(self, *args):
         info = subprocess.STARTUPINFO()
         info.dwFlags = subprocess.STARTF_USESHOWWINDOW
         info.wShowWindow = 0 # HIDE
         proc = subprocess.Popen([self.execName, '--options'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                cwd=r"C:\Users\Lukas\Desktop", startupinfo=info)
+                                stdin = subprocess.PIPE, cwd=r"C:\Users\lwiniwar\Desktop\tmp", startupinfo=info)
+        proc.stdin.close()
         stdout, stderr = proc.communicate()
-        if proc.returncode != 0:
-            raise Exception('Call failed:\n %s' % stdout)
-        self.params = parseXML(stderr)
+        return {'stdout': stdout,
+                'stderr': stderr,
+                'returncode': proc.returncode}
 
+    def load(self):
+        import time
+        time.sleep(1)
+        calld = self.call('--options')
+        if calld['returncode'] != 0:
+            raise Exception('Call failed:\n %s' % calld['stdout'])
+        self.params = parseXML(calld['stderr'])
         self.loaded = True
 
     def getParamUi(self):
@@ -115,16 +149,10 @@ class QpalsModuleBase():
                 for item in param['val'].split(";"):
                     paramlist.append(item)
         if allmandatoryset:
-            info = subprocess.STARTUPINFO()
-            info.dwFlags = subprocess.STARTF_USESHOWWINDOW
-            info.wShowWindow = 0  # HIDE
-            callparams = [self.execName, '--options', '1'] + paramlist
-            proc = subprocess.Popen(callparams, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                    cwd=r"C:\Users\Lukas\Desktop", startupinfo=info)
-            stdout, stderr = proc.communicate()
-            if proc.returncode != 0:
-                if "Error in parameter" in stdout:
-                    errortext = stdout.split("Error in parameter ")[1].split("\n")[0]
+            calld = self.call('--options', '1', paramlist)
+            if calld['returncode'] != 0:
+                if "Error in parameter" in calld['stdout']:
+                    errortext = calld['stdout'].split("Error in parameter ")[1].split("\n")[0]
                     errormodule = errortext.split(":")[0]
                     errortext = ":".join(errortext.split(":")[1:])
                     print errormodule, errortext
@@ -135,9 +163,9 @@ class QpalsModuleBase():
                             param['field'].setStyleSheet('background-color: rgb(255,140,140);')
                             break
                 else:
-                    raise Exception('Call failed:\n %s' % stdout)
+                    raise Exception('Call failed:\n %s' % calld['stdout'])
             else:
-                parsedXML = parseXML(stderr)
+                parsedXML = parseXML(calld['stderr'])
                 for param in self.params:
                     for parsedParam in parsedXML:
                         if param['name'] == parsedParam['name']:
@@ -150,6 +178,7 @@ class QpalsModuleBase():
     def reset(self):
         self.params = []
         self.load()
+
 
 class QpalsRunBatch():
 

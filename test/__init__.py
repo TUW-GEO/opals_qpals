@@ -1,2 +1,1 @@
-import logparse
 import moduleSelector

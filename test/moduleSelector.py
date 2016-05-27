@@ -19,14 +19,15 @@ email                : lukas.winiwarter@tuwien.ac.at
 
 from PyQt4 import QtCore, QtGui
 from QpalsListWidgetItem import QpalsListWidgetItem
-from QpalsModuleBase import QpalsModuleBase, QpalsRunBatch
+from QpalsModuleBase import QpalsModuleBase, QpalsRunBatch, ModuleWorker
 import glob, os
 
 class moduleSelector(QtGui.QDialog):
 
     opalsPath = r"D:\01_opals\01_nightly\opals\\"
+    opalsPath = r"D:\01_Opals\02_Installations\02_nightly\opals\\"
 
-    opalsIcon = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\icon.png")
+    opalsIcon = QtGui.QIcon(r"C:\Users\lwiniwar\.qgis2\python\plugins\qpals\icon.png")
     cmdIcon = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\cmd_icon.png")
     loadingIcon = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\spinner_icon.png")
 
@@ -38,15 +39,16 @@ class moduleSelector(QtGui.QDialog):
         self.modulesAvailiable.append({'name': "User-defined cmd", 'icon': self.cmdIcon, 'class': QpalsRunBatch()})
 
 
-    def __init__(self, *args):
+    def __init__(self, iface, *args):
         super(moduleSelector, self).__init__(*args)
-
+        self.iface = iface
         self.curmodel=None
         self.modulesAvailiable = []
 
         self.getModulesAvailiable()
         self.initUi()
         self.resize(800,600)
+        self.workerrunning = False
 
 
     def initUi(self):
@@ -56,7 +58,7 @@ class moduleSelector(QtGui.QDialog):
         for moduleDict in self.modulesAvailiable:
             module = QpalsListWidgetItem(moduleDict)
             self.moduleList.addItem(module)
-        self.moduleList.currentItemChanged.connect(self.loadModule)
+        self.moduleList.currentItemChanged.connect(self.loadModuleAsync)
 
         filterBox = QtGui.QHBoxLayout()
         filterBox.addWidget(QtGui.QLabel("Filter:"))
@@ -116,6 +118,61 @@ class moduleSelector(QtGui.QDialog):
                 module = QpalsListWidgetItem(moduleDict)
                 self.moduleList.addItem(module)
 
+    def startWorker(self, module):
+        #https://snorfalorpagus.net/blog/2013/12/07/multithreading-in-qgis-python-plugins/
+        if self.workerrunning:
+            return
+        self.workerrunning = True
+        worker = ModuleWorker(module)
+        messageBar = self.iface.messageBar().createMessage('Doing something time consuming...', )
+        progressBar = QtGui.QProgressBar()
+        progressBar.setAlignment(QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
+        cancelButton = QtGui.QPushButton()
+        cancelButton.setText('Cancel')
+        cancelButton.clicked.connect(worker.kill)
+        messageBar.layout().addWidget(progressBar)
+        messageBar.layout().addWidget(cancelButton)
+        self.iface.messageBar().pushWidget(messageBar, self.iface.messageBar().INFO)
+        self.messageBar = messageBar
+
+        # start the worker in a new thread
+        thread = QtCore.QThread(self)
+        worker.moveToThread(thread)
+        worker.finished.connect(self.workerFinished)
+        worker.error.connect(self.workerError)
+        worker.progress.connect(progressBar.setValue)
+        thread.started.connect(worker.run)
+        thread.start()
+        self.thread = thread
+        self.worker = worker
+
+    def workerFinished(self, ret):
+        # clean up the worker and thread
+        self.worker.deleteLater()
+        self.thread.quit()
+        self.thread.wait()
+        self.thread.deleteLater()
+        # remove widget from message bar
+        self.iface.messageBar().popWidget(self.messageBar)
+        if ret is not None:
+            # report the result
+            module, code = ret
+            self.loadModule(module)
+        else:
+            # notify the user that something went wrong
+            self.iface.messageBar().pushMessage('Something went wrong! See the message log for more information.', duration=3)
+        self.workerrunning = False
+
+    def workerError(self, e, exception_string):
+        print('Worker thread raised an exception: {}\n'.format(exception_string))
+        self.workerrunning = False
+
+    def loadModuleAsync(self, module):
+        if module.paramClass.loaded:
+            self.loadModule(module)
+        else:
+            self.startWorker(module)
+
     def loadModule(self, module):
         if module:  # can happen if it gets filtered away
             form = QtGui.QVBoxLayout()
@@ -145,8 +202,12 @@ class moduleSelector(QtGui.QDialog):
             form.addWidget(l1)
             self.moduleparamBox.setTitle("Module Parameters")
 
+        print "clearing layout"
         self.clearLayout(self.moduleparamLayout)
+        print "adding layout"
+        print form
         self.moduleparamLayout.addLayout(form)
+        print "layout added"
 
     def resetModule(self, module):
         module.paramClass.reset()
