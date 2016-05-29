@@ -22,10 +22,15 @@ import subprocess
 import threading
 from xml.dom import minidom
 
+IconPath = r"C:\Users\Lukas\.qgis2\python\plugins\qpals\\"
 
-WaitIcon = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\wait_icon.png")
-WaitIconMandatory = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\wait_icon_mandatory.png")
-ErrorIcon = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\error_icon.png")
+WaitIcon = QtGui.QIcon(IconPath + "wait_icon.png")
+WaitIconMandatory = QtGui.QIcon(IconPath + "wait_icon_mandatory.png")
+ErrorIcon = QtGui.QIcon(IconPath + "error_icon.png")
+
+qtwhite = QtGui.QColor(255,255,255)
+qtsoftred = QtGui.QColor(255,140,140)
+qtsoftgreen = QtGui.QColor(140,255,140)
 
 def parseXML(xml):
     dom = minidom.parseString(xml)
@@ -48,10 +53,11 @@ def parseXML(xml):
         else:
             valString = ""
         elements.append({'name': opt.attributes['Name'].value, 'val': valString,
-                        'opt': opt.attributes['Opt'].value})
+                        'opt': opt.attributes['Opt'].value, 'desc': opt.attributes['Desc'].value,
+                         'longdesc': opt.attributes['LongDesc'].value})
     return elements
 
-class ModuleWorker(QtCore.QObject):
+class ModuleLoadWorker(QtCore.QObject):
     def __init__(self, module):
         QtCore.QObject.__init__(self)
         self.module = module
@@ -65,29 +71,58 @@ class ModuleWorker(QtCore.QObject):
                 self.progress.emit(100)
                 ret = (self.module, "42",)
         except Exception as e:
-            self.error.emit(e, str(e))
+            self.error.emit(e, str(e), self.module)
         self.finished.emit(ret)
 
     def kill(self):
         self.killed = True
 
     finished = QtCore.pyqtSignal(object)
-    error = QtCore.pyqtSignal(Exception, basestring)
+    error = QtCore.pyqtSignal(Exception, basestring, object)
+    progress = QtCore.pyqtSignal(float)
+
+
+class ModuleRunWorker(QtCore.QObject):
+    def __init__(self, module):
+        QtCore.QObject.__init__(self)
+        self.module = module
+        self.killed = False
+
+    def run(self):
+        ret = None
+        try:
+            self.module.paramClass.run()
+            if not self.killed:
+                self.progress.emit(100)
+                ret = (self.module, "42",)
+        except Exception as e:
+            self.error.emit(e, str(e), self.module)
+        self.finished.emit(ret)
+
+    def kill(self):
+        self.killed = True
+
+    finished = QtCore.pyqtSignal(object)
+    error = QtCore.pyqtSignal(Exception, basestring, object)
     progress = QtCore.pyqtSignal(float)
 
 class QpalsModuleBase():
-    def __init__(self, execName):
+    def __init__(self, execName, tmpDir=r"C:\Users\Lukas\Desktop\\", listitem=None):
         self.params = []
         self.execName = execName
-        self.loaded=False
+        self.tmpDir = tmpDir
+        self.loaded = False
+        self.view = False
+        self.revalidate=False
+        self.listitem = listitem
 
-
-    def call(self, *args):
+    def call(self, show=0, *args):
         info = subprocess.STARTUPINFO()
         info.dwFlags = subprocess.STARTF_USESHOWWINDOW
-        info.wShowWindow = 0 # HIDE
-        proc = subprocess.Popen([self.execName, '--options'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                stdin = subprocess.PIPE, cwd=r"C:\Users\lwiniwar\Desktop\tmp", startupinfo=info)
+        info.wShowWindow = show # HIDE
+        print "CALL: ", [self.execName] + list(args)
+        proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                stdin=subprocess.PIPE, cwd=self.tmpDir, startupinfo=info)
         proc.stdin.close()
         stdout, stderr = proc.communicate()
         return {'stdout': stdout,
@@ -95,13 +130,21 @@ class QpalsModuleBase():
                 'returncode': proc.returncode}
 
     def load(self):
-        import time
-        time.sleep(1)
-        calld = self.call('--options')
+        calld = self.call(0, '--options')
         if calld['returncode'] != 0:
             raise Exception('Call failed:\n %s' % calld['stdout'])
         self.params = parseXML(calld['stderr'])
         self.loaded = True
+
+
+    def displayParamMsgBox(self, param):
+        msg = QtGui.QMessageBox()
+        msg.setIcon(QtGui.QMessageBox.Question)
+        msg.setText(param['desc'])
+        msg.setInformativeText(param['longdesc'])
+        msg.setWindowTitle(param['name'])
+        msg.setStandardButtons(QtGui.QMessageBox.Ok)
+        msg.exec_()
 
     def getParamUi(self):
         if not self.loaded:
@@ -116,6 +159,7 @@ class QpalsModuleBase():
             param['icon'].setStyleSheet("border-style: none;")
             if param['opt'] == 'mandatory':
                 param['icon'].setIcon(WaitIconMandatory)
+            param['icon'].clicked.connect(lambda: self.displayParamMsgBox(param))
             param['field'].textChanged.connect(self.updateVals)
             param['field'].editingFinished.connect(self.validate)
 
@@ -128,11 +172,18 @@ class QpalsModuleBase():
     def updateVals(self, string):
         for param in self.params:
             if string == param['field'].text():
-                param['val'] = param['field'].text()
+                if param['val'] != param['field'].text():
+                    self.revalidate = True
+                    param['val'] = param['field'].text()
 
     def validate(self):
+        if not self.revalidate:
+            return
+        self.revalidate = False
         allmandatoryset = True
         paramlist = []
+        self.listitem.setBackgroundColor(qtwhite)
+        self.listitem.setToolTip("")
         for param in self.params:
             if param['opt'] == 'mandatory':
                 param['field'].setToolTip('')
@@ -147,23 +198,45 @@ class QpalsModuleBase():
             if param['val']:
                 paramlist.append('-' + param['name'])
                 for item in param['val'].split(";"):
-                    paramlist.append(item)
+                    paramlist.append(item.strip('"'))
         if allmandatoryset:
-            calld = self.call('--options', '1', paramlist)
+            self.listitem.setBackgroundColor(qtsoftgreen)
+            calld = self.call(0, '--options', '1', *paramlist)
+            valid = True
             if calld['returncode'] != 0:
+                valid = False
+                errormodule = ""
                 if "Error in parameter" in calld['stdout']:
                     errortext = calld['stdout'].split("Error in parameter ")[1].split("\n")[0]
                     errormodule = errortext.split(":")[0]
                     errortext = ":".join(errortext.split(":")[1:])
                     print errormodule, errortext
+
+                elif "Ambiguities while matching value" in calld['stdout']:
+                    errortext = calld['stdout'].split("ERROR 0001: std::exception: ")[1].split("\n")[0]
+                    msg = QtGui.QMessageBox()
+                    msg.setIcon(QtGui.QMessageBox.Question)
+                    msg.setText(errortext.split(".")[0])
+                    msg.setInformativeText(".".join(errortext.split(".")[1:]))
+                    msg.setWindowTitle("Ambiguities while setting parameter values")
+                    msg.setStandardButtons(QtGui.QMessageBox.Ok)
+                    msg.exec_()
+                elif "ERROR 1000: the argument " in calld['stdout']:
+                    errortext = calld['stdout'].split("ERROR 1000:")[1].split("\n")[0]
+                    errormodule = errortext.split("for option '")[1].split("' is invalid")[0]
+
+                else:
+                    errortext = "Unknown error."
+                    raise Exception('Call failed:\n %s' % calld['stdout'])
+                if errormodule:
                     for param in self.params:
                         if param['name'] == errormodule:
                             param['field'].setToolTip(errortext)
                             param['icon'].setIcon(ErrorIcon)
                             param['field'].setStyleSheet('background-color: rgb(255,140,140);')
                             break
-                else:
-                    raise Exception('Call failed:\n %s' % calld['stdout'])
+                self.listitem.setBackgroundColor(qtsoftred)
+                self.listitem.setToolTip(errortext)
             else:
                 parsedXML = parseXML(calld['stderr'])
                 for param in self.params:
@@ -171,9 +244,19 @@ class QpalsModuleBase():
                         if param['name'] == parsedParam['name']:
                             param['field'].setText(parsedParam['val'])
                             break
+            return valid
 
     def run(self):
-        pass
+        print "running module!"
+        paramlist = []
+        for param in self.params:
+            if param['val']:
+                paramlist.append('-' + param['name'])
+                for item in param['val'].split(";"):
+                    paramlist.append(item.strip('"'))
+        result = self.call(1, *paramlist)
+        print result
+
 
     def reset(self):
         self.params = []
@@ -184,6 +267,7 @@ class QpalsRunBatch():
 
     def __init__(self):
         self.command = ""
+        self.loaded = True  # Always loaded
 
     def getParamUi(self):
         form = QtGui.QFormLayout()
@@ -201,3 +285,6 @@ class QpalsRunBatch():
     def reset(self):
         self.e1 = ""
         self.e2 = ""
+
+    def validate(self):
+        pass

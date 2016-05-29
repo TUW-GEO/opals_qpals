@@ -19,17 +19,24 @@ email                : lukas.winiwarter@tuwien.ac.at
 
 from PyQt4 import QtCore, QtGui
 from QpalsListWidgetItem import QpalsListWidgetItem
-from QpalsModuleBase import QpalsModuleBase, QpalsRunBatch, ModuleWorker
+from QpalsModuleBase import QpalsModuleBase, QpalsRunBatch, ModuleLoadWorker, ModuleRunWorker
 import glob, os
+
+
+qtwhite = QtGui.QColor(255,255,255)
+qtsoftred = QtGui.QColor(255,140,140)
+
 
 class moduleSelector(QtGui.QDialog):
 
     opalsPath = r"D:\01_opals\01_nightly\opals\\"
-    opalsPath = r"D:\01_Opals\02_Installations\02_nightly\opals\\"
+    #opalsPath = r"D:\01_Opals\02_Installations\02_nightly\opals\\"
 
-    opalsIcon = QtGui.QIcon(r"C:\Users\lwiniwar\.qgis2\python\plugins\qpals\icon.png")
-    cmdIcon = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\cmd_icon.png")
-    loadingIcon = QtGui.QIcon(r"C:\Users\Lukas\.qgis2\python\plugins\qpals\spinner_icon.png")
+    IconPath = r"C:\Users\Lukas\.qgis2\python\plugins\qpals\\"
+    opalsIcon = QtGui.QIcon(IconPath + "icon.png")
+    cmdIcon = QtGui.QIcon(IconPath + "cmd_icon.png")
+    loadingIcon = QtGui.QIcon(IconPath + "spinner_icon.png")
+    errorIcon = QtGui.QIcon(IconPath + "error_icon.png")
 
     def getModulesAvailiable(self):
         for opalsexe in glob.glob(self.opalsPath + "opals*.exe"):
@@ -42,13 +49,15 @@ class moduleSelector(QtGui.QDialog):
     def __init__(self, iface, *args):
         super(moduleSelector, self).__init__(*args)
         self.iface = iface
-        self.curmodel=None
+        self.curmodule=None
         self.modulesAvailiable = []
 
         self.getModulesAvailiable()
         self.initUi()
-        self.resize(800,600)
+        self.resize(1200,600)
         self.workerrunning = False
+        self.threads = []
+        self.workers = []
 
 
     def initUi(self):
@@ -57,14 +66,16 @@ class moduleSelector(QtGui.QDialog):
         self.moduleList = QtGui.QListWidget()
         for moduleDict in self.modulesAvailiable:
             module = QpalsListWidgetItem(moduleDict)
+            module.paramClass.listitem = module
             self.moduleList.addItem(module)
-        self.moduleList.currentItemChanged.connect(self.loadModuleAsync)
+        #self.moduleList.currentItemChanged.connect(self.loadModuleAsync)
+        self.moduleList.itemClicked.connect(self.loadModuleAsync)
 
         filterBox = QtGui.QHBoxLayout()
         filterBox.addWidget(QtGui.QLabel("Filter:"))
         self.filterText = QtGui.QLineEdit()
         self.filterText.textChanged.connect(self.filterModuleList)
-        filterBox.addWidget(self.filterText, stretch=100)
+        filterBox.addWidget(self.filterText, stretch=1)
         filterClear = QtGui.QPushButton()
         filterClear.setText("X")
         filterClear.pressed.connect(self.clearFilterText)
@@ -89,6 +100,8 @@ class moduleSelector(QtGui.QDialog):
         rungroup = QtGui.QGroupBox()
         rungroup.setTitle("Run list")
         self.runListWidget = QtGui.QListWidget()
+        #self.runListWidget.currentItemChanged.connect(self.loadModuleAsync)
+        self.runListWidget.itemClicked.connect(self.loadModuleAsync)
 
         runvbox = QtGui.QVBoxLayout()
         runvbox.addWidget(self.runListWidget, stretch=1)
@@ -116,6 +129,7 @@ class moduleSelector(QtGui.QDialog):
         for moduleDict in self.modulesAvailiable:
             if text.lower() in moduleDict['name'].lower():
                 module = QpalsListWidgetItem(moduleDict)
+                module.paramClass.listitem = module
                 self.moduleList.addItem(module)
 
     def startWorker(self, module):
@@ -123,24 +137,14 @@ class moduleSelector(QtGui.QDialog):
         if self.workerrunning:
             return
         self.workerrunning = True
-        worker = ModuleWorker(module)
-        messageBar = self.iface.messageBar().createMessage('Doing something time consuming...', )
-        progressBar = QtGui.QProgressBar()
-        progressBar.setAlignment(QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
-        cancelButton = QtGui.QPushButton()
-        cancelButton.setText('Cancel')
-        cancelButton.clicked.connect(worker.kill)
-        messageBar.layout().addWidget(progressBar)
-        messageBar.layout().addWidget(cancelButton)
-        self.iface.messageBar().pushWidget(messageBar, self.iface.messageBar().INFO)
-        self.messageBar = messageBar
-
+        worker = ModuleLoadWorker(module)
+        module.setIcon(self.loadingIcon)
+        self.moduleList.setEnabled(False)
         # start the worker in a new thread
         thread = QtCore.QThread(self)
         worker.moveToThread(thread)
         worker.finished.connect(self.workerFinished)
         worker.error.connect(self.workerError)
-        worker.progress.connect(progressBar.setValue)
         thread.started.connect(worker.run)
         thread.start()
         self.thread = thread
@@ -152,65 +156,70 @@ class moduleSelector(QtGui.QDialog):
         self.thread.quit()
         self.thread.wait()
         self.thread.deleteLater()
-        # remove widget from message bar
-        self.iface.messageBar().popWidget(self.messageBar)
         if ret is not None:
             # report the result
             module, code = ret
+            module.setIcon(module.icon)
             self.loadModule(module)
         else:
             # notify the user that something went wrong
             self.iface.messageBar().pushMessage('Something went wrong! See the message log for more information.', duration=3)
         self.workerrunning = False
+        self.moduleList.setEnabled(True)
 
-    def workerError(self, e, exception_string):
+    def workerError(self, e, exception_string, module):
         print('Worker thread raised an exception: {}\n'.format(exception_string))
+        module.setIcon(self.errorIcon)
         self.workerrunning = False
 
     def loadModuleAsync(self, module):
-        if module.paramClass.loaded:
-            self.loadModule(module)
+        self.moduleList.clearSelection()
+        self.runListWidget.clearSelection()
+        if module and isinstance(module.paramClass, QpalsModuleBase):
+            if module.paramClass.loaded:
+                self.loadModule(module)
+            else:
+                self.startWorker(module)
         else:
-            self.startWorker(module)
+            self.loadModule(module) # display "select a module"
 
     def loadModule(self, module):
         if module:  # can happen if it gets filtered away
             form = QtGui.QVBoxLayout()
             self.moduleparamBox.setTitle("Parameters for " + module.text())
-            module.setIcon(self.loadingIcon)
             parameterform = module.paramClass.getParamUi()
-            module.setIcon(module.icon)
             form.addLayout(parameterform, stretch=1)
             # reset / run / add to list / add to view
             resetbar = QtGui.QHBoxLayout()
             resetbtn = QtGui.QPushButton("Reset")
             resetbtn.clicked.connect(lambda: self.resetModule(module))
             runbtn = QtGui.QPushButton("Run now")
+            runbtn.clicked.connect(lambda: self.runModuleAsync(module))
             addbtn = QtGui.QPushButton("Add to run list >")
             addbtn.clicked.connect(self.addToRunList)
             viewbox = QtGui.QCheckBox("Add result to canvas")
+            #viewbox.stateChanged.connect(module.paramClass.view = viewbox.isChecked())
             resetbar.addStretch(1)
             resetbar.addWidget(resetbtn)
             resetbar.addWidget(runbtn)
             resetbar.addWidget(addbtn)
             resetbar.addWidget(viewbox)
             form.addLayout(resetbar)
-            self.curmodel = module
+            module.paramClass.revalidate = True
+            module.paramClass.validate()
+            self.curmodule = module
         else:
             form = QtGui.QHBoxLayout()
             l1 = QtGui.QLabel("No module selected...")
             form.addWidget(l1)
             self.moduleparamBox.setTitle("Module Parameters")
 
-        print "clearing layout"
         self.clearLayout(self.moduleparamLayout)
-        print "adding layout"
-        print form
         self.moduleparamLayout.addLayout(form)
-        print "layout added"
 
     def resetModule(self, module):
         module.paramClass.reset()
+        module.setBackgroundColor(qtwhite)
         self.clearLayout(self.moduleparamLayout)
         self.loadModule(module)
 
@@ -237,13 +246,27 @@ class moduleSelector(QtGui.QDialog):
         self.loadAllBtn.hide()
 
     def addToRunList(self):
-        print self.curmodel
-        self.runListWidget.addItem(self.curmodel)
-        self.moduleList.removeItemWidget(self.curmodel)
-        for module in self.modulesAvailiable:
-            if module['name'] == self.curmodel.name:
-                replacementModel = module
-                break
-        newModule = QpalsListWidgetItem(replacementModel)
-        self.moduleList.addItem(newModule)
-        self.loadModule(newModule)
+        print self.curmodule
+        import copy
+        modulecopy = copy.deepcopy(self.curmodule)
+        print modulecopy
+        self.runListWidget.addItem(modulecopy)
+        modulecopy.paramClass.revalidate = True
+        self.resetModule(self.curmodule)
+
+    def runModuleAsync(self, module):
+        worker = ModuleRunWorker(module)
+        thread = QtCore.QThread(self)
+        worker.moveToThread(thread)
+        worker.finished.connect(self.runModuleWorkerFinished)
+        worker.error.connect(self.runModuleWorkerError)
+        thread.started.connect(worker.run)
+        thread.start()
+        self.threads.append(thread)
+        self.workers.append(worker)
+
+    def runModuleWorkerFinished(self, ret):
+        pass
+
+    def runModuleWorkerError(self, e, message, module):
+        pass
