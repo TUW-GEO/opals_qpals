@@ -37,6 +37,7 @@ class moduleSelector(QtGui.QDialog):
     cmdIcon = QtGui.QIcon(IconPath + "cmd_icon.png")
     loadingIcon = QtGui.QIcon(IconPath + "spinner_icon.png")
     errorIcon = QtGui.QIcon(IconPath + "error_icon.png")
+    checkIcon = QtGui.QIcon(IconPath + "checkIcon.png")
 
     def getModulesAvailiable(self):
         for opalsexe in glob.glob(self.opalsPath + "opals*.exe"):
@@ -58,6 +59,8 @@ class moduleSelector(QtGui.QDialog):
         self.workerrunning = False
         self.threads = []
         self.workers = []
+        self.runningRunList = False
+        self.currentruncount = 0
 
 
     def initUi(self):
@@ -103,8 +106,13 @@ class moduleSelector(QtGui.QDialog):
         #self.runListWidget.currentItemChanged.connect(self.loadModuleAsync)
         self.runListWidget.itemClicked.connect(self.loadModuleAsync)
 
+        runAllBtn = QtGui.QPushButton()
+        runAllBtn.setText("Run")
+        runAllBtn.clicked.connect(self.runRunList)
+
         runvbox = QtGui.QVBoxLayout()
         runvbox.addWidget(self.runListWidget, stretch=1)
+        runvbox.addWidget(runAllBtn)
         rungroup.setLayout(runvbox)
 
         grpBoxContainer = QtGui.QHBoxLayout()
@@ -179,6 +187,7 @@ class moduleSelector(QtGui.QDialog):
             if module.paramClass.loaded:
                 self.loadModule(module)
             else:
+                print "startworker"
                 self.startWorker(module)
         else:
             self.loadModule(module) # display "select a module"
@@ -198,12 +207,17 @@ class moduleSelector(QtGui.QDialog):
             addbtn = QtGui.QPushButton("Add to run list >")
             addbtn.clicked.connect(self.addToRunList)
             viewbox = QtGui.QCheckBox("Add result to canvas")
+
+            commonbtn = QtGui.QPushButton("Common parameters")
+            globalbtn = QtGui.QPushButton("Global parameters")
             #viewbox.stateChanged.connect(module.paramClass.view = viewbox.isChecked())
             resetbar.addStretch(1)
             resetbar.addWidget(resetbtn)
             resetbar.addWidget(runbtn)
             resetbar.addWidget(addbtn)
             resetbar.addWidget(viewbox)
+            #resetbar.addWidget(commonbtn)
+            #resetbar.addWidget(globalbtn)
             form.addLayout(resetbar)
             module.paramClass.revalidate = True
             module.paramClass.validate()
@@ -266,7 +280,18 @@ class moduleSelector(QtGui.QDialog):
         self.workers.append(worker)
 
     def runModuleWorkerFinished(self, ret):
-        pass
+        if self.runningRunList == True:
+            self.runListWidget.item(self.currentruncount).setIcon(self.checkIcon)
+            self.currentruncount += 1
+            self.runRunList()
 
     def runModuleWorkerError(self, e, message, module):
         pass
+
+    def runRunList(self):
+        self.runningRunList = True
+        if self.runListWidget.count() > self.currentruncount:
+            self.runModuleAsync(self.runListWidget.item(self.currentruncount))
+        else:
+            self.runningRunList = False
+            self.currentruncount = 0

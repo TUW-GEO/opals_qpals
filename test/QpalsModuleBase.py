@@ -66,7 +66,9 @@ class ModuleLoadWorker(QtCore.QObject):
     def run(self):
         ret = None
         try:
+            print "loading"
             self.module.paramClass.load()
+            print "loaded"
             if not self.killed:
                 self.progress.emit(100)
                 ret = (self.module, "42",)
@@ -80,6 +82,32 @@ class ModuleLoadWorker(QtCore.QObject):
     finished = QtCore.pyqtSignal(object)
     error = QtCore.pyqtSignal(Exception, basestring, object)
     progress = QtCore.pyqtSignal(float)
+
+
+class ModuleValidateWorker(QtCore.QObject):
+    def __init__(self, module):
+        QtCore.QObject.__init__(self)
+        self.module = module
+        self.killed = False
+
+    def run(self):
+        ret = None
+        try:
+            self.module.validate()
+            if not self.killed:
+                self.progress.emit(100)
+                ret = (self.module,)
+        except Exception as e:
+            self.error.emit(e, str(e), self.module)
+        self.finished.emit(ret)
+
+    def kill(self):
+        self.killed = True
+
+    finished = QtCore.pyqtSignal(object)
+    error = QtCore.pyqtSignal(Exception, basestring, object)
+    progress = QtCore.pyqtSignal(float)
+
 
 
 class ModuleRunWorker(QtCore.QObject):
@@ -115,11 +143,14 @@ class QpalsModuleBase():
         self.view = False
         self.revalidate=False
         self.listitem = listitem
+        self.currentlyvalidating = False
+        self.validatethread = None
+        self.validateworker = None
 
     def call(self, show=0, *args):
         info = subprocess.STARTUPINFO()
         info.dwFlags = subprocess.STARTF_USESHOWWINDOW
-        info.wShowWindow = show # HIDE
+        info.wShowWindow = show  # 0=HIDE
         print "CALL: ", [self.execName] + list(args)
         proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 stdin=subprocess.PIPE, cwd=self.tmpDir, startupinfo=info)
@@ -176,6 +207,36 @@ class QpalsModuleBase():
                     self.revalidate = True
                     param['val'] = param['field'].text()
 
+    def validate_async(self):
+        print "val_async> ",
+        if not self.currentlyvalidating and self.revalidate:
+            print "ok >",
+            self.currentlyvalidating = True
+            worker = ModuleValidateWorker(self)
+            # start the worker in a new thread
+            thread = QtCore.QThread()
+            worker.moveToThread(thread)
+            worker.error.connect(self.validateError)
+            worker.finished.connect(self.validateFinished)
+            thread.started.connect(worker.run)
+            thread.start()
+            self.validatethread = thread
+            self.validateworker = worker
+
+    def validateError(self, e, exception_string, module):
+        print('Worker thread raised an exception: {}\n'.format(exception_string))
+        #module.setIcon(self.errorIcon)
+
+    def validateFinished(self, module):
+        print "validate finished> ",
+        self.validateworker.deleteLater()
+        self.validatethread.quit()
+        self.validatethread.wait()
+        self.validatethread.deleteLater()
+        self.currentlyvalidating = False
+        print "validate done"
+
+
     def validate(self):
         if not self.revalidate:
             return
@@ -201,6 +262,7 @@ class QpalsModuleBase():
                     paramlist.append(item.strip('"'))
         if allmandatoryset:
             self.listitem.setBackgroundColor(qtsoftgreen)
+            self.listitem.setToolTip("All mandatory parameters set and validated.")
             calld = self.call(0, '--options', '1', *paramlist)
             valid = True
             if calld['returncode'] != 0:
