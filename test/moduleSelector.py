@@ -62,6 +62,7 @@ class moduleSelector(QtGui.QDialog):
         self.runningRunList = False
         self.currentruncount = 0
 
+        self.runModuleSelected = None
 
     def initUi(self):
 
@@ -110,9 +111,24 @@ class moduleSelector(QtGui.QDialog):
         runAllBtn.setText("Run")
         runAllBtn.clicked.connect(self.runRunList)
 
+        runUpBtn = QtGui.QPushButton()
+        runUpBtn.setText("^")
+        runUpBtn.clicked.connect(self.runUp)
+
+        runDownBtn = QtGui.QPushButton()
+        runDownBtn.setText("v")
+        runDownBtn.clicked.connect(self.runDown)
+
         runvbox = QtGui.QVBoxLayout()
         runvbox.addWidget(self.runListWidget, stretch=1)
-        runvbox.addWidget(runAllBtn)
+        runhbox = QtGui.QHBoxLayout()
+        runhbox.addWidget(runDownBtn)
+        runhbox.addWidget(runUpBtn)
+        runhbox.addWidget(runAllBtn)
+        runvbox.addLayout(runhbox)
+        self.pbar = QtGui.QProgressBar()
+        self.pbar.setValue(100)
+        runvbox.addWidget(self.pbar)
         rungroup.setLayout(runvbox)
 
         grpBoxContainer = QtGui.QHBoxLayout()
@@ -183,6 +199,7 @@ class moduleSelector(QtGui.QDialog):
     def loadModuleAsync(self, module):
         self.moduleList.clearSelection()
         self.runListWidget.clearSelection()
+        self.runModuleSelected = module
         if module and isinstance(module.paramClass, QpalsModuleBase):
             if module.paramClass.loaded:
                 self.loadModule(module)
@@ -260,10 +277,8 @@ class moduleSelector(QtGui.QDialog):
         self.loadAllBtn.hide()
 
     def addToRunList(self):
-        print self.curmodule
         import copy
         modulecopy = copy.deepcopy(self.curmodule)
-        print modulecopy
         self.runListWidget.addItem(modulecopy)
         modulecopy.paramClass.revalidate = True
         self.resetModule(self.curmodule)
@@ -290,8 +305,21 @@ class moduleSelector(QtGui.QDialog):
 
     def runRunList(self):
         self.runningRunList = True
+        self.pbar.setValue(int(100*self.currentruncount/self.runListWidget.count()))
         if self.runListWidget.count() > self.currentruncount:
             self.runModuleAsync(self.runListWidget.item(self.currentruncount))
         else:
             self.runningRunList = False
             self.currentruncount = 0
+
+    def runUp(self):
+        row = self.runListWidget.currentRow()
+        item = self.runListWidget.takeItem(row)
+        self.runListWidget.insertItem(row-1, item)
+        self.runListWidget.row(item)
+
+    def runDown(self):
+        row = self.runListWidget.currentRow()
+        item = self.runListWidget.takeItem(row)
+        self.runListWidget.insertItem(row+1, item)
+        self.runListWidget.row(item)

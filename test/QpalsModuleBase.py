@@ -19,8 +19,12 @@ email                : lukas.winiwarter@tuwien.ac.at
 
 from PyQt4 import QtCore, QtGui
 import subprocess
+import os
 import threading
 from xml.dom import minidom
+
+import QpalsParamMsgBtn
+import QTextComboBox
 
 IconPath = r"C:\Users\Lukas\.qgis2\python\plugins\qpals\\"
 
@@ -39,22 +43,24 @@ def parseXML(xml):
     specOpts = specOptsNode.getElementsByTagName('Parameter')
     for opt in specOpts:
         values = opt.getElementsByTagName('Val')
+        choices = opt.getElementsByTagName('Choice')
+        choiceList = []
+        valString = ""
         if values:
             if len(values) > 1:
-                valString = ""
                 for val in values:
                     valString += val.firstChild.nodeValue + ";"
                 valString = valString[:-1]
             else:
                 if values[0].firstChild:
                     valString = values[0].firstChild.nodeValue
-                else:
-                    valString = ""
-        else:
-            valString = ""
+        if choices:
+            for choice in choices:
+                choiceList.append(choice.getAttribute("Val"))
         elements.append({'name': opt.attributes['Name'].value, 'val': valString,
                         'opt': opt.attributes['Opt'].value, 'desc': opt.attributes['Desc'].value,
-                         'longdesc': opt.attributes['LongDesc'].value})
+                         'longdesc': opt.attributes['LongDesc'].value, 'choices': choiceList,
+                         'type': opt.attributes['Type'].value})
     return elements
 
 class ModuleLoadWorker(QtCore.QObject):
@@ -146,6 +152,7 @@ class QpalsModuleBase():
         self.currentlyvalidating = False
         self.validatethread = None
         self.validateworker = None
+        self.lastpath = tmpDir
 
     def call(self, show=0, *args):
         info = subprocess.STARTUPINFO()
@@ -167,15 +174,22 @@ class QpalsModuleBase():
         self.params = parseXML(calld['stderr'])
         self.loaded = True
 
-
-    def displayParamMsgBox(self, param):
-        msg = QtGui.QMessageBox()
-        msg.setIcon(QtGui.QMessageBox.Question)
-        msg.setText(param['desc'])
-        msg.setInformativeText(param['longdesc'])
-        msg.setWindowTitle(param['name'])
-        msg.setStandardButtons(QtGui.QMessageBox.Ok)
-        msg.exec_()
+    def makefilebrowser(self, param):
+        def showpathbrowser():
+            filename = QtGui.QFileDialog.getSaveFileName(None, caption='Select file for %s'%param,
+                                                          directory=self.lastpath,
+                                                         options=QtGui.QFileDialog.DontConfirmOverwrite)
+            if filename:
+                for par in self.params:
+                    if par['name'] == param:
+                        par['field'].setText(filename)
+                print filename
+                print param
+                print par['name']
+                self.lastpath = os.path.dirname(filename)
+                self.updateVals(filename)
+                self.validate()
+        return showpathbrowser
 
     def getParamUi(self):
         if not self.loaded:
@@ -183,19 +197,37 @@ class QpalsModuleBase():
         form = QtGui.QFormLayout()
         for param in self.params:
             l1 = QtGui.QLabel(param['name'])
-            param['field'] = QtGui.QLineEdit(param['val'])
-            param['icon'] = QtGui.QToolButton()
+
+            if len(param['choices']) == 0:
+                param['field'] = QtGui.QLineEdit(param['val'])
+                param['field'].textChanged.connect(self.updateVals)
+                param['field'].editingFinished.connect(self.validate)
+
+            else:
+                param['field'] = QTextComboBox.QTextComboBox()
+                for choice in param['choices']:
+                    param['field'].addItem(choice)
+                # 'QString' is necessary so that the text and not the index will be passed as parameter
+                param['field'].currentIndexChanged['QString'].connect(self.updateVals)
+
+            if "path" in param['type'].lower():
+                param['browse'] = QtGui.QToolButton()
+                param['browse'].setText("...")
+                param['browse'].clicked.connect(self.makefilebrowser(param['name']))
+                param['field'].setAcceptDrops(True)
+                #param['field'].
+
+            param['icon'] = QpalsParamMsgBtn.QpalsParamMsgBtn(param)
             param['icon'].setToolTip(param['opt'])
             param['icon'].setIcon(WaitIcon)
             param['icon'].setStyleSheet("border-style: none;")
             if param['opt'] == 'mandatory':
                 param['icon'].setIcon(WaitIconMandatory)
-            param['icon'].clicked.connect(lambda: self.displayParamMsgBox(param))
-            param['field'].textChanged.connect(self.updateVals)
-            param['field'].editingFinished.connect(self.validate)
 
             l2 = QtGui.QHBoxLayout()
             l2.addWidget(param['field'], stretch=1)
+            if 'browse' in param:
+                l2.addWidget(param['browse'])
             l2.addWidget(param['icon'])
             form.addRow(l1, l2)
         return form
@@ -261,7 +293,6 @@ class QpalsModuleBase():
                 for item in param['val'].split(";"):
                     paramlist.append(item.strip('"'))
         if allmandatoryset:
-            self.listitem.setBackgroundColor(qtsoftgreen)
             self.listitem.setToolTip("All mandatory parameters set and validated.")
             calld = self.call(0, '--options', '1', *paramlist)
             valid = True
@@ -300,6 +331,7 @@ class QpalsModuleBase():
                 self.listitem.setBackgroundColor(qtsoftred)
                 self.listitem.setToolTip(errortext)
             else:
+                self.listitem.setBackgroundColor(qtsoftgreen)
                 parsedXML = parseXML(calld['stderr'])
                 for param in self.params:
                     for parsedParam in parsedXML:

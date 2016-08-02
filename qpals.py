@@ -37,8 +37,13 @@ class qpals:
 
     def showModuleSelector(self):
         import test.moduleSelector
-        modSel = test.moduleSelector.moduleSelector(self.iface)
-        result = modSel.exec_()
+        self.modSel = test.moduleSelector.moduleSelector(self.iface)
+        self.modSel.show()
+
+    def showdd(self):
+        import test.droptester
+        self.drop = test.droptester.droptester()
+        self.drop.show()
 
     def initGui(self):
         self.menu = QMenu(self.iface.mainWindow())
@@ -51,6 +56,12 @@ class qpals:
         self.menuItemModuleSelector.setStatusTip("Select module from list")
         QObject.connect(self.menuItemModuleSelector, SIGNAL("triggered()"), self.showModuleSelector)
         self.menu.addAction(self.menuItemModuleSelector)
+
+        self.dd = QAction(QIcon("icon.png"), "Drag&&Drop demo", self.iface.mainWindow())
+        self.dd.setObjectName("menuddDemo")
+        self.dd.setStatusTip("Drag and Drop demo")
+        QObject.connect(self.dd, SIGNAL("triggered()"), self.showdd)
+        self.menu.addAction(self.dd)
 
         menuBar = self.iface.mainWindow().menuBar()
         menuBar.insertMenu(self.iface.firstRightStandardMenu().menuAction(), self.menu)
