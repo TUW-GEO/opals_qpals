@@ -41,8 +41,8 @@ class qpals:
         self.modSel.show()
 
     def showdd(self):
-        import test.droptester
-        self.drop = test.droptester.droptester()
+        import test.QpalsDropTextbox
+        self.drop = test.QpalsDropTextbox.droptester()
         self.drop.show()
 
     def initGui(self):

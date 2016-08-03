@@ -25,6 +25,7 @@ from xml.dom import minidom
 
 import QpalsParamMsgBtn
 import QTextComboBox
+import QpalsDropTextbox
 
 IconPath = r"C:\Users\Lukas\.qgis2\python\plugins\qpals\\"
 
@@ -199,9 +200,18 @@ class QpalsModuleBase():
             l1 = QtGui.QLabel(param['name'])
 
             if len(param['choices']) == 0:
-                param['field'] = QtGui.QLineEdit(param['val'])
-                param['field'].textChanged.connect(self.updateVals)
-                param['field'].editingFinished.connect(self.validate)
+                if "path" in param['type'].lower():
+                    param['field'] = QpalsDropTextbox.QpalsDropTextbox(param['val'])
+                    param['field'].textChanged.connect(self.updateVals)
+                    param['field'].editingFinished.connect(self.validate)
+
+                    param['browse'] = QtGui.QToolButton()
+                    param['browse'].setText("...")
+                    param['browse'].clicked.connect(self.makefilebrowser(param['name']))
+                else:
+                    param['field'] = QtGui.QLineEdit(param['val'])
+                    param['field'].textChanged.connect(self.updateVals)
+                    param['field'].editingFinished.connect(self.validate)
 
             else:
                 param['field'] = QTextComboBox.QTextComboBox()
@@ -210,11 +220,7 @@ class QpalsModuleBase():
                 # 'QString' is necessary so that the text and not the index will be passed as parameter
                 param['field'].currentIndexChanged['QString'].connect(self.updateVals)
 
-            if "path" in param['type'].lower():
-                param['browse'] = QtGui.QToolButton()
-                param['browse'].setText("...")
-                param['browse'].clicked.connect(self.makefilebrowser(param['name']))
-                param['field'].setAcceptDrops(True)
+
                 #param['field'].
 
             param['icon'] = QpalsParamMsgBtn.QpalsParamMsgBtn(param)
