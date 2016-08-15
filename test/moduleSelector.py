@@ -20,6 +20,7 @@ email                : lukas.winiwarter@tuwien.ac.at
 from PyQt4 import QtCore, QtGui
 from QpalsListWidgetItem import QpalsListWidgetItem
 from QpalsModuleBase import QpalsModuleBase, QpalsRunBatch, ModuleLoadWorker, ModuleRunWorker
+import QpalsShowFile
 import glob, os
 
 
@@ -27,10 +28,7 @@ qtwhite = QtGui.QColor(255,255,255)
 qtsoftred = QtGui.QColor(255,140,140)
 
 
-class moduleSelector(QtGui.QDialog):
-
-    opalsPath = r"D:\01_opals\01_nightly\opals\\"
-    #opalsPath = r"D:\01_Opals\02_Installations\02_nightly\opals\\"
+class moduleSelector(QtGui.QMainWindow):
 
     IconPath = r"C:\Users\Lukas\.qgis2\python\plugins\qpals\\"
     opalsIcon = QtGui.QIcon(IconPath + "icon.png")
@@ -40,22 +38,24 @@ class moduleSelector(QtGui.QDialog):
     checkIcon = QtGui.QIcon(IconPath + "checkIcon.png")
 
     def getModulesAvailiable(self):
-        for opalsexe in glob.glob(self.opalsPath + "opals*.exe"):
+        for opalsexe in glob.glob(os.path.join(self.project.opalspath , "opals*.exe")):
             self.modulesAvailiable.append({'name': os.path.basename(opalsexe).split(".exe")[0],
                                            'icon': self.opalsIcon,
-                                           'class': QpalsModuleBase(opalsexe)})
+                                           'class': QpalsModuleBase(opalsexe,self.project, layerlist=self.layerlist)})
         self.modulesAvailiable.append({'name': "User-defined cmd", 'icon': self.cmdIcon, 'class': QpalsRunBatch()})
 
 
-    def __init__(self, iface, *args):
-        super(moduleSelector, self).__init__(*args)
+    def __init__(self, iface, layerlist, project):
+        super(moduleSelector, self).__init__(None, QtCore.Qt.WindowStaysOnTopHint)
+        self.project = project
         self.iface = iface
+        self.layerlist = layerlist
         self.curmodule=None
         self.modulesAvailiable = []
 
         self.getModulesAvailiable()
         self.initUi()
-        self.resize(1200,600)
+        self.resize(1200, 600)
         self.workerrunning = False
         self.threads = []
         self.workers = []
@@ -72,7 +72,6 @@ class moduleSelector(QtGui.QDialog):
             module = QpalsListWidgetItem(moduleDict)
             module.paramClass.listitem = module
             self.moduleList.addItem(module)
-        #self.moduleList.currentItemChanged.connect(self.loadModuleAsync)
         self.moduleList.itemClicked.connect(self.loadModuleAsync)
 
         filterBox = QtGui.QHBoxLayout()
@@ -145,7 +144,10 @@ class moduleSelector(QtGui.QDialog):
         overallBox = QtGui.QVBoxLayout()
         overallBox.addLayout(grpBoxContainer)
         overallBox.addLayout(lowerhbox)
-        self.setLayout(overallBox)
+
+        self.main_widget = QtGui.QWidget()
+        self.main_widget.setLayout(overallBox)
+        self.setCentralWidget(self.main_widget)
         self.setWindowTitle('qpals')
 
     def filterModuleList(self, text):
@@ -203,17 +205,17 @@ class moduleSelector(QtGui.QDialog):
         if module and isinstance(module.paramClass, QpalsModuleBase):
             if module.paramClass.loaded:
                 self.loadModule(module)
+                self.viewbox.setChecked(module.paramClass.visualize)
             else:
-                print "startworker"
                 self.startWorker(module)
         else:
-            self.loadModule(module) # display "select a module"
+            self.loadModule(module)  # display "select a module"
 
     def loadModule(self, module):
         if module:  # can happen if it gets filtered away
             form = QtGui.QVBoxLayout()
             self.moduleparamBox.setTitle("Parameters for " + module.text())
-            parameterform = module.paramClass.getParamUi()
+            parameterform = module.paramClass.getParamUi(parent=self)
             form.addLayout(parameterform, stretch=1)
             # reset / run / add to list / add to view
             resetbar = QtGui.QHBoxLayout()
@@ -223,16 +225,18 @@ class moduleSelector(QtGui.QDialog):
             runbtn.clicked.connect(lambda: self.runModuleAsync(module))
             addbtn = QtGui.QPushButton("Add to run list >")
             addbtn.clicked.connect(self.addToRunList)
-            viewbox = QtGui.QCheckBox("Add result to canvas")
+            self.viewbox = QtGui.QCheckBox("Add result to canvas")
 
-            commonbtn = QtGui.QPushButton("Common parameters")
-            globalbtn = QtGui.QPushButton("Global parameters")
+            self.commonbtn = QtGui.QPushButton("Common and Global parameters")
+            self.commonwin = module.paramClass.getGlobalCommonParamsWindow(parent=self)
+            self.commonbtn.clicked.connect(self.commonwin.show)
+            form.addWidget(self.commonbtn)
             #viewbox.stateChanged.connect(module.paramClass.view = viewbox.isChecked())
             resetbar.addStretch(1)
             resetbar.addWidget(resetbtn)
             resetbar.addWidget(runbtn)
             resetbar.addWidget(addbtn)
-            resetbar.addWidget(viewbox)
+            resetbar.addWidget(self.viewbox)
             #resetbar.addWidget(commonbtn)
             #resetbar.addWidget(globalbtn)
             form.addLayout(resetbar)
@@ -278,12 +282,14 @@ class moduleSelector(QtGui.QDialog):
 
     def addToRunList(self):
         import copy
+        self.curmodule.paramClass.visualize = self.viewbox.isChecked()
         modulecopy = copy.deepcopy(self.curmodule)
         self.runListWidget.addItem(modulecopy)
         modulecopy.paramClass.revalidate = True
         self.resetModule(self.curmodule)
 
     def runModuleAsync(self, module):
+        module.paramClass.visualize = self.viewbox.isChecked()
         worker = ModuleRunWorker(module)
         thread = QtCore.QThread(self)
         worker.moveToThread(thread)
@@ -295,8 +301,15 @@ class moduleSelector(QtGui.QDialog):
         self.workers.append(worker)
 
     def runModuleWorkerFinished(self, ret):
+        module, code = ret
+        moduleClass = module.paramClass
+        if moduleClass.visualize and moduleClass.outf:
+            if not os.path.isabs(moduleClass.outf):
+                moduleClass.outf = os.path.join(self.project.tempdir, moduleClass.outf).replace("\\", "/")
+            showfile = QpalsShowFile.QpalsShowFile(self.project.iface, self.layerlist, self.project)
+            showfile.load(infile_s=[moduleClass.outf])
         if self.runningRunList == True:
-            self.runListWidget.item(self.currentruncount).setIcon(self.checkIcon)
+            module.setIcon(self.checkIcon)
             self.currentruncount += 1
             self.runRunList()
 

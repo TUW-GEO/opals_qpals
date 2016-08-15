@@ -30,12 +30,15 @@ class QpalsListWidgetItem(QtGui.QListWidgetItem):
 
     def __deepcopy__(self, memo={}):
         import copy
-        defdict = {}
+        defdict = dict()
         defdict['name'] = self.name
         defdict['icon'] = self.icon
-        defdict['class'] = QpalsModuleBase(self.paramClass.execName, self.paramClass.tmpDir)
+        defdict['class'] = QpalsModuleBase(self.paramClass.execName, self.paramClass.project, self.paramClass.layerlist)
         defdict['class'].params = copy.deepcopy(self.paramClass.params)
+        defdict['class'].globals = copy.deepcopy(self.paramClass.globals)
+        defdict['class'].common = copy.deepcopy(self.paramClass.common)
         defdict['class'].loaded = self.paramClass.loaded
+        defdict['class'].visualize = self.paramClass.visualize
         dup = QpalsListWidgetItem(defdict=defdict)
         dup.paramClass.listitem = dup
         dup.setBackgroundColor(self.backgroundColor())

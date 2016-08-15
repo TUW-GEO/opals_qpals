@@ -1,10 +1,11 @@
 from PyQt4 import QtCore, QtGui
 
 class QpalsDropTextbox(QtGui.QLineEdit):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, layerlist=None, *args, **kwargs):
         super(QpalsDropTextbox, self).__init__(*args, **kwargs)
         self.setAcceptDrops(True)
         self.setPlaceholderText("drop file/layer here...")
+        self.layerlist = layerlist
 
     def dragEnterEvent(self, e):
         if e.mimeData().hasFormat(u"application/qgis.layertreemodeldata") or e.mimeData().hasUrls():  #is a qgis layer or a file
@@ -29,7 +30,10 @@ class QpalsDropTextbox(QtGui.QLineEdit):
                     if lyr.id() == ide:
                         layer = lyr
                         break
-                paths.append(layer.source())
+                if lyr.id() in self.layerlist:
+                    paths.append(self.layerlist[lyr.id()])  # opals vis file - takes the odm
+                else:
+                    paths.append(layer.source())  # any other qgis file - takes the real path
         elif e.mimeData().hasUrls():
             data = e.mimeData().urls()
 
@@ -41,7 +45,7 @@ class QpalsDropTextbox(QtGui.QLineEdit):
             self.setText(";".join(paths))
         #e.acceptProposedAction()
         e.setDropAction(QtCore.Qt.TargetMoveAction)  # retain the original
-        e.ignore()
+        e.accept()
 
 
 
