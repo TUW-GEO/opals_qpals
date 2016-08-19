@@ -46,7 +46,7 @@ class QpalsDropTextbox(QtGui.QLineEdit):
         #e.acceptProposedAction()
         e.setDropAction(QtCore.Qt.TargetMoveAction)  # retain the original
         e.accept()
-
+        self.editingFinished.emit()
 
 
 class droptester(QtGui.QWidget):

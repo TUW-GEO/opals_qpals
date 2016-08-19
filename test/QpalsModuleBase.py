@@ -26,7 +26,7 @@ from xml.dom import minidom
 import QpalsParamMsgBtn
 import QTextComboBox
 import QpalsDropTextbox
-import QpalsShowFile
+import QpalsParameter
 
 IconPath = r"C:\Users\Lukas\.qgis2\python\plugins\qpals\\"
 
@@ -61,10 +61,10 @@ def parseXML(xml):
             if choices:
                 for choice in choices:
                     choiceList.append(choice.getAttribute("Val"))
-            elements.append({'name': opt.attributes['Name'].value, 'val': valString,
-                            'opt': opt.attributes['Opt'].value, 'desc': opt.attributes['Desc'].value,
-                             'longdesc': opt.attributes['LongDesc'].value, 'choices': choiceList,
-                             'type': opt.attributes['Type'].value})
+            elements.append(QpalsParameter.QpalsParameter(opt.attributes['Name'].value, valString, choiceList,
+                                                          opt.attributes['Type'].value, opt.attributes['Opt'].value,
+                                                          opt.attributes['Desc'].value,
+                                                          opt.attributes['LongDesc'].value))
         outd[type] = elements
     return outd
 
@@ -133,7 +133,7 @@ class ModuleRunWorker(QtCore.QObject):
             self.module.paramClass.run()
             if not self.killed:
                 self.progress.emit(100)
-                ret = (self.module, "42",)
+                ret = (self.module, "42")
         except Exception as e:
             self.error.emit(e, str(e), self.module)
         self.finished.emit(ret)
@@ -161,6 +161,13 @@ class QpalsModuleBase():
         self.lastpath = self.project.tempdir
         self.visualize = visualize
         self.outf = None
+        self.globals = []
+        self.common = []
+
+    @staticmethod
+    def fromCallString(string):
+        pass
+        #todo: use xml parser and --options to load a module!
 
     def call(self, show=0, *args):
         info = subprocess.STARTUPINFO()
@@ -191,8 +198,8 @@ class QpalsModuleBase():
                                                          options=QtGui.QFileDialog.DontConfirmOverwrite)
             if filename:
                 for par in self.params:
-                    if par['name'] == param:
-                        par['field'].setText(filename)
+                    if par.name == param:
+                        par.field.setText(filename)
                 self.lastpath = os.path.dirname(filename)
                 self.updateVals(filename)
                 self.validate()
@@ -200,6 +207,7 @@ class QpalsModuleBase():
 
     def getGlobalCommonParamsWindow(self, parent=None):
         window = QtGui.QDialog(parent)
+        window.setWindowTitle("Global and common parameters")
         scrollarea = QtGui.QScrollArea()
         form = QtGui.QFormLayout()
         form.addRow(QtGui.QLabel("Common Parameters:"))
@@ -212,74 +220,87 @@ class QpalsModuleBase():
             form.addRow(l1, l2)
         closebtn = QtGui.QPushButton("Close")
         closebtn.clicked.connect(lambda: self.closeGlobalCommonParamsWindow(window))
-        form.addRow(closebtn)
         groupbox = QtGui.QGroupBox()
         groupbox.setLayout(form)
         scrollarea.setWidget(groupbox)
-        window.setFixedHeight(400)
+        window.setFixedHeight(600)
         window.setFixedWidth(600)
         scrollbox = QtGui.QVBoxLayout()
         scrollbox.addWidget(scrollarea)
+        scrollbox.addWidget(closebtn)
         window.setLayout(scrollbox)
         return window
 
     def closeGlobalCommonParamsWindow(self, window):
         window.hide()
         for param in self.common:
-            if param['use4proj'].isChecked():
-                pass  # todo
+            if param.use4proj.isChecked():
+                self.project.common[param.name] = param.val
+            else:
+                if param.name in self.project.common:
+                    del self.project.common[param.name]
         for param in self.globals:
-            if param['use4proj'].isChecked():
-                pass  # todo
-
+            if param.use4proj.isChecked():
+                self.project.globals[param.name] = param.val
+            else:
+                if param.name in self.project.globals:
+                    del self.project.globals[param.name]
 
     def getUIOneliner(self, param, parent=None, global_common=False):
-        l1 = QtGui.QLabel(param['name'])
-        if len(param['choices']) == 0:
-            if "path" in param['type'].lower():
-                param['field'] = QpalsDropTextbox.QpalsDropTextbox(self.layerlist, param['val'])
+        l1 = QtGui.QLabel(param.name)
+        if len(param.choices) == 0:
+            if "path" in param.type.lower():
+                param.field = QpalsDropTextbox.QpalsDropTextbox(self.layerlist, param.val)
                 if global_common:
-                    param['field'].textChanged.connect(self.updateCommonGlobals)
+                    param.field.textChanged.connect(self.updateCommonGlobals)
                 else:
-                    param['field'].textChanged.connect(self.updateVals)
-                param['field'].editingFinished.connect(self.validate)
+                    param.field.textChanged.connect(self.updateVals)
+                param.field.editingFinished.connect(self.validate)
 
-                param['browse'] = QtGui.QToolButton()
-                param['browse'].setText("...")
-                param['browse'].clicked.connect(self.makefilebrowser(param['name']))
+                param.browse = QtGui.QToolButton()
+                param.browse.setText("...")
+                param.browse.clicked.connect(self.makefilebrowser(param.name))
             else:
-                param['field'] = QtGui.QLineEdit(param['val'])
+                param.field = QtGui.QLineEdit(param.val)
                 if global_common:
-                    param['field'].textChanged.connect(self.updateCommonGlobals)
+                    param.field.textChanged.connect(self.updateCommonGlobals)
                 else:
-                    param['field'].textChanged.connect(self.updateVals)
-                param['field'].editingFinished.connect(self.validate)
+                    param.field.textChanged.connect(self.updateVals)
+                param.field.editingFinished.connect(self.validate)
 
         else:
-            param['field'] = QTextComboBox.QTextComboBox()
-            for choice in param['choices']:
-                param['field'].addItem(choice)
+            param.field = QTextComboBox.QTextComboBox()
+            for choice in param.choices:
+                param.field.addItem(choice)
             # 'QString' is necessary so that the text and not the index will be passed as parameter
             if global_common:
-                param['field'].currentIndexChanged['QString'].connect(self.updateCommonGlobals)
+                param.field.currentIndexChanged['QString'].connect(self.updateCommonGlobals)
             else:
-                param['field'].currentIndexChanged['QString'].connect(self.updateVals)
+                param.field.currentIndexChanged['QString'].connect(self.updateVals)
 
-        param['icon'] = QpalsParamMsgBtn.QpalsParamMsgBtn(param, parent)
-        param['icon'].setToolTip(param['opt'])
-        param['icon'].setIcon(WaitIcon)
-        param['icon'].setStyleSheet("border-style: none;")
-        if param['opt'] == 'mandatory':
-            param['icon'].setIcon(WaitIconMandatory)
+        param.icon = QpalsParamMsgBtn.QpalsParamMsgBtn(param, parent)
+        param.icon.setToolTip(param.opt)
+        param.icon.setIcon(WaitIcon)
+        param.icon.setStyleSheet("border-style: none;")
+        if param.opt == 'mandatory':
+            param.icon.setIcon(WaitIconMandatory)
         l2 = QtGui.QHBoxLayout()
-        l2.addWidget(param['field'], stretch=1)
-        if 'browse' in param:
-            l2.addWidget(param['browse'])
-        l2.addWidget(param['icon'])
+        l2.addWidget(param.field, stretch=1)
+        if param.browse is not None:
+            l2.addWidget(param.browse)
+        l2.addWidget(param.icon)
         if global_common:
-            param['use4proj'] = QtGui.QCheckBox("project setting")
-            param['use4proj'].setChecked(False)
-            l2.addWidget(param['use4proj'])
+            param.use4proj = QtGui.QCheckBox("project setting")
+            if param.name in self.project.common or param.name in self.project.globals:
+                param.use4proj.setChecked(True)
+                param.field.setText((self.project.globals_common())[param.name])
+                param.field.setStyleSheet('background-color: rgb(200,255,200);')
+            else:
+                param.use4proj.setChecked(False)
+                if param.changed:
+                    param.field.setStyleSheet('background-color: rgb(200,255,200);')
+            l2.addWidget(param.use4proj)
+
         return (l1, l2)
 
 
@@ -294,25 +315,27 @@ class QpalsModuleBase():
 
     def updateCommonGlobals(self, string):
         for param in self.common:
-            if string == param['field'].text():
-                if param['val'] != param['field'].text():
+            if param.field and string == param.field.text():
+                if param.val != param.field.text():
                     self.revalidate = True
-                    param['val'] = param['field'].text()
-                    param['changed'] = True
+                    param.val = param.field.text()
+                    param.changed = True
+                    param.field.setStyleSheet('background-color: rgb(200,255,200);')
 
         for param in self.globals:
-            if string == param['field'].text():
-                if param['val'] != param['field'].text():
+            if param.field and string == param.field.text():
+                if param.val != param.field.text():
                     self.revalidate = True
-                    param['val'] = param['field'].text()
-                    param['changed'] = True
+                    param.val = param.field.text()
+                    param.changed = True
+                    param.field.setStyleSheet('background-color: rgb(200,255,200);')
 
     def updateVals(self, string):
         for param in self.params:
-            if string == param['field'].text():
-                if param['val'] != param['field'].text():
+            if string == param.field.text():
+                if param.val != param.field.text():
                     self.revalidate = True
-                    param['val'] = param['field'].text()
+                    param.val = param.field.text()
 
     def validate_async(self):
         #print "val_async> ",
@@ -353,19 +376,19 @@ class QpalsModuleBase():
         self.listitem.setBackgroundColor(qtwhite)
         self.listitem.setToolTip("")
         for param in self.params:
-            if param['opt'] == 'mandatory':
-                param['field'].setToolTip('')
-                param['field'].setStyleSheet('')
-                param['icon'].setIcon(WaitIconMandatory)
-                if not param['val']:
+            if param.opt == 'mandatory':
+                param.field.setToolTip('')
+                param.field.setStyleSheet('')
+                param.icon.setIcon(WaitIconMandatory)
+                if not param.val:
                     allmandatoryset = False
             else:
-                param['field'].setStyleSheet('')
-                param['field'].setToolTip("")
-                param['icon'].setIcon(WaitIcon)
-            if param['val']:
-                paramlist.append('-' + param['name'])
-                for item in param['val'].split(";"):
+                param.field.setStyleSheet('')
+                param.field.setToolTip("")
+                param.icon.setIcon(WaitIcon)
+            if param.val:
+                paramlist.append('-' + param.name)
+                for item in param.val.split(";"):
                     paramlist.append(item.strip('"'))
         if allmandatoryset:
             self.listitem.setToolTip("All mandatory parameters set and validated.")
@@ -398,10 +421,10 @@ class QpalsModuleBase():
                     raise Exception('Call failed:\n %s' % calld['stdout'])
                 if errormodule:
                     for param in self.params:
-                        if param['name'] == errormodule:
-                            param['field'].setToolTip(errortext)
-                            param['icon'].setIcon(ErrorIcon)
-                            param['field'].setStyleSheet('background-color: rgb(255,140,140);')
+                        if param.name == errormodule:
+                            param.field.setToolTip(errortext)
+                            param.icon.setIcon(ErrorIcon)
+                            param.field.setStyleSheet('background-color: rgb(255,140,140);')
                             break
                 self.listitem.setBackgroundColor(qtsoftred)
                 self.listitem.setToolTip(errortext)
@@ -410,56 +433,99 @@ class QpalsModuleBase():
                 parsedXML = parseXML(calld['stderr'])['Specific']
                 for param in self.params:
                     for parsedParam in parsedXML:
-                        if param['name'] == parsedParam['name']:
-                            param['field'].setText(parsedParam['val'])
+                        if param.name == parsedParam.name:
+                            param.field.setText(parsedParam.val)
                             break
             return valid
 
-    def run(self, show=1):
+    def run(self, show=1, onlytext=False):
         paramlist = []
         for param in self.params:
-            if param['val']:
-                paramlist.append('-' + param['name'])
-                for item in param['val'].split(";"):
+            if param.val:
+                paramlist.append('-' + param.name)
+                for item in param.val.split(";"):
                     paramlist.append(item.strip('"'))
-            if param['name'] == 'outFile':
-                self.outf = param['val']
-        for param in self.params + self.globals:
-            if param['val'] and 'changed' in param and param['changed']:
-                paramlist.append('-' + param['name'])
-                for item in param['val'].split(";"):
+            if param.name == 'outFile':
+                self.outf = param.val
+        globcommon_set = []
+        for param in self.globals:
+            if param.val and param.changed:
+                paramlist.append('-' + param.name)
+                globcommon_set.append(param.name)
+                for item in param.val.split(";"):
                     paramlist.append(item.strip('"'))
+        for param in self.common:
+            if param.val and param.changed:
+                paramlist.append('-' + param.name)
+                globcommon_set.append(param.name)
+                for item in param.val.split(";"):
+                    paramlist.append(item.strip('"'))
+        project_globcomm = self.project.globals_common()
+        for key in project_globcomm:
+            if key not in globcommon_set:
+                paramlist.append('-' + key)
+                for item in project_globcomm[key].split(";"):
+                    paramlist.append(item.strip('"'))
+        if onlytext: return self.execName + " " + " ".join(paramlist)
         result = self.call(show, *paramlist)
-        return self
+        return result
 
     def reset(self):
         self.params = []
         self.visualize = False
         self.load()
 
+    def __str__(self):
+        return self.run(onlytext=True)
+
 
 class QpalsRunBatch():
-
-    def __init__(self):
+    revalidate = False
+    visualize = False
+    def __init__(self, t1="", t2=""):
         self.command = ""
         self.loaded = True  # Always loaded
+        self.t1 = t1
+        self.t2 = t2
 
-    def getParamUi(self):
+    def getParamUi(self, parent=None):
         form = QtGui.QFormLayout()
 
         l1 = QtGui.QLabel("Command")
-        self.e1 = QtGui.QLineEdit()
+        self.e1 = QtGui.QLineEdit(self.t1)
         l2 = QtGui.QLabel("Working directory")
-        self.e2 = QtGui.QLineEdit()
+        self.e2 = QtGui.QLineEdit(self.t2)
 
+        self.e1.editingFinished.connect(self.updateVals)
+        self.e2.editingFinished.connect(self.updateVals)
         form.addRow(l1, self.e1)
         form.addRow(l2, self.e2)
 
         return form
 
+    def updateVals(self):
+        self.t1 = self.e1.text()
+        self.t2 = self.e2.text()
+
     def reset(self):
-        self.e1 = ""
-        self.e2 = ""
+        self.e1.setText("")
+        self.t1 = ""
+        self.e2.setText("")
+        self.t2 = ""
 
     def validate(self):
         pass
+
+    def run(self):
+        if os.path.exists(self.t2) and os.path.isdir(self.t2):
+            os.chdir(self.t2)
+        os.system(self.t1)
+
+    def __deepcopy__(self, memo={}):
+        new = QpalsRunBatch()
+        new.t1 = self.t1
+        new.t2 = self.t2
+        return new
+
+    def __str__(self):
+        return "cd %s /D\r\n%s"%(self.t2, self.t1)

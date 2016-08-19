@@ -9,8 +9,14 @@ class QpalsProject:
         self.opalspath = opalspath
         self.vismethod = vismethod
         self.iface = iface
-        self.commons = dict()
+        self.common = dict()
         self.globals = dict()
+
 
     def getUI(self):
         pass
+
+    def globals_common(self):
+        x = self.common.copy()
+        x.update(self.globals)
+        return x

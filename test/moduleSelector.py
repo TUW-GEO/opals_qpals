@@ -28,7 +28,7 @@ qtwhite = QtGui.QColor(255,255,255)
 qtsoftred = QtGui.QColor(255,140,140)
 
 
-class moduleSelector(QtGui.QMainWindow):
+class moduleSelector(QtGui.QDialog):
 
     IconPath = r"C:\Users\Lukas\.qgis2\python\plugins\qpals\\"
     opalsIcon = QtGui.QIcon(IconPath + "icon.png")
@@ -46,7 +46,7 @@ class moduleSelector(QtGui.QMainWindow):
 
 
     def __init__(self, iface, layerlist, project):
-        super(moduleSelector, self).__init__(None, QtCore.Qt.WindowStaysOnTopHint)
+        super(moduleSelector, self).__init__(None)#, QtCore.Qt.WindowStaysOnTopHint)
         self.project = project
         self.iface = iface
         self.layerlist = layerlist
@@ -81,6 +81,7 @@ class moduleSelector(QtGui.QMainWindow):
         filterBox.addWidget(self.filterText, stretch=1)
         filterClear = QtGui.QPushButton()
         filterClear.setText("X")
+        filterClear.setMaximumWidth(20)
         filterClear.pressed.connect(self.clearFilterText)
         filterBox.addWidget(filterClear)
         self.loadAllBtn = QtGui.QPushButton()
@@ -105,29 +106,34 @@ class moduleSelector(QtGui.QMainWindow):
         self.runListWidget = QtGui.QListWidget()
         #self.runListWidget.currentItemChanged.connect(self.loadModuleAsync)
         self.runListWidget.itemClicked.connect(self.loadModuleAsync)
+        self.runListWidget.setDragEnabled(True)
+        self.runListWidget.setDragDropMode(QtGui.QAbstractItemView.InternalMove)
 
         runAllBtn = QtGui.QPushButton()
         runAllBtn.setText("Run")
         runAllBtn.clicked.connect(self.runRunList)
 
-        runUpBtn = QtGui.QPushButton()
-        runUpBtn.setText("^")
-        runUpBtn.clicked.connect(self.runUp)
-
-        runDownBtn = QtGui.QPushButton()
-        runDownBtn.setText("v")
-        runDownBtn.clicked.connect(self.runDown)
+        runDelZone = QpalsDeleteLabel("Drop here to remove")
+        runDelZone.setAcceptDrops(True)
 
         runvbox = QtGui.QVBoxLayout()
         runvbox.addWidget(self.runListWidget, stretch=1)
         runhbox = QtGui.QHBoxLayout()
-        runhbox.addWidget(runDownBtn)
-        runhbox.addWidget(runUpBtn)
+        runhbox.addWidget(runDelZone)
         runhbox.addWidget(runAllBtn)
         runvbox.addLayout(runhbox)
+        saveloadbox = QtGui.QHBoxLayout()
+        savbtn = QtGui.QPushButton("Save .bat")
+        loadbtn = QtGui.QPushButton("Load .bat")
+        savbtn.clicked.connect(self.saveRunList)
+        loadbtn.clicked.connect(self.loadRunList)
+        saveloadbox.addWidget(savbtn)
+        saveloadbox.addWidget(loadbtn)
+
         self.pbar = QtGui.QProgressBar()
         self.pbar.setValue(100)
         runvbox.addWidget(self.pbar)
+        runvbox.addLayout(saveloadbox)
         rungroup.setLayout(runvbox)
 
         grpBoxContainer = QtGui.QHBoxLayout()
@@ -136,10 +142,6 @@ class moduleSelector(QtGui.QMainWindow):
         grpBoxContainer.addWidget(rungroup)
 
         lowerhbox = QtGui.QHBoxLayout()
-        exitBtn = QtGui.QPushButton("Exit")
-        exitBtn.clicked.connect(self.close)
-        lowerhbox.addStretch(1)
-        lowerhbox.addWidget(exitBtn)
 
         overallBox = QtGui.QVBoxLayout()
         overallBox.addLayout(grpBoxContainer)
@@ -147,7 +149,7 @@ class moduleSelector(QtGui.QMainWindow):
 
         self.main_widget = QtGui.QWidget()
         self.main_widget.setLayout(overallBox)
-        self.setCentralWidget(self.main_widget)
+        self.setLayout(overallBox)
         self.setWindowTitle('qpals')
 
     def filterModuleList(self, text):
@@ -225,18 +227,20 @@ class moduleSelector(QtGui.QMainWindow):
             runbtn.clicked.connect(lambda: self.runModuleAsync(module))
             addbtn = QtGui.QPushButton("Add to run list >")
             addbtn.clicked.connect(self.addToRunList)
-            self.viewbox = QtGui.QCheckBox("Add result to canvas")
-
-            self.commonbtn = QtGui.QPushButton("Common and Global parameters")
-            self.commonwin = module.paramClass.getGlobalCommonParamsWindow(parent=self)
-            self.commonbtn.clicked.connect(self.commonwin.show)
-            form.addWidget(self.commonbtn)
+            if "opals" in module.text():
+                self.viewbox = QtGui.QCheckBox("Add result to canvas")
+                self.viewbox.clicked.connect(self.viewboxChanged)
+                self.commonbtn = QtGui.QPushButton("Common and Global parameters")
+                self.commonwin = module.paramClass.getGlobalCommonParamsWindow(parent=self)
+                self.commonbtn.clicked.connect(self.commonwin.show)
+                form.addWidget(self.commonbtn)
             #viewbox.stateChanged.connect(module.paramClass.view = viewbox.isChecked())
             resetbar.addStretch(1)
             resetbar.addWidget(resetbtn)
             resetbar.addWidget(runbtn)
             resetbar.addWidget(addbtn)
-            resetbar.addWidget(self.viewbox)
+            if "opals" in module.text():
+                resetbar.addWidget(self.viewbox)
             #resetbar.addWidget(commonbtn)
             #resetbar.addWidget(globalbtn)
             form.addLayout(resetbar)
@@ -280,16 +284,17 @@ class moduleSelector(QtGui.QMainWindow):
                 print e
         self.loadAllBtn.hide()
 
+    def viewboxChanged(self):
+        self.curmodule.paramClass.visualize = self.viewbox.isChecked()
+
     def addToRunList(self):
         import copy
-        self.curmodule.paramClass.visualize = self.viewbox.isChecked()
         modulecopy = copy.deepcopy(self.curmodule)
         self.runListWidget.addItem(modulecopy)
         modulecopy.paramClass.revalidate = True
         self.resetModule(self.curmodule)
 
     def runModuleAsync(self, module):
-        module.paramClass.visualize = self.viewbox.isChecked()
         worker = ModuleRunWorker(module)
         thread = QtCore.QThread(self)
         worker.moveToThread(thread)
@@ -325,14 +330,45 @@ class moduleSelector(QtGui.QMainWindow):
             self.runningRunList = False
             self.currentruncount = 0
 
-    def runUp(self):
-        row = self.runListWidget.currentRow()
-        item = self.runListWidget.takeItem(row)
-        self.runListWidget.insertItem(row-1, item)
-        self.runListWidget.row(item)
+    def saveRunList(self):
+        saveTo = QtGui.QFileDialog.getSaveFileName(None, caption='Save to file')
+        if True:
+            f = open(saveTo, 'w')
+            f.write("rem BATCH FILE CREATED WITH QPALS\r\n")
+            for i in range(self.runListWidget.count()):
+                item = self.runListWidget.item(i)
+                module = item.paramClass
+                f.write(str(module) + "\r\n")
+            f.close()
 
-    def runDown(self):
-        row = self.runListWidget.currentRow()
-        item = self.runListWidget.takeItem(row)
-        self.runListWidget.insertItem(row+1, item)
-        self.runListWidget.row(item)
+    def loadRunList(self):
+        loadFrom = QtGui.QFileDialog.getOpenFileName(None, caption='Load from file')
+        f = open(loadFrom, 'r')
+        for line in f.readlines():
+            if line[0:3].lower() == "rem" or line.startswith("::"):
+                pass
+            elif line.startswith("opals"):
+                ModuleBase = QpalsModuleBase(line.split()[0], self.project, layerlist=self.layerlist)
+                module = QpalsListWidgetItem({'name': line.split()[0].split(".exe")[0],
+                                           'icon': self.opalsIcon,
+                                           'class': ModuleBase})
+            else:
+                module = QpalsListWidgetItem({'name': "User-defined cmd", 'icon': self.cmdIcon,
+                                              'class': QpalsRunBatch(line, "")})
+                self.runListWidget.addItem(module)
+
+class QpalsDeleteLabel(QtGui.QLabel):
+
+    def __init__(self, *args, **kwargs):
+        super(QpalsDeleteLabel, self).__init__(*args, **kwargs)
+
+    def dragEnterEvent(self, e):
+        self.setText("Release to delete module")
+        e.accept()
+
+    def dragLeaveEvent(self, *args, **kwargs):
+        self.setText("Drop here to remove")
+
+    def dropEvent(self, e):
+        self.setText("Drop here to remove")
+        e.accept()

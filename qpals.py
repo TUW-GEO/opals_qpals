@@ -37,7 +37,12 @@ class qpals:
 
     def showModuleSelector(self):
         self.modSel = moduleSelector.moduleSelector(self.iface, self.layerlist, self.prjSet)
-        self.modSel.show()
+        self.modSelWindow = QDockWidget("Opals Module Selector", self.iface.mainWindow(), Qt.WindowMinimizeButtonHint)
+        self.modSelWindow.setWidget(self.modSel)
+        self.modSelWindow.setAllowedAreas(Qt.NoDockWidgetArea)  # don't let it dock
+        self.modSelWindow.setMinimumSize(800, 400)
+        self.modSelWindow.setFloating(True)
+        self.modSelWindow.show()
 
     def showproject(self):
         self.prjUI = self.prjSet.getUI()

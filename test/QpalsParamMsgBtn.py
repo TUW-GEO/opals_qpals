@@ -12,9 +12,9 @@ class QpalsParamMsgBtn(QtGui.QToolButton):
     def displayParamMsgBox(self, param):
         msg = QtGui.QMessageBox(self.parent)
         msg.setIcon(QtGui.QMessageBox.Question)
-        msg.setText(param['desc'])
-        msg.setInformativeText(param['longdesc'])
-        msg.setWindowTitle(param['name'])
+        msg.setText(param.desc)
+        msg.setInformativeText(param.longdesc)
+        msg.setWindowTitle(param.name)
         msg.setStandardButtons(QtGui.QMessageBox.Ok)
         msg.exec_()
 

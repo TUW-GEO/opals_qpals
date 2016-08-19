@@ -2,10 +2,10 @@ import QpalsDropTextbox
 import QpalsModuleBase
 import tempfile
 import os
-from PyQt4 import QtGui, QtCore
+import QpalsParameter
+from PyQt4 import QtGui
 from qgis.core import *
 from qgis.gui import *
-from xml.dom import minidom
 
 class QpalsShowFile():
     METHOD_SHADING = 0
@@ -42,7 +42,7 @@ class QpalsShowFile():
         self.ui = QtGui.QDialog()
         lo = QtGui.QFormLayout()
         lo.addRow(QtGui.QLabel("Load ALS file(s):"))
-        self.dropspace = QpalsDropTextbox.QpalsDropTextbox()
+        self.dropspace = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)
         lo.addRow(self.dropspace)
         self.visMethod = QtGui.QComboBox()
         self.visMethod.addItem("Shading (raster)")
@@ -62,8 +62,8 @@ class QpalsShowFile():
         cellInst = QpalsModuleBase.QpalsModuleBase(os.path.join(self.project.opalspath, "opalsCell.exe"), self.project)
         cellInst.load()
         for param in cellInst.params:
-            if param["name"].lower() == "cellsize":
-                self.cellSizeBox.setText(param["val"])
+            if param.name.lower() == "cellsize":
+                self.cellSizeBox.setText(param.val)
                 break
         self.cellFeatCmb.addItems(["min", "max", "diff", "mean", "median", "sum", "variance", "rms", "pdens", "pcount",
                                    "minority", "majority", "entropy"])
@@ -195,14 +195,14 @@ class QpalsShowFile():
             QtGui.QApplication.processEvents()
 
     def call(self, module, params, outext="", returnstdout=False, nooutfile=False):
-        Module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.opalspath, module+".exe"))
+        Module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, module+".exe"), QpalsProject=self.project)
         if "outFile" not in params and not nooutfile:
             file = tempfile.NamedTemporaryFile(delete=False)
             params["outFile"] = file.name + outext
             file.close()
         paramlist = []
         for param in params.iterkeys():
-            paramlist.append({"name": param, "val": params[param]})
+            paramlist.append(QpalsParameter.QpalsParameter(param, params[param], None, None, None, None, None))
         Module.params = paramlist
         moduleOut = Module.run(show=0)
         if returnstdout:
