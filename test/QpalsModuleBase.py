@@ -169,7 +169,7 @@ class QpalsModuleBase():
         args = shlex.split(string)
         execName = os.path.join(project.opalspath, args[0])
         args.remove(args[0])
-        for i in range(len(args)):
+        for i in range(len(args)):  # Values with a space in between are supported by opals w/out quotes
             curarg = args[i]
             nextarg = args[i+1] if len(args) > i+1 else "-"
             if not curarg.startswith("-") and not nextarg.startswith("-"):
@@ -281,7 +281,8 @@ class QpalsModuleBase():
 
     def getUIOneliner(self, param, parent=None, global_common=False):
         l1 = QtGui.QLabel(param.name)
-        if len(param.choices) == 0:
+        if True: #len(param.choices) == 0:
+            # TODO fix this?
             if "path" in param.type.lower():
                 param.field = QpalsDropTextbox.QpalsDropTextbox(self.layerlist, param.val)
                 if global_common:
