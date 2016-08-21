@@ -30,7 +30,7 @@ class qpals:
         self.iface = iface
         self.layerlist = dict()
         self.prjSet = QpalsProject.QpalsProject(name="", opalspath=r"D:\01_opals\01_nightly\opals\\",
-                                                tempdir=r"D:\01_opals\temp", iface=self.iface)
+                                                tempdir=r"D:\01_opals\temp", workdir=r"D:\01_opals\01_nightly\demo", iface=self.iface)
 
     def __del__(self):
         pass

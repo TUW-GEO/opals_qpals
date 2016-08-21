@@ -344,18 +344,36 @@ class moduleSelector(QtGui.QDialog):
     def loadRunList(self):
         loadFrom = QtGui.QFileDialog.getOpenFileName(None, caption='Load from file')
         f = open(loadFrom, 'r')
-        for line in f.readlines():
-            if line[0:3].lower() == "rem" or line.startswith("::"):
-                pass
-            elif line.startswith("opals"):
-                ModuleBase = QpalsModuleBase(line.split()[0], self.project, layerlist=self.layerlist)
-                module = QpalsListWidgetItem({'name': line.split()[0].split(".exe")[0],
-                                           'icon': self.opalsIcon,
-                                           'class': ModuleBase})
-            else:
-                module = QpalsListWidgetItem({'name': "User-defined cmd", 'icon': self.cmdIcon,
-                                              'class': QpalsRunBatch(line, "")})
-                self.runListWidget.addItem(module)
+        lines = f.readlines()
+        for i in range(len(lines)):
+            try:
+                line = lines[i]
+                nextline = lines[i+1] if len(lines) > i+1 else ""
+                if line[0:3].lower() == "rem" or line.startswith("::"):
+                    module = None
+                elif line.startswith("opals"):
+                    ModuleBase = QpalsModuleBase.fromCallString(line, self.project, self.layerlist)
+                    module = QpalsListWidgetItem({'name': line.split()[0].split(".exe")[0],
+                                               'icon': self.opalsIcon,
+                                               'class': ModuleBase})
+                    ModuleBase.listitem = module
+                else:
+                    if line.startswith("cd ") and not (nextline.startswith("rem")
+                                                or nextline.startswith("::")
+                                                or nextline.startswith("opals")):
+                        chdir = line[3:]
+                        call = nextline
+                        i += 1
+                    else:
+                        chdir = ""
+                        call = line
+                    module = QpalsListWidgetItem({'name': "User-defined cmd", 'icon': self.cmdIcon,
+                                                  'class': QpalsRunBatch(call, chdir)})
+                if module:
+                    self.runListWidget.addItem(module)
+                    #self.loadModule(module)
+            except Exception as e:
+                print e
 
 class QpalsDeleteLabel(QtGui.QLabel):
 

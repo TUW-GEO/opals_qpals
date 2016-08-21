@@ -19,8 +19,8 @@ email                : lukas.winiwarter@tuwien.ac.at
 
 from PyQt4 import QtCore, QtGui
 import subprocess
-import os
-import threading
+import os, shlex
+import copy
 from xml.dom import minidom
 
 import QpalsParamMsgBtn
@@ -165,16 +165,49 @@ class QpalsModuleBase():
         self.common = []
 
     @staticmethod
-    def fromCallString(string):
-        pass
-        #todo: use xml parser and --options to load a module!
+    def fromCallString(string, project, layerlist):
+        args = shlex.split(string)
+        execName = os.path.join(project.opalspath, args[0])
+        args.remove(args[0])
+        for i in range(len(args)):
+            curarg = args[i]
+            nextarg = args[i+1] if len(args) > i+1 else "-"
+            if not curarg.startswith("-") and not nextarg.startswith("-"):
+                args[i] = curarg + " " + nextarg
+                args.remove(nextarg)
+            if len(args) <= i+1:
+                break
+        args.append("--options")
+        print args
+        # call
+        info = subprocess.STARTUPINFO()
+        info.dwFlags = subprocess.STARTF_USESHOWWINDOW
+        info.wShowWindow = 0  # 0=HIDE
+        proc = subprocess.Popen([execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                stdin=subprocess.PIPE, cwd=project.workdir, startupinfo=info)
+        proc.stdin.close()
+        stdout, stderr = proc.communicate()
+        if proc.returncode != 0:
+            raise Exception('Call failed:\n %s' % stdout)
+        xml_parsed = parseXML(stderr)
+        newModuleBase = QpalsModuleBase(execName, project, layerlist)
+        newModuleBase.load()
+        for param in newModuleBase.params:
+            print param.val
+        newModuleBase.getParamUi()
+        for param in newModuleBase.params:
+            print param.field
+        newModuleBase.params = QpalsParameter.mergeParamLists(newModuleBase.params, xml_parsed['Specific'])
+        newModuleBase.globals = QpalsParameter.mergeParamLists(newModuleBase.globals, xml_parsed['Global'])
+        newModuleBase.common = QpalsParameter.mergeParamLists(newModuleBase.common, xml_parsed['Common'])
+        return newModuleBase
 
     def call(self, show=0, *args):
         info = subprocess.STARTUPINFO()
         info.dwFlags = subprocess.STARTF_USESHOWWINDOW
         info.wShowWindow = show  # 0=HIDE
         proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                stdin=subprocess.PIPE, cwd=self.project.tempdir, startupinfo=info)
+                                stdin=subprocess.PIPE, cwd=self.project.workdir, startupinfo=info)
         proc.stdin.close()
         stdout, stderr = proc.communicate()
         return {'stdout': stdout,
@@ -278,6 +311,9 @@ class QpalsModuleBase():
             else:
                 param.field.currentIndexChanged['QString'].connect(self.updateVals)
 
+        if param.val:
+            param.field.setText(param.val)
+
         param.icon = QpalsParamMsgBtn.QpalsParamMsgBtn(param, parent)
         param.icon.setToolTip(param.opt)
         param.icon.setIcon(WaitIcon)
@@ -332,10 +368,19 @@ class QpalsModuleBase():
 
     def updateVals(self, string):
         for param in self.params:
+            print "name", param.name, "field", param.field
             if string == param.field.text():
                 if param.val != param.field.text():
                     self.revalidate = True
+                    if os.path.isabs(param.field.text()):
+                        try:  # check if path is in working dir - use relative paths
+                            relpath = os.path.relpath(os.path.normpath(param.field.text()), os.path.normpath(self.project.workdir))
+                            if not relpath.startswith(".."):
+                                param.field.setText(relpath)
+                        except:  # file on different drive or other problem - use full path
+                            pass
                     param.val = param.field.text()
+
 
     def validate_async(self):
         #print "val_async> ",
@@ -466,7 +511,8 @@ class QpalsModuleBase():
                 paramlist.append('-' + key)
                 for item in project_globcomm[key].split(";"):
                     paramlist.append(item.strip('"'))
-        if onlytext: return self.execName + " " + " ".join(paramlist)
+        if onlytext:
+            return os.path.basename(self.execName) + " " + " ".join(paramlist)
         result = self.call(show, *paramlist)
         return result
 
