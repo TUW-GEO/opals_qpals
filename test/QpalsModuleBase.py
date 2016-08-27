@@ -278,6 +278,9 @@ class QpalsModuleBase():
             else:
                 param.field.currentIndexChanged['QString'].connect(self.updateVals)
 
+        #if param.val:
+        #    param.field.setText(param.val)
+
         param.icon = QpalsParamMsgBtn.QpalsParamMsgBtn(param, parent)
         param.icon.setToolTip(param.opt)
         param.icon.setIcon(WaitIcon)
@@ -335,6 +338,13 @@ class QpalsModuleBase():
             if string == param.field.text():
                 if param.val != param.field.text():
                     self.revalidate = True
+                    if os.path.isabs(param.field.text()):
+                        try:  # check if path is in working dir - use relative paths
+                            relpath = os.path.relpath(os.path.normpath(param.field.text()), os.path.normpath(self.project.workdir))
+                            if not relpath.startswith(".."):
+                                param.field.setText(relpath)
+                        except:  # file on different drive or other problem - use full path
+                            pass
                     param.val = param.field.text()
 
     def validate_async(self):
@@ -466,7 +476,8 @@ class QpalsModuleBase():
                 paramlist.append('-' + key)
                 for item in project_globcomm[key].split(";"):
                     paramlist.append(item.strip('"'))
-        if onlytext: return self.execName + " " + " ".join(paramlist)
+        if onlytext:
+            return os.path.basename(self.execName) + " " + " ".join(paramlist)
         result = self.call(show, *paramlist)
         return result
 
