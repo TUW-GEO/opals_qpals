@@ -37,7 +37,7 @@ class qpals:
         proj = QgsProject.instance()
         opalspath = s.value("qpals/opalspath", "")
         tempdir = proj.readEntry("qpals","tempdir", tempfile.gettempdir())[0]
-        workdir = proj.readEntry("qpals","workdir", "C:\\")[0]
+        workdir = proj.readEntry("qpals","workdir", tempfile.gettempdir())[0]
         vismethod = proj.readNumEntry("qpals", "vismethod", QpalsShowFile.QpalsShowFile.METHOD_BOX)[0]
         firstrun = False
         if opalspath == "":
