@@ -33,3 +33,15 @@ class QpalsParameter:
         self.opt = opt
         self.desc = desc
         self.longdesc = longdesc
+
+    def __str__(self):
+        return self.name + ": " + self.val
+
+def mergeParamLists(baselist, overloadlist):
+    for i in range(len(baselist)):
+        baseitem = baselist[i]
+        for overloaditem in overloadlist:
+            if baseitem.name.lower() == overloaditem.name.lower():
+                baselist[i].val = overloaditem.val
+                break
+    return baselist
