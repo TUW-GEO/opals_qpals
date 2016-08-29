@@ -141,6 +141,7 @@ class QpalsShowFile():
                                                                    QgsPoint(xmin, ymax)]]))
                         pr.addFeatures([feat])
                         layer.updateExtents()
+                layer.setCustomProperty("qpals-odmpath", drop)
                 QgsMapLayerRegistry.instance().addMapLayer(layer)
                 self.layerlist[layer.id()] = drop
         if self.ui:

@@ -30,10 +30,14 @@ class QpalsDropTextbox(QtGui.QLineEdit):
                     if lyr.id() == ide:
                         layer = lyr
                         break
-                if lyr.id() in self.layerlist:
-                    paths.append(self.layerlist[lyr.id()])  # opals vis file - takes the odm
+                odmpath = lyr.customProperty("qpals-odmpath", "")
+                if odmpath is not "":
+                    paths.append(odmpath)  # opals vis file - takes the odm
+                    #if lyr.id() in self.layerlist:
+                    #    paths.append(self.layerlist[lyr.id()])  # opals vis file - takes the odm
                 else:
                     paths.append(layer.source())  # any other qgis file - takes the real path
+
         elif e.mimeData().hasUrls():
             data = e.mimeData().urls()
 
@@ -47,6 +51,7 @@ class QpalsDropTextbox(QtGui.QLineEdit):
         e.setDropAction(QtCore.Qt.TargetMoveAction)  # retain the original
         e.accept()
         self.editingFinished.emit()
+
 
 
 class droptester(QtGui.QWidget):

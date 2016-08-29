@@ -24,13 +24,35 @@ from qgis.gui import *
 
 from test import QpalsShowFile, QpalsProject, moduleSelector
 
+import tempfile, os
+
 class qpals:
     def __init__(self, iface):
         # Save reference to the QGIS interface
         self.iface = iface
+        self.active = True
         self.layerlist = dict()
-        self.prjSet = QpalsProject.QpalsProject(name="", opalspath=r"D:\01_opals\01_nightly\opals\\",
-                                                tempdir=r"D:\01_opals\temp", workdir=r"D:\01_opals\01_nightly\demo", iface=self.iface)
+        s = QSettings()
+        opalspath = s.value("qpals/opalspath", "")
+        tempdir = s.value("qpals/tempdir", tempfile.gettempdir())
+        workdir = s.value("qpals/workdir", "C:\\")
+        if opalspath == "":
+            msg = QMessageBox()
+            msg.setText("The path to the opals binaries has not been set.")
+            msg.setInformativeText("Please set it now, or press cancel to unload the qpals plugin.")
+            msg.setWindowTitle("Qpals opals path")
+            msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+            ret = msg.exec_()
+            if ret == QMessageBox.Ok:
+                opalspath = QFileDialog.getExistingDirectory(None, caption='Select path containing opals*.exe binaries')
+                if opalspath:
+                    s.setValue("qpals/opalspath", opalspath)
+            else:
+                self.active = False
+
+        if self.active:
+            self.prjSet = QpalsProject.QpalsProject(name="", opalspath=opalspath,
+                                                    tempdir=tempdir, workdir=workdir, iface=self.iface)
 
     def __del__(self):
         pass
@@ -54,43 +76,48 @@ class qpals:
         self.drop.show()
 
     def initGui(self):
-        self.menu = QMenu(self.iface.mainWindow())
-        self.menu.setObjectName("qpalsMenu")
-        self.menu.setTitle("qpals")
+        if self.active:
+            self.menu = QMenu(self.iface.mainWindow())
+            self.menu.setObjectName("qpalsMenu")
+            self.menu.setTitle("qpals")
 
-        self.menuItemModuleSelector = QAction(QIcon("icon.png"), "Module Selector", self.iface.mainWindow())
-        self.menuItemModuleSelector.setObjectName("menuModSel")
-        self.menuItemModuleSelector.setWhatsThis("Select a module from a list")
-        self.menuItemModuleSelector.setStatusTip("Select module from list")
-        QObject.connect(self.menuItemModuleSelector, SIGNAL("triggered()"), self.showModuleSelector)
-        self.menu.addAction(self.menuItemModuleSelector)
+            IconPath = os.path.dirname(os.path.realpath(__file__))
+            opalsIcon = QIcon(os.path.join(IconPath, "icon.png"))
 
-        # self.dd = QAction(QIcon("icon.png"), "Drag&&Drop demo", self.iface.mainWindow())
-        # self.dd.setObjectName("menuddDemo")
-        # self.dd.setStatusTip("Drag and Drop demo")
-        # QObject.connect(self.dd, SIGNAL("triggered()"), self.showdd)
-        # self.menu.addAction(self.dd)
+            self.menuItemModuleSelector = QAction(opalsIcon, "Module Selector", self.iface.mainWindow())
+            self.menuItemModuleSelector.setObjectName("menuModSel")
+            self.menuItemModuleSelector.setWhatsThis("Select a module from a list")
+            self.menuItemModuleSelector.setStatusTip("Select module from list")
+            QObject.connect(self.menuItemModuleSelector, SIGNAL("triggered()"), self.showModuleSelector)
+            self.menu.addAction(self.menuItemModuleSelector)
 
-        self.mnuproject = QAction(QIcon("icon.png"), "Project settings", self.iface.mainWindow())
-        self.mnuproject.setObjectName("menumnuproject")
-        self.mnuproject.setStatusTip("Project settings")
-        QObject.connect(self.mnuproject, SIGNAL("triggered()"), self.showproject)
-        self.menu.addAction(self.mnuproject)
+            # self.dd = QAction(QIcon("icon.png"), "Drag&&Drop demo", self.iface.mainWindow())
+            # self.dd.setObjectName("menuddDemo")
+            # self.dd.setStatusTip("Drag and Drop demo")
+            # QObject.connect(self.dd, SIGNAL("triggered()"), self.showdd)
+            # self.menu.addAction(self.dd)
 
-        menuBar = self.iface.mainWindow().menuBar()
-        menuBar.insertMenu(self.iface.firstRightStandardMenu().menuAction(), self.menu)
+            self.mnuproject = QAction(opalsIcon, "Project settings", self.iface.mainWindow())
+            self.mnuproject.setObjectName("menumnuproject")
+            self.mnuproject.setStatusTip("Project settings")
+            QObject.connect(self.mnuproject, SIGNAL("triggered()"), self.showproject)
+            self.menu.addAction(self.mnuproject)
 
-        self.dropspace = QDockWidget("Opals Visualizer", self.iface.mainWindow())
-        self.dropspace.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        self.dropobject = QpalsShowFile.QpalsShowFile(self.iface, self.layerlist, self.prjSet)
-        self.dropobject.initUI()
-        self.dropspace.setWidget(self.dropobject.ui)
-        self.iface.mainWindow().addDockWidget(Qt.LeftDockWidgetArea, self.dropspace)
-        self.dropspace.setContentsMargins(9, 9, 9, 9)
-        #self.dropspace.removeEventFilter(self.iface.mainWindow())
+            menuBar = self.iface.mainWindow().menuBar()
+            menuBar.insertMenu(self.iface.firstRightStandardMenu().menuAction(), self.menu)
+
+            self.dropspace = QDockWidget("Opals Visualizer", self.iface.mainWindow())
+            self.dropspace.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+            self.dropobject = QpalsShowFile.QpalsShowFile(self.iface, self.layerlist, self.prjSet)
+            self.dropobject.initUI()
+            self.dropspace.setWidget(self.dropobject.ui)
+            self.iface.mainWindow().addDockWidget(Qt.LeftDockWidgetArea, self.dropspace)
+            self.dropspace.setContentsMargins(9, 9, 9, 9)
+            #self.dropspace.removeEventFilter(self.iface.mainWindow())
 
 
     def unload(self):
-        # Remove the plugin menu item and icon
-        self.menu.deleteLater()
-        self.dropspace.deleteLater()
+        if self.active:
+            # Remove the plugin menu item and icon
+            self.menu.deleteLater()
+            self.dropspace.deleteLater()
