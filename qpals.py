@@ -32,10 +32,14 @@ class qpals:
         self.iface = iface
         self.active = True
         self.layerlist = dict()
+        QgsProject.instance().readProject.connect(self.projectloaded)
         s = QSettings()
+        proj = QgsProject.instance()
         opalspath = s.value("qpals/opalspath", "")
-        tempdir = s.value("qpals/tempdir", tempfile.gettempdir())
-        workdir = s.value("qpals/workdir", "C:\\")
+        tempdir = proj.readEntry("qpals","tempdir", tempfile.gettempdir())[0]
+        workdir = proj.readEntry("qpals","workdir", "C:\\")[0]
+        vismethod = proj.readNumEntry("qpals", "vismethod", QpalsShowFile.QpalsShowFile.METHOD_BOX)[0]
+        firstrun = False
         if opalspath == "":
             msg = QMessageBox()
             msg.setText("The path to the opals binaries has not been set.")
@@ -47,15 +51,33 @@ class qpals:
                 opalspath = QFileDialog.getExistingDirectory(None, caption='Select path containing opals*.exe binaries')
                 if opalspath:
                     s.setValue("qpals/opalspath", opalspath)
+                    firstrun = True
             else:
                 self.active = False
 
         if self.active:
             self.prjSet = QpalsProject.QpalsProject(name="", opalspath=opalspath,
-                                                    tempdir=tempdir, workdir=workdir, iface=self.iface)
+                                                    tempdir=tempdir, workdir=workdir, iface=self.iface, vismethod=vismethod)
+
+        if firstrun:
+            self.showproject()
 
     def __del__(self):
         pass
+
+    def projectloaded(self):
+        proj = QgsProject.instance()
+        tempdir = proj.readEntry("qpals","tempdir", "")[0]
+        workdir = proj.readEntry("qpals","workdir", "")[0]
+        vismethod = proj.readNumEntry("qpals", "vismethod", -1)[0]
+        if tempdir:
+            self.prjSet.tempdir = tempdir
+        if workdir:
+            self.prjSet.workdir = workdir
+        if vismethod:
+            self.prjSet.vismethod = vismethod
+            self.dropobject.visMethod.setCurrentIndex(vismethod)
+
 
     def showModuleSelector(self):
         self.modSel = moduleSelector.moduleSelector(self.iface, self.layerlist, self.prjSet)

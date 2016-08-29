@@ -170,6 +170,11 @@ class QpalsModuleBase():
         #todo: use xml parser and --options to load a module!
 
 
+    def getParam(self, paramname):
+        for param in self.params:
+            if param.name.lower() == paramname.lower():
+                return param
+        return None
 
     def call(self, show=0, *args):
         info = subprocess.STARTUPINFO()
