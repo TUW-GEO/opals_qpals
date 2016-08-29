@@ -22,7 +22,7 @@ from PyQt4.QtGui import *
 from qgis.core import *
 from qgis.gui import *
 
-from test import QpalsShowFile, QpalsProject, moduleSelector
+from test import QpalsShowFile, QpalsProject, moduleSelector, QpalsSection
 
 import tempfile, os
 
@@ -75,6 +75,15 @@ class qpals:
         self.drop = test.QpalsDropTextbox.droptester()
         self.drop.show()
 
+    def showSecGUI(self):
+        self.sec = QpalsSection.QpalsSection(project=self.prjSet, layerlist=self.layerlist, iface=self.iface)
+        self.secUI = self.sec.createWidget()
+        self.secUIDock = QDockWidget("Qpals Section GUI", self.iface.mainWindow())
+        self.secUIDock.setWidget(self.secUI)
+        self.secUIDock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.secUIDock.setFloating(True)
+        self.secUIDock.show()
+
     def initGui(self):
         if self.active:
             self.menu = QMenu(self.iface.mainWindow())
@@ -85,23 +94,20 @@ class qpals:
             opalsIcon = QIcon(os.path.join(IconPath, "icon.png"))
 
             self.menuItemModuleSelector = QAction(opalsIcon, "Module Selector", self.iface.mainWindow())
-            self.menuItemModuleSelector.setObjectName("menuModSel")
             self.menuItemModuleSelector.setWhatsThis("Select a module from a list")
             self.menuItemModuleSelector.setStatusTip("Select module from list")
             QObject.connect(self.menuItemModuleSelector, SIGNAL("triggered()"), self.showModuleSelector)
             self.menu.addAction(self.menuItemModuleSelector)
 
-            # self.dd = QAction(QIcon("icon.png"), "Drag&&Drop demo", self.iface.mainWindow())
-            # self.dd.setObjectName("menuddDemo")
-            # self.dd.setStatusTip("Drag and Drop demo")
-            # QObject.connect(self.dd, SIGNAL("triggered()"), self.showdd)
-            # self.menu.addAction(self.dd)
-
             self.mnuproject = QAction(opalsIcon, "Project settings", self.iface.mainWindow())
-            self.mnuproject.setObjectName("menumnuproject")
             self.mnuproject.setStatusTip("Project settings")
             QObject.connect(self.mnuproject, SIGNAL("triggered()"), self.showproject)
             self.menu.addAction(self.mnuproject)
+
+            self.mnusec = QAction(opalsIcon, "qpals Section GUI", self.iface.mainWindow())
+            self.mnusec.setStatusTip("Project settings")
+            QObject.connect(self.mnusec, SIGNAL("triggered()"), self.showSecGUI)
+            self.menu.addAction(self.mnusec)
 
             menuBar = self.iface.mainWindow().menuBar()
             menuBar.insertMenu(self.iface.firstRightStandardMenu().menuAction(), self.menu)

@@ -34,4 +34,3 @@ class parse_log(object):
 if __name__ == '__main__':
     parse_log_inst = parse_log(r'C:\Users\Lukas\Documents\TU Wien\BacArbeit\opalsLog.xml')
     parse_log_inst.run()
-    #print(parse_log_inst.output['Minimum X-Y-Z'])

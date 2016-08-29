@@ -141,9 +141,23 @@ class QpalsShowFile():
                                                                    QgsPoint(xmin, ymax)]]))
                         pr.addFeatures([feat])
                         layer.updateExtents()
+
+
                 layer.setCustomProperty("qpals-odmpath", drop)
                 QgsMapLayerRegistry.instance().addMapLayer(layer)
+
+                if self.curVisMethod in [3, 4, 5, 6]:
+                    layer.setCustomProperty("labeling", "pal")
+                    layer.setCustomProperty("labeling/enabled", "true")
+                    layer.setCustomProperty("labeling/isExpression", "true")
+                    layer.setCustomProperty("labeling/fontFamily", "Arial")
+                    layer.setCustomProperty("labeling/fontSize", "10")
+                    layer.setCustomProperty("labeling/fieldName", "'%s'" % os.path.splitext(os.path.basename(drop))[0])
+                    layer.setCustomProperty("labeling/placement", "1")
+                    layer.triggerRepaint()
+                    self.iface.mapCanvas().refresh()
                 self.layerlist[layer.id()] = drop
+
         if self.ui:
             self.okBtn.setText("Load")
             self.okBtn.setEnabled(True)
