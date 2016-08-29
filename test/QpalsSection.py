@@ -100,13 +100,15 @@ class QpalsSection:
 
         self.secLayer = self.iface.addVectorLayer("Polygon", "Sections", "memory")
         pr = self.secLayer.dataProvider()
-        featcnt = 0
+        featcnt = 1
         for outGeom in outGeoms:
             obj = ogr.CreateGeometryFromWkt(outGeom)
+            geometrycnt = obj.GetGeometryCount()
             centersec = obj.GetGeometryRef(0)
             box = obj.GetGeometryRef(1)
             origin = obj.GetGeometryRef(2)
             pointcloud = obj.GetGeometryRef(3)
+
             feat = QgsFeature(featcnt)
             points = []
             ring = box.GetGeometryRef(0)
@@ -115,7 +117,12 @@ class QpalsSection:
                 points.append(QgsPoint(pt[0], pt[1]))
             feat.setGeometry(QgsGeometry.fromPolygon([points]))
             pr.addFeatures([feat])
-            self.sections[featcnt] = pointcloud.ExportToWkt()
+            self.sections[featcnt] = {'wkt': pointcloud.ExportToWkt(),
+                                      'name': origin.GetY()}
+            if geometrycnt > 4:
+                attrcloud = obj.GetGeometryRef(4)
+                self.sections[featcnt]['attr_wkt'] = attrcloud.ExportToWkt()
+
             featcnt += 1
 
         self.secLayer.updateExtents()
@@ -146,36 +153,51 @@ class PointTool(QgsMapTool):
         pass
 
     def canvasReleaseEvent(self, event):
-        layerPoint = self.toLayerCoordinates(self.layer, event.pos())
+        if self.sections:
+            layerPoint = self.toLayerCoordinates(self.layer, event.pos())
 
-        shortestDistance = float("inf")
-        closestFeatureId = -1
+            shortestDistance = float("inf")
+            closestFeatureId = -1
 
-        # Loop through all features in the layer
-        for f in self.layer.getFeatures():
-            dist = f.geometry().distance(QgsGeometry.fromPoint(layerPoint))
-            if dist < shortestDistance:
-                shortestDistance = dist
-                closestFeatureId = f.id()
+            # Loop through all features in the layer
+            for f in self.layer.getFeatures():
+                dist = f.geometry().distance(QgsGeometry.fromPoint(layerPoint))
+                if dist < shortestDistance:
+                    shortestDistance = dist
+                    closestFeatureId = f.id()
 
-        self.layer.select(closestFeatureId - 1)
+            self.layer.select(closestFeatureId)
 
-        # parse wkt
-        pointcloud = ogr.CreateGeometryFromWkt(self.sections[closestFeatureId])
-        xvec = []
-        yvec = []
-        zvec = []
-        # create canvas
-        for i in range(pointcloud.GetGeometryCount()):
-            pt = pointcloud.GetGeometryRef(i)
-            xvec.append(pt.GetX())
-            yvec.append(pt.GetY())
-            zvec.append(pt.GetZ())
+            # parse wkt
+            pointcloud = ogr.CreateGeometryFromWkt(self.sections[closestFeatureId]['wkt'])
+            xvec = []
+            yvec = []
+            zvec = []
 
-        plt.plot(xvec,zvec, 'bo')
-        plt.show()
+            attrcloud = None
+            cvec = []
 
+            if 'attr_wkt' in self.sections[closestFeatureId]:
+                attrcloud = ogr.CreateGeometryFromWkt(self.sections[closestFeatureId]['attr_wkt'])
 
+            for i in range(pointcloud.GetGeometryCount()):
+                pt = pointcloud.GetGeometryRef(i)
+                xvec.append(pt.GetX())
+                yvec.append(pt.GetY())
+                zvec.append(pt.GetZ())
+                if attrcloud:
+                    at = attrcloud.GetGeometryRef(i)
+                    cvec.append(at.GetZ())
+
+            if attrcloud:
+                plt.scatter(x = xvec, y = zvec, c = cvec, cmap='summer')
+                plt.colorbar()
+            else:
+                plt.scatter(xvec,zvec)
+            plt.title("Section %.1f" %self.sections[closestFeatureId]['name'])
+            plt.xlabel("Distance from Axis")
+            plt.ylabel("Height")
+            plt.show()
 
     def activate(self):
         pass

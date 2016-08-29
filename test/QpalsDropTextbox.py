@@ -31,10 +31,8 @@ class QpalsDropTextbox(QtGui.QLineEdit):
                         layer = lyr
                         break
                 odmpath = lyr.customProperty("qpals-odmpath", "")
-                if odmpath is not "":
+                if odmpath:
                     paths.append(odmpath)  # opals vis file - takes the odm
-                    #if lyr.id() in self.layerlist:
-                    #    paths.append(self.layerlist[lyr.id()])  # opals vis file - takes the odm
                 else:
                     paths.append(layer.source())  # any other qgis file - takes the real path
 

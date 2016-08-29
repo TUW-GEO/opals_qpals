@@ -169,6 +169,8 @@ class QpalsModuleBase():
         pass
         #todo: use xml parser and --options to load a module!
 
+
+
     def call(self, show=0, *args):
         info = subprocess.STARTUPINFO()
         info.dwFlags = subprocess.STARTF_USESHOWWINDOW
