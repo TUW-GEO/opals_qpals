@@ -281,8 +281,7 @@ class QpalsModuleBase():
 
     def getUIOneliner(self, param, parent=None, global_common=False):
         l1 = QtGui.QLabel(param.name)
-        if True: #len(param.choices) == 0:
-            # TODO fix this?
+        if len(param.choices) == 0:
             if "path" in param.type.lower():
                 param.field = QpalsDropTextbox.QpalsDropTextbox(self.layerlist, param.val)
                 if global_common:
@@ -308,12 +307,10 @@ class QpalsModuleBase():
                 param.field.addItem(choice)
             # 'QString' is necessary so that the text and not the index will be passed as parameter
             if global_common:
-                param.field.currentIndexChanged['QString'].connect(self.updateCommonGlobals)
+                param.field.activated['QString'].connect(self.updateCommonGlobals)
             else:
-                param.field.currentIndexChanged['QString'].connect(self.updateVals)
+                param.field.activated['QString'].connect(self.updateVals)
 
-        if param.val:
-            param.field.setText(param.val)
 
         param.icon = QpalsParamMsgBtn.QpalsParamMsgBtn(param, parent)
         param.icon.setToolTip(param.opt)
@@ -575,4 +572,7 @@ class QpalsRunBatch():
         return new
 
     def __str__(self):
-        return "cd %s /D\r\n%s"%(self.t2, self.t1)
+        if os.path.isdir(self.t2):
+            return "cd %s /D\r\n%s"%(self.t2, self.t1)
+        else:
+            return self.t1

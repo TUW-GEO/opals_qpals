@@ -22,7 +22,7 @@ from PyQt4.QtGui import *
 from qgis.core import *
 from qgis.gui import *
 
-from test import QpalsShowFile, QpalsProject, moduleSelector
+from test import QpalsShowFile, QpalsProject, moduleSelector, SectionTool
 
 class qpals:
     def __init__(self, iface):
@@ -48,6 +48,15 @@ class qpals:
         self.prjUI = self.prjSet.getUI()
         self.prjUI.show()
 
+    def showSectionTool(self):
+        self.secTool = SectionTool.QpalsSectionTool()
+        self.secToolWindow = QDockWidget("Opals Module Selector", self.iface.mainWindow(), Qt.WindowMinimizeButtonHint)
+        self.secToolWindow.setWidget(self.secTool.getUI())
+        self.secToolWindow.setAllowedAreas(Qt.NoDockWidgetArea)  # don't let it dock
+
+        self.secToolWindow.setFloating(True)
+        self.secToolWindow.show()
+
     def showdd(self):
         import test.QpalsDropTextbox
         self.drop = test.QpalsDropTextbox.droptester()
@@ -70,6 +79,11 @@ class qpals:
         # self.dd.setStatusTip("Drag and Drop demo")
         # QObject.connect(self.dd, SIGNAL("triggered()"), self.showdd)
         # self.menu.addAction(self.dd)
+
+        self.secToolBtn = QAction(QIcon("icon.png"), "opalsSection GUI", self.iface.mainWindow())
+        self.secToolBtn.setStatusTip("opalsSection GUI")
+        self.secToolBtn.triggered.connect(self.showSectionTool)
+        self.menu.addAction(self.secToolBtn)
 
         self.mnuproject = QAction(QIcon("icon.png"), "Project settings", self.iface.mainWindow())
         self.mnuproject.setObjectName("menumnuproject")

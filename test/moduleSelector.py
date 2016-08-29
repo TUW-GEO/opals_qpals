@@ -345,33 +345,34 @@ class moduleSelector(QtGui.QDialog):
         loadFrom = QtGui.QFileDialog.getOpenFileName(None, caption='Load from file')
         f = open(loadFrom, 'r')
         lines = f.readlines()
+        skipnext = False
         for i in range(len(lines)):
             try:
-                line = lines[i]
-                nextline = lines[i+1] if len(lines) > i+1 else ""
-                if line[0:3].lower() == "rem" or line.startswith("::"):
-                    module = None
-                elif line.startswith("opals"):
-                    ModuleBase = QpalsModuleBase.fromCallString(line, self.project, self.layerlist)
-                    module = QpalsListWidgetItem({'name': line.split()[0].split(".exe")[0],
-                                               'icon': self.opalsIcon,
-                                               'class': ModuleBase})
-                    ModuleBase.listitem = module
-                else:
-                    if line.startswith("cd ") and not (nextline.startswith("rem")
-                                                or nextline.startswith("::")
-                                                or nextline.startswith("opals")):
-                        chdir = line[3:]
-                        call = nextline
-                        i += 1
+                if not skipnext:
+                    line = lines[i]
+                    nextline = lines[i+1] if len(lines) > i+1 else ""
+                    if line[0:3].lower() == "rem" or line.startswith("::"):
+                        module = None
+                    elif line.startswith("opals"):
+                        ModuleBase = QpalsModuleBase.fromCallString(line, self.project, self.layerlist)
+                        module = QpalsListWidgetItem({'name': line.split()[0].split(".exe")[0],
+                                                   'icon': self.opalsIcon,
+                                                   'class': ModuleBase})
+                        ModuleBase.listitem = module
                     else:
-                        chdir = ""
-                        call = line
-                    module = QpalsListWidgetItem({'name': "User-defined cmd", 'icon': self.cmdIcon,
-                                                  'class': QpalsRunBatch(call, chdir)})
-                if module:
-                    self.runListWidget.addItem(module)
-                    #self.loadModule(module)
+                        if line.startswith("cd ") and not (nextline.startswith("rem")
+                                                    or nextline.startswith("::")
+                                                    or nextline.startswith("opals")):
+                            chdir = line[3:].strip().strip("/D")
+                            call = nextline.strip()
+                            skipnext = True
+                        else:
+                            chdir = ""
+                            call = line.strip()
+                        module = QpalsListWidgetItem({'name': "User-defined cmd", 'icon': self.cmdIcon,
+                                                      'class': QpalsRunBatch(call, chdir)})
+                    if module:
+                        self.runListWidget.addItem(module)
             except Exception as e:
                 print e
 
