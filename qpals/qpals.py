@@ -22,7 +22,7 @@ from PyQt4.QtGui import *
 from qgis.core import *
 from qgis.gui import *
 
-from qpals import QpalsShowFile, QpalsProject, moduleSelector, QpalsSection
+import QpalsShowFile, QpalsProject, moduleSelector, QpalsSection
 
 import tempfile, os
 

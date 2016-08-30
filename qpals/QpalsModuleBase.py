@@ -28,7 +28,7 @@ import QTextComboBox
 import QpalsDropTextbox
 import QpalsParameter
 
-IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", ",media")
+IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
 
 WaitIcon = QtGui.QIcon(os.path.join(IconPath, "wait_icon.png"))
 WaitIconMandatory = QtGui.QIcon(os.path.join(IconPath, "wait_icon_mandatory.png"))

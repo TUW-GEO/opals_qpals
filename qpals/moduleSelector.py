@@ -30,8 +30,8 @@ qtsoftred = QtGui.QColor(255, 140, 140)
 
 class moduleSelector(QtGui.QDialog):
 
-    IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", ",media")
-    opalsIcon = QtGui.QIcon(os.path.join(IconPath, "icon.png"))
+    IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
+    opalsIcon = QtGui.QIcon(os.path.join(IconPath, "opalsIcon.png"))
     cmdIcon = QtGui.QIcon(os.path.join(IconPath, "cmd_icon.png"))
     loadingIcon = QtGui.QIcon(os.path.join(IconPath, "spinner_icon.png"))
     errorIcon = QtGui.QIcon(os.path.join(IconPath, "error_icon.png"))
