@@ -38,7 +38,7 @@ class moduleSelector(QtGui.QDialog):
     checkIcon = QtGui.QIcon(os.path.join(IconPath, "checkIcon.png"))
 
     def getModulesAvailiable(self):
-        for opalsexe in glob.glob(os.path.join(self.project.opalspath , "opals*.exe")):
+        for opalsexe in glob.glob(os.path.join(self.project.opalspath, "opals*.exe")):
             self.modulesAvailiable.append({'name': os.path.basename(opalsexe).split(".exe")[0],
                                            'icon': self.opalsIcon,
                                            'class': QpalsModuleBase(opalsexe,self.project, layerlist=self.layerlist)})
@@ -310,7 +310,7 @@ class moduleSelector(QtGui.QDialog):
         moduleClass = module.paramClass
         if moduleClass.visualize and moduleClass.outf:
             if not os.path.isabs(moduleClass.outf):
-                moduleClass.outf = os.path.join(self.project.tempdir, moduleClass.outf).replace("\\", "/")
+                moduleClass.outf = os.path.join(self.project.workdir, moduleClass.outf).replace("\\", "/")
             showfile = QpalsShowFile.QpalsShowFile(self.project.iface, self.layerlist, self.project)
             showfile.load(infile_s=[moduleClass.outf])
         if self.runningRunList == True:

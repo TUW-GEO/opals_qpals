@@ -178,7 +178,6 @@ class QpalsModuleBase():
             if len(args) <= i+1:
                 break
         args.append("--options")
-        print args
         # call
         info = subprocess.STARTUPINFO()
         info.dwFlags = subprocess.STARTF_USESHOWWINDOW
@@ -192,11 +191,7 @@ class QpalsModuleBase():
         xml_parsed = parseXML(stderr)
         newModuleBase = QpalsModuleBase(execName, project, layerlist)
         newModuleBase.load()
-        for param in newModuleBase.params:
-            print param.val
         newModuleBase.getParamUi()
-        for param in newModuleBase.params:
-            print param.field
         newModuleBase.params = QpalsParameter.mergeParamLists(newModuleBase.params, xml_parsed['Specific'])
         newModuleBase.globals = QpalsParameter.mergeParamLists(newModuleBase.globals, xml_parsed['Global'])
         newModuleBase.common = QpalsParameter.mergeParamLists(newModuleBase.common, xml_parsed['Common'])
@@ -373,7 +368,6 @@ class QpalsModuleBase():
 
     def updateVals(self, string):
         for param in self.params:
-            print "name", param.name, "field", param.field
             if string == param.field.text():
                 if param.val != param.field.text():
                     self.revalidate = True
