@@ -96,6 +96,7 @@ class QpalsShowFile():
         return self.load(self.dropspace.text().split(";"))
 
     def load(self, infile_s=None):
+        layer = None
         if self.ui:
             self.okBtn.setText("Loading...")
             self.okBtn.setEnabled(False)
@@ -162,6 +163,8 @@ class QpalsShowFile():
             self.okBtn.setText("Load")
             self.okBtn.setEnabled(True)
             self.dropspace.setText("")
+
+        return layer
 
     def callImport(self, infile):
         self.updateText("Importing to odm...")

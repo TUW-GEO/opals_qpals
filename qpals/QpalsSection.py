@@ -25,6 +25,7 @@ from qgis.gui import *
 import os, tempfile
 from xml.dom import minidom
 import matplotlib.pyplot as plt
+import numpy as np
 import ogr
 
 import QpalsShowFile, QpalsModuleBase, QpalsDropTextbox, QpalsParameter
@@ -32,14 +33,44 @@ import QpalsShowFile, QpalsModuleBase, QpalsDropTextbox, QpalsParameter
 class QpalsSection:
 
     def __init__(self, project, layerlist, iface):
-        self.widget = None
+        self.advanced_widget = None
+        self.simple_widget = None
+        self.tabs = None
         self.project = project
         self.layerlist = layerlist
         self.iface = iface
+        self.visLayer= None
+        self.ltool = LineTool(self.iface.mapCanvas(), self.visLayer, secInst=self)
         self.sections = dict()
 
     def createWidget(self):
-        self.widget = QtGui.QDialog()
+        self.advanced_widget = QtGui.QDialog()
+        self.simple_widget = QtGui.QDialog()
+        self.tabs = QtGui.QTabWidget()
+        ### SIMPLE ###
+        ls = QtGui.QFormLayout()
+        ls.addRow(QtGui.QLabel("Choose input file:"))
+        self.txtinfileSimple = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)
+        ls.addRow(QtGui.QLabel("Input file (odm)"), self.txtinfileSimple)
+        self.runShdBtnSimple = QtGui.QPushButton("Load File")
+        self.runShdBtnSimple.clicked.connect(self.loadShading)
+        ls.addRow(self.runShdBtnSimple)
+        self.txtthickness = QtGui.QLineEdit("5")
+        ls.addRow(QtGui.QLabel("Section thickness [m]"), self.txtthickness)
+        self.linetoolBtn = QtGui.QPushButton("Pick section (two clicks)")
+        self.linetoolBtn.clicked.connect(self.activateLineTool)
+        self.linetoolBtn.setEnabled(False)
+        ls.addRow(self.linetoolBtn)
+        self.p1label = QtGui.QLabel("")
+        self.p2label = QtGui.QLabel("")
+        ls.addRow(QtGui.QLabel("Point 1:"), self.p1label)
+        ls.addRow(QtGui.QLabel("Point 2:"), self.p2label)
+        self.runSecBtnSimple = QtGui.QPushButton("Create section")
+        self.runSecBtnSimple.clicked.connect(self.ltool.runsec)
+        self.runSecBtnSimple.setEnabled(False)
+        ls.addRow(self.runSecBtnSimple)
+        self.simple_widget.setLayout(ls)
+        ### ADVANCED ###
         lo = QtGui.QFormLayout()
         ######
         lo.addRow(QtGui.QLabel("Step 1. Choose point cloud and visualize it:"))
@@ -66,8 +97,10 @@ class QpalsSection:
         self.pickSecBtn.clicked.connect(self.activateTool)
         lo.addRow(self.pickSecBtn)
 
-        self.widget.setLayout(lo)
-        return self.widget
+        self.advanced_widget.setLayout(lo)
+        self.tabs.addTab(self.simple_widget, "Simple")
+        self.tabs.addTab(self.advanced_widget, "Advanced")
+        return self.tabs
 
     def loadShading(self):
         self.runShdBtn.setEnabled(False)
@@ -75,9 +108,11 @@ class QpalsSection:
         showfile = QpalsShowFile.QpalsShowFile(self.project.iface, self.layerlist, self.project)
         showfile.curVisMethod = QpalsShowFile.QpalsShowFile.METHOD_SHADING
         showfile.cellSizeBox = QtGui.QLineEdit("1")
-        showfile.load(infile_s=[self.txtinfile.text()])
+        self.visLayer = showfile.load(infile_s=[self.txtinfile.text(), self.txtinfileSimple.text()])
         self.runShdBtn.setText("Create shading")
         self.runShdBtn.setEnabled(True)
+        self.linetoolBtn.setEnabled(True)
+
 
     def runSection(self):
         outParamFileH = tempfile.NamedTemporaryFile(delete=False)
@@ -138,6 +173,111 @@ class QpalsSection:
         self.secLayer.removeSelection()
         tool = PointTool(self.iface.mapCanvas(), self.secLayer, self.sections)
         self.iface.mapCanvas().setMapTool(tool)
+
+    def activateLineTool(self):
+        self.iface.mapCanvas().setMapTool(self.ltool)
+
+class LineTool(QgsMapTool):
+    def __init__(self, canvas, layer, secInst):
+        QgsMapTool.__init__(self, canvas)
+        self.canvas = canvas
+        self.layer = layer
+        self.visLayer = None
+        self.secInst = secInst
+        self.p1 = None
+        self.p2 = None
+        self.seclength = 0
+        self.midpoint = None
+        self.ab0N = None
+
+    def canvasPressEvent(self, event):
+        pass
+
+    def canvasMoveEvent(self, event):
+        pass
+
+    def canvasReleaseEvent(self, event):
+
+
+        layerPoint = self.toLayerCoordinates(self.layer, event.pos())
+        if self.p1 and not self.p2:
+            self.p2 = layerPoint
+            self.secInst.p2label.setText(str(layerPoint))
+            self.secInst.runSecBtnSimple.setEnabled(True)
+
+            self.visLayer = self.secInst.iface.addVectorLayer("Polygon", "Sections", "memory")
+            pr = self.visLayer.dataProvider()
+            feat = QgsFeature()
+            a = np.array([self.p1.x(), self.p1.y()])
+            b = np.array([self.p2.x(), self.p2.y()])
+            ab = b-a
+            self.seclength = np.linalg.norm(ab)
+            self.midpoint = a + ab/2
+            ab0 = ab/self.seclength
+            self.ab0N = np.array([-ab0[1], ab0[0]])
+
+            c1 = a + float(self.secInst.txtthickness.text())/2*self.ab0N
+            c2 = b + float(self.secInst.txtthickness.text())/2*self.ab0N
+            c3 = b - float(self.secInst.txtthickness.text())/2*self.ab0N
+            c4 = a - float(self.secInst.txtthickness.text())/2*self.ab0N
+            points = [QgsPoint(c1[0], c1[1]),
+                      QgsPoint(c2[0], c2[1]),
+                      QgsPoint(c3[0], c3[1]),
+                      QgsPoint(c4[0], c4[1])
+                      ]
+
+            feat.setGeometry(QgsGeometry.fromPolygon([points]))
+            pr.addFeatures([feat])
+
+            self.visLayer.setLayerTransparency(50)
+            QgsMapLayerRegistry.instance().addMapLayer(self.visLayer)
+            self.secInst.iface.mapCanvas().refresh()
+        else:
+            self.p1 = layerPoint
+            self.secInst.p1label.setText(str(layerPoint))
+            self.p2 = None
+            self.secInst.p2label.setText("")
+            self.secInst.runSecBtnSimple.setEnabled(False)
+            if self.visLayer:
+                QgsMapLayerRegistry.instance().removeMapLayer(self.visLayer.id())
+
+    def runsec(self):
+        #write polyline shp to file
+        outShapeFileH = tempfile.NamedTemporaryFile(delete=False)
+        outShapeFile = outShapeFileH.name
+        outShapeFileH.close()
+        print outShapeFile
+        driver = ogr.GetDriverByName("ESRI Shapefile")
+        data_source = driver.CreateDataSource(outShapeFile + ".shp")
+        layer = data_source.CreateLayer("", None, ogr.wkbLineString)
+        layer.CreateField(ogr.FieldDefn("ID", ogr.OFTInteger))
+        feature = ogr.Feature(layer.GetLayerDefn())
+        feature.SetField("ID", 0)
+        line = ogr.Geometry(ogr.wkbLineString)
+        line.AddPoint(self.midpoint[0], self.midpoint[1])
+        nextpoint = self.midpoint + self.ab0N
+        line.AddPoint(nextpoint[0], nextpoint[1])
+        feature.SetGeometry(line)
+        feature.Destroy()
+        data_source.Destroy()
+        #run section
+        Module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.secInst.project.opalspath, "opalsSection.exe"), QpalsProject=self.secInst.project)
+        #read from file and display
+
+    def activate(self):
+        pass
+
+    def deactivate(self):
+        pass
+
+    def isZoomTool(self):
+        return False
+
+    def isTransient(self):
+        return False
+
+    def isEditTool(self):
+        return True
 
 class PointTool(QgsMapTool):
     def __init__(self, canvas, layer, sections):
