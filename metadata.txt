@@ -8,7 +8,7 @@ qgisMinimumVersion=2.8
 description=OPALS LiDAR software integrated into QGIS, 
  support for project management and a tasklist
 about=Developed at Vienna University of Technology
-version=version 0.1a
+version=Version 1
 tracker=http://bitbucket.org/Meep001/qgis
 repository=http://bitbucket.org/Meep001/qgis
 ; end of mandatory metadata
@@ -27,7 +27,7 @@ tags=lidar,laser scanning,opals,als
 
 ; these metadata can be empty, they will eventually become mandatory.
 homepage=http://bitbucket.org/Meep001/qgis
-icon=icon.png
+icon=media/opalsIcon.png
 
 ; experimental flag (applies to the single version)
 experimental=True

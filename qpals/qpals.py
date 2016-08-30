@@ -22,7 +22,7 @@ from PyQt4.QtGui import *
 from qgis.core import *
 from qgis.gui import *
 
-from test import QpalsShowFile, QpalsProject, moduleSelector, QpalsSection
+from qpals import QpalsShowFile, QpalsProject, moduleSelector, QpalsSection
 
 import tempfile, os
 
@@ -93,8 +93,8 @@ class qpals:
         self.prjUI.show()
 
     def showdd(self):
-        import test.QpalsDropTextbox
-        self.drop = test.QpalsDropTextbox.droptester()
+        import qpals.QpalsDropTextbox
+        self.drop = qpals.QpalsDropTextbox.droptester()
         self.drop.show()
 
     def showSecGUI(self):
@@ -112,8 +112,8 @@ class qpals:
             self.menu.setObjectName("qpalsMenu")
             self.menu.setTitle("qpals")
 
-            IconPath = os.path.dirname(os.path.realpath(__file__))
-            opalsIcon = QIcon(os.path.join(IconPath, "icon.png"))
+            IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
+            opalsIcon = QIcon(os.path.join(IconPath, "opalsIcon.png"))
 
             self.menuItemModuleSelector = QAction(opalsIcon, "Module Selector", self.iface.mainWindow())
             self.menuItemModuleSelector.setWhatsThis("Select a module from a list")

@@ -28,11 +28,11 @@ import QTextComboBox
 import QpalsDropTextbox
 import QpalsParameter
 
-IconPath = os.path.dirname(os.path.realpath(__file__))
+IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", ",media")
 
-WaitIcon = QtGui.QIcon(os.path.join(IconPath, "..", "wait_icon.png"))
-WaitIconMandatory = QtGui.QIcon(os.path.join(IconPath, "..", "wait_icon_mandatory.png"))
-ErrorIcon = QtGui.QIcon(os.path.join(IconPath, "..", "error_icon.png"))
+WaitIcon = QtGui.QIcon(os.path.join(IconPath, "wait_icon.png"))
+WaitIconMandatory = QtGui.QIcon(os.path.join(IconPath, "wait_icon_mandatory.png"))
+ErrorIcon = QtGui.QIcon(os.path.join(IconPath, "error_icon.png"))
 
 qtwhite = QtGui.QColor(255,255,255)
 qtsoftred = QtGui.QColor(255,140,140)

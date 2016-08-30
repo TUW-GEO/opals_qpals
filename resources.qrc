@@ -1,5 +1,0 @@
-<RCC> 
-  <qresource prefix="/plugins/qpals" > 
-    <file>icon.png</file> 
-  </qresource> 
-</RCC> 

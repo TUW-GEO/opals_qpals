@@ -30,12 +30,12 @@ qtsoftred = QtGui.QColor(255, 140, 140)
 
 class moduleSelector(QtGui.QDialog):
 
-    IconPath = os.path.dirname(os.path.realpath(__file__))
-    opalsIcon = QtGui.QIcon(os.path.join(IconPath,"..", "icon.png"))
-    cmdIcon = QtGui.QIcon(os.path.join(IconPath,"..", "cmd_icon.png"))
-    loadingIcon = QtGui.QIcon(os.path.join(IconPath,"..", "spinner_icon.png"))
-    errorIcon = QtGui.QIcon(os.path.join(IconPath,"..", "error_icon.png"))
-    checkIcon = QtGui.QIcon(os.path.join(IconPath,"..", "checkIcon.png"))
+    IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", ",media")
+    opalsIcon = QtGui.QIcon(os.path.join(IconPath, "icon.png"))
+    cmdIcon = QtGui.QIcon(os.path.join(IconPath, "cmd_icon.png"))
+    loadingIcon = QtGui.QIcon(os.path.join(IconPath, "spinner_icon.png"))
+    errorIcon = QtGui.QIcon(os.path.join(IconPath, "error_icon.png"))
+    checkIcon = QtGui.QIcon(os.path.join(IconPath, "checkIcon.png"))
 
     def getModulesAvailiable(self):
         for opalsexe in glob.glob(os.path.join(self.project.opalspath , "opals*.exe")):
