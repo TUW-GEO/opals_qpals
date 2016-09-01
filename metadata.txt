@@ -5,17 +5,19 @@ name=qpals
 email=lukas.winiwarter@tuwien.ac.at
 author=Lukas Winiwarter
 qgisMinimumVersion=2.8
-description=OPALS LiDAR software integrated into QGIS, 
- support for project management and a tasklist
+description=OPALS LiDAR software integrated into QGIS
 about=Developed at Vienna University of Technology
 version=Version 1
-tracker=http://bitbucket.org/Meep001/qgis
+tracker=geo.tuwien.ac.at/opals
 repository=http://bitbucket.org/Meep001/qgis
 ; end of mandatory metadata
 
 ; start of optional metadata
-category=Raster
+; category=Raster
 changelog=Prior versions:
+ 1.1 section gui now has a "simple" approach, dropdown lists enable quick access to loaded layers
+ 1.0 module selector, section gui, project settings and visualizer have been added
+ 0.x a lot of changes
  0.1a added Metadata
  0.1 
 
