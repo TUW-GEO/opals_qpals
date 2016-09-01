@@ -22,7 +22,10 @@ from PyQt4 import QtCore, QtGui
 from qgis.core import *
 from qgis.gui import *
 
-import os, tempfile
+from qgis.core import QgsMapLayerRegistry
+
+
+import os, tempfile, time
 from xml.dom import minidom
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,9 +42,11 @@ class QpalsSection:
         self.project = project
         self.layerlist = layerlist
         self.iface = iface
-        self.visLayer= None
+        self.visLayer = None
         self.ltool = LineTool(self.iface.mapCanvas(), self.visLayer, secInst=self)
         self.sections = dict()
+
+
 
     def createWidget(self):
         self.advanced_widget = QtGui.QDialog()
@@ -51,7 +56,10 @@ class QpalsSection:
         ls = QtGui.QFormLayout()
         ls.addRow(QtGui.QLabel("Choose input file:"))
         self.txtinfileSimple = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)
-        ls.addRow(QtGui.QLabel("Input file (odm)"), self.txtinfileSimple)
+        hboxsimple1 = QtGui.QHBoxLayout()
+        hboxsimple1.addWidget(self.txtinfileSimple, 1)
+        self.txtinfileSimple.editingFinished.connect(self.simpleIsLoaded)
+        ls.addRow(QtGui.QLabel("Input file (odm)"), hboxsimple1)
         self.runShdBtnSimple = QtGui.QPushButton("Load File")
         self.runShdBtnSimple.clicked.connect(self.loadShading)
         ls.addRow(self.runShdBtnSimple)
@@ -75,7 +83,9 @@ class QpalsSection:
         ######
         lo.addRow(QtGui.QLabel("Step 1. Choose point cloud and visualize it:"))
         self.txtinfile = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)
-        lo.addRow(QtGui.QLabel("Input file (odm)"), self.txtinfile)
+        hbox1 = QtGui.QHBoxLayout()
+        hbox1.addWidget(self.txtinfile, 1)
+        lo.addRow(QtGui.QLabel("Input file (odm)"), hbox1)
         self.runShdBtn = QtGui.QPushButton("Create shading")
         self.runShdBtn.clicked.connect(self.loadShading)
         lo.addRow(self.runShdBtn)
@@ -102,13 +112,29 @@ class QpalsSection:
         self.tabs.addTab(self.advanced_widget, "Advanced")
         return self.tabs
 
+    def simpleIsLoaded(self):
+        layers = QgsMapLayerRegistry.instance().mapLayers().values()
+        self.linetoolBtn.setEnabled(False)
+        for layer in layers:
+            odmpath = layer.customProperty("qpals-odmpath", "")
+            if odmpath:
+                if self.txtinfileSimple.text() == odmpath:
+                    self.linetoolBtn.setEnabled(True)
+                    self.visLayer = layer
+                    self.ltool.layer = self.visLayer
+
+
     def loadShading(self):
         self.runShdBtn.setEnabled(False)
         self.runShdBtn.setText("Calculating shading...")
         showfile = QpalsShowFile.QpalsShowFile(self.project.iface, self.layerlist, self.project)
         showfile.curVisMethod = QpalsShowFile.QpalsShowFile.METHOD_SHADING
         showfile.cellSizeBox = QtGui.QLineEdit("1")
+        self.secInst.getParam("inFile").val = self.txtinfile.text()
+        self.secInst.getParam("inFile").field.setText(self.txtinfile.text())
+
         self.visLayer = showfile.load(infile_s=[self.txtinfile.text(), self.txtinfileSimple.text()])
+        self.ltool.layer = self.visLayer
         self.runShdBtn.setText("Create shading")
         self.runShdBtn.setEnabled(True)
         self.linetoolBtn.setEnabled(True)
@@ -133,7 +159,7 @@ class QpalsSection:
                     outGeoms.append(val.firstChild.nodeValue) # contains WKT for one section
         dom.unlink()
 
-        self.secLayer = self.iface.addVectorLayer("Polygon", "Sections", "memory")
+        self.secLayer = self.iface.addVectorLayer("Polygon?crs=" + self.visLayer.crs().toWkt(), "Sections", "memory")
         pr = self.secLayer.dataProvider()
         featcnt = 1
         for outGeom in outGeoms:
@@ -190,6 +216,10 @@ class LineTool(QgsMapTool):
         self.midpoint = None
         self.ab0N = None
 
+    def __del__(self):
+        if self.visLayer:
+            QgsMapLayerRegistry.instance().removeMapLayer(self.visLayer.id())
+
     def canvasPressEvent(self, event):
         pass
 
@@ -198,14 +228,14 @@ class LineTool(QgsMapTool):
 
     def canvasReleaseEvent(self, event):
 
-
+        print self.layer
         layerPoint = self.toLayerCoordinates(self.layer, event.pos())
         if self.p1 and not self.p2:
             self.p2 = layerPoint
             self.secInst.p2label.setText(str(layerPoint))
             self.secInst.runSecBtnSimple.setEnabled(True)
 
-            self.visLayer = self.secInst.iface.addVectorLayer("Polygon", "Sections", "memory")
+            self.visLayer = self.secInst.iface.addVectorLayer("Polygon?crs=" + self.layer.crs().toWkt(), "Sections", "memory")
             pr = self.visLayer.dataProvider()
             feat = QgsFeature()
             a = np.array([self.p1.x(), self.p1.y()])
@@ -230,7 +260,7 @@ class LineTool(QgsMapTool):
             pr.addFeatures([feat])
 
             self.visLayer.setLayerTransparency(50)
-            QgsMapLayerRegistry.instance().addMapLayer(self.visLayer)
+            #QgsMapLayerRegistry.instance().addMapLayer(self.visLayer)
             self.secInst.iface.mapCanvas().refresh()
         else:
             self.p1 = layerPoint
@@ -243,26 +273,72 @@ class LineTool(QgsMapTool):
 
     def runsec(self):
         #write polyline shp to file
-        outShapeFileH = tempfile.NamedTemporaryFile(delete=False)
+        outShapeFileH = tempfile.NamedTemporaryFile(suffix=".shp", delete=True)
         outShapeFile = outShapeFileH.name
         outShapeFileH.close()
-        print outShapeFile
-        driver = ogr.GetDriverByName("ESRI Shapefile")
-        data_source = driver.CreateDataSource(outShapeFile + ".shp")
-        layer = data_source.CreateLayer("", None, ogr.wkbLineString)
-        layer.CreateField(ogr.FieldDefn("ID", ogr.OFTInteger))
-        feature = ogr.Feature(layer.GetLayerDefn())
-        feature.SetField("ID", 0)
-        line = ogr.Geometry(ogr.wkbLineString)
-        line.AddPoint(self.midpoint[0], self.midpoint[1])
-        nextpoint = self.midpoint + self.ab0N
-        line.AddPoint(nextpoint[0], nextpoint[1])
-        feature.SetGeometry(line)
-        feature.Destroy()
-        data_source.Destroy()
+
+        self.write_axis_shape(outShapeFile)
+
         #run section
         Module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.secInst.project.opalspath, "opalsSection.exe"), QpalsProject=self.secInst.project)
+        infile = QpalsParameter.QpalsParameter('inFile', self.secInst.txtinfileSimple.text(), None, None, None, None, None)
+        axisfile = QpalsParameter.QpalsParameter('axisFile', outShapeFile, None, None, None, None, None)
+        thickness = QpalsParameter.QpalsParameter('patchSize', '%s;%s'%(self.seclength, self.secInst.txtthickness.text()),
+                                                  None, None, None, None, None
+                                                  )
+
+        outParamFileH = tempfile.NamedTemporaryFile(delete=False)
+        outParamFile = outParamFileH.name + "x.xml"
+        outParamFileH.close()
+        outParamFileParam = QpalsParameter.QpalsParameter('outParamFile', outParamFile, None, None, None, None, None)
+        Module.params.append(infile)
+        Module.params.append(axisfile)
+        Module.params.append(thickness)
+        Module.params.append(outParamFileParam)
+
+        Module.run()
+
         #read from file and display
+        dom = minidom.parse(outParamFile)
+        parameters = dom.getElementsByTagName("Parameter")
+        outGeoms = []
+        for param in parameters:
+            if param.attributes["Name"].value == "outGeometry":
+                for val in param.getElementsByTagName("Val"):
+                    outGeoms.append(val.firstChild.nodeValue)  # contains WKT for one section
+        dom.unlink()
+
+        geoms = ogr.CreateGeometryFromWkt(outGeoms[0])
+        pointcloud = geoms.GetGeometryRef(3)
+        xvec = []
+        yvec = []
+        zvec = []
+        for i in range(pointcloud.GetGeometryCount()):
+            pt = pointcloud.GetGeometryRef(i)
+            xvec.append(pt.GetX())
+            yvec.append(pt.GetY())
+            zvec.append(pt.GetZ())
+        plt.figure()
+        plt.scatter(xvec, zvec)
+        plt.title("Section")
+        plt.xlabel("Distance from Axis")
+        plt.ylabel("Height")
+        plt.show()
+
+    def write_axis_shape(self, outShapeFile):
+        driver = ogr.GetDriverByName("ESRI Shapefile")
+        data_source = driver.CreateDataSource(outShapeFile)
+        layer = data_source.CreateLayer(outShapeFile[:-4], None, ogr.wkbLineString)
+        layer.CreateField(ogr.FieldDefn("ID", ogr.OFTInteger))
+        feature = ogr.Feature(layer.GetLayerDefn())
+        feature.SetField("ID", 1)
+        line = ogr.Geometry(ogr.wkbLineString)
+        prevpoint = self.midpoint - self.ab0N * float(self.secInst.txtthickness.text()) / 2
+        line.AddPoint(prevpoint[0], prevpoint[1])
+        nextpoint = self.midpoint + self.ab0N * float(self.secInst.txtthickness.text()) / 2
+        line.AddPoint(nextpoint[0], nextpoint[1])
+        feature.SetGeometry(line)
+        layer.CreateFeature(feature)
 
     def activate(self):
         pass
@@ -329,6 +405,7 @@ class PointTool(QgsMapTool):
                     at = attrcloud.GetGeometryRef(i)
                     cvec.append(at.GetZ())
 
+            plt.figure()
             if attrcloud:
                 plt.scatter(x = xvec, y = zvec, c = cvec, cmap='summer')
                 plt.colorbar()

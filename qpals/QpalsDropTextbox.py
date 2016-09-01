@@ -1,11 +1,21 @@
 from PyQt4 import QtCore, QtGui
+from qgis.core import QgsMapLayerRegistry
+import os
 
-class QpalsDropTextbox(QtGui.QLineEdit):
-    def __init__(self, layerlist=None, *args, **kwargs):
+class QpalsDropTextbox(QtGui.QComboBox):
+    def __init__(self, layerlist=None, text=None, show_layers=True, *args, **kwargs):
         super(QpalsDropTextbox, self).__init__(*args, **kwargs)
         self.setAcceptDrops(True)
+        #self.setSizePolicy(QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Preferred))
+        self.setEditable(True)
+        if text:
+            self.lineEdit().setText(text)
         self.setPlaceholderText("drop file/layer here...")
         self.layerlist = layerlist
+        self.editingFinished = self.lineEdit().editingFinished
+        self.showLayers = show_layers
+        self.reloadLayers()
+
 
     def dragEnterEvent(self, e):
         if e.mimeData().hasFormat(u"application/qgis.layertreemodeldata") or e.mimeData().hasUrls():  #is a qgis layer or a file
@@ -25,7 +35,7 @@ class QpalsDropTextbox(QtGui.QLineEdit):
             for ltl in ltls:
                 ide = ltl.attributes["id"].value
                 layer = None
-                from qgis.core import QgsMapLayerRegistry
+
                 for lyr in QgsMapLayerRegistry.instance().mapLayers().values():
                     if lyr.id() == ide:
                         layer = lyr
@@ -50,7 +60,28 @@ class QpalsDropTextbox(QtGui.QLineEdit):
         e.accept()
         self.editingFinished.emit()
 
+    def setText(self,s):
+        self.lineEdit().setText(s)
 
+    def text(self):
+        return self.lineEdit().text()
+
+    def reloadLayers(self):
+        if self.showLayers:
+            while self.count() > 0:
+                self.removeItem(0)
+            if self.text() == "":
+                self.addItem("")
+            layers = QgsMapLayerRegistry.instance().mapLayers().values()
+            for layer in layers:
+                odmpath = layer.customProperty("qpals-odmpath", "")
+                if odmpath:
+                    self.addItem(odmpath)
+                elif os.path.exists(layer.source()):
+                    self.addItem(layer.source())
+
+    def setPlaceholderText(self, text):
+        self.lineEdit().setPlaceholderText(text)
 
 class droptester(QtGui.QWidget):
 
