@@ -52,9 +52,12 @@ def parseXML(xml):
             valString = ""
             if values:
                 if len(values) > 1:
-                    for val in values:
-                        valString += val.firstChild.nodeValue + ";"
-                    valString = valString[:-1]
+                    try:
+                        for val in values:
+                            valString += val.firstChild.nodeValue + ";"
+                        valString = valString[:-1]
+                    except:
+                        valString = ""
                 else:
                     if values[0].firstChild:
                         valString = values[0].firstChild.nodeValue
@@ -208,7 +211,7 @@ class QpalsModuleBase():
         info = subprocess.STARTUPINFO()
         info.dwFlags = subprocess.STARTF_USESHOWWINDOW
         info.wShowWindow = show  # 0=HIDE
-        print " ".join([self.execName] + list(args))
+        #print " ".join([self.execName] + list(args))
         proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 stdin=subprocess.PIPE, cwd=self.project.workdir, startupinfo=info)
         proc.stdin.close()
@@ -446,7 +449,7 @@ class QpalsModuleBase():
                     errortext = calld['stdout'].split("Error in parameter ")[1].split("\n")[0]
                     errormodule = errortext.split(":")[0]
                     errortext = ":".join(errortext.split(":")[1:])
-                    print errormodule, errortext
+                    #print errormodule, errortext
 
                 elif "Ambiguities while matching value" in calld['stdout']:
                     errortext = calld['stdout'].split("ERROR 0001: std::exception: ")[1].split("\n")[0]
