@@ -322,7 +322,7 @@ class LineTool(QgsMapTool):
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(xvec, yvec, zvec)
+        ax.scatter(xvec, yvec, zvec, c=zvec)
         plt.title("Section")
         ax.view_init(0, 90)
         ax.set_xlabel("Distance along section")
