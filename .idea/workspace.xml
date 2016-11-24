@@ -3,7 +3,7 @@
   <component name="ChangeListManager">
     <list default="true" id="004b25d6-43ec-47d2-aa11-23cf390251e5" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/qpals/QpalsModuleBase.py" afterPath="$PROJECT_DIR$/qpals/QpalsModuleBase.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/qpals/QpalsSection.py" afterPath="$PROJECT_DIR$/qpals/QpalsSection.py" />
     </list>
     <ignored path="qpals.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -59,7 +59,7 @@
       <file leaf-file-name="QpalsShowFile.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/qpals/QpalsShowFile.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="342">
+            <state relative-caret-position="714">
               <caret line="49" column="37" selection-start-line="49" selection-start-column="34" selection-end-line="49" selection-end-column="37" />
               <folding />
             </state>
@@ -69,19 +69,31 @@
       <file leaf-file-name="QpalsModuleBase.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/qpals/QpalsModuleBase.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="189">
+            <state relative-caret-position="6630">
               <caret line="399" column="26" selection-start-line="399" selection-start-column="26" selection-end-line="399" selection-end-column="26" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="moduleSelector.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="moduleSelector.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/qpals/moduleSelector.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="342">
               <caret line="283" column="16" selection-start-line="283" selection-start-column="16" selection-end-line="283" selection-end-column="16" />
               <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="QpalsSection.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/qpals/QpalsSection.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="431">
+              <caret line="328" column="25" selection-start-line="328" selection-start-column="25" selection-end-line="328" selection-end-column="25" />
+              <folding>
+                <element signature="e#1009#1040#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -174,9 +186,9 @@
         <option value="$PROJECT_DIR$/__init__.py" />
         <option value="$PROJECT_DIR$/qpals/moduleSelector.py" />
         <option value="$PROJECT_DIR$/qpals/QpalsShowFile.py" />
-        <option value="$PROJECT_DIR$/qpals/QpalsSection.py" />
         <option value="$PROJECT_DIR$/metadata.txt" />
         <option value="$PROJECT_DIR$/qpals/QpalsModuleBase.py" />
+        <option value="$PROJECT_DIR$/qpals/QpalsSection.py" />
       </list>
     </option>
   </component>
@@ -217,40 +229,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="ProjectPane">
-        <subPane>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="qpals" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="qpals" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="qpals" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="qpals" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="qpals" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="qpals" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-          </PATH>
-        </subPane>
-      </pane>
       <pane id="Scratches" />
       <pane id="Scope">
         <subPane subId="Project Files">
@@ -290,6 +268,40 @@
             <PATH_ELEMENT USER_OBJECT="media">
               <option name="myItemId" value="" />
               <option name="myItemType" value="" />
+            </PATH_ELEMENT>
+          </PATH>
+        </subPane>
+      </pane>
+      <pane id="ProjectPane">
+        <subPane>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="qpals" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="qpals" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="qpals" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="qpals" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="qpals" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="qpals" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
         </subPane>
@@ -730,7 +742,14 @@
       <option name="project" value="LOCAL" />
       <updated>1472571648546</updated>
     </task>
-    <option name="localTasksCounter" value="19" />
+    <task id="LOCAL-00019" summary="removed &quot;print&quot; when calling module">
+      <created>1479302940580</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1479302940580</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
     <servers />
   </component>
   <component name="TodoView">
@@ -746,10 +765,9 @@
     <frame x="-8" y="-8" width="1936" height="1186" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.20469083" sideWeight="0.5" order="1" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.20895523" sideWeight="0.5" order="1" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32919955" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="true" content_ui="tabs" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.31878558" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32732448" sideWeight="0.5" order="11" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32844242" sideWeight="0.5" order="12" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.24972972" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
@@ -765,6 +783,7 @@
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.19751693" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="combo" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.31878558" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32972974" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.39954853" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
@@ -824,7 +843,8 @@
     <MESSAGE value="finishing up refactor" />
     <MESSAGE value="visualisation now assumes workdir, if path is relative, and not tempdir" />
     <MESSAGE value="trying out section &quot;simple&quot;" />
-    <option name="LAST_COMMIT_MESSAGE" value="trying out section &quot;simple&quot;" />
+    <MESSAGE value="removed &quot;print&quot; when calling module" />
+    <option name="LAST_COMMIT_MESSAGE" value="removed &quot;print&quot; when calling module" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -933,7 +953,6 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/media/wait_icon.png" />
     <entry file="file://$PROJECT_DIR$/media/opalsIcon.png" />
-    <entry file="file://$PROJECT_DIR$/qpals/QpalsSection.py" />
     <entry file="file://$PROJECT_DIR$/qpals/QpalsParamMsgBtn.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -961,7 +980,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/qpals/QpalsShowFile.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="342">
+        <state relative-caret-position="714">
           <caret line="49" column="37" selection-start-line="49" selection-start-column="34" selection-end-line="49" selection-end-column="37" />
           <folding />
         </state>
@@ -969,7 +988,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/qpals/QpalsModuleBase.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="189">
+        <state relative-caret-position="6630">
           <caret line="399" column="26" selection-start-line="399" selection-start-column="26" selection-end-line="399" selection-end-column="26" />
           <folding />
         </state>
@@ -980,6 +999,16 @@
         <state relative-caret-position="342">
           <caret line="283" column="16" selection-start-line="283" selection-start-column="16" selection-end-line="283" selection-end-column="16" />
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/qpals/QpalsSection.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="431">
+          <caret line="328" column="25" selection-start-line="328" selection-start-column="25" selection-end-line="328" selection-end-column="25" />
+          <folding>
+            <element signature="e#1009#1040#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

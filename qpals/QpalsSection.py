@@ -28,6 +28,7 @@ from qgis.core import QgsMapLayerRegistry
 import os, tempfile, time
 from xml.dom import minidom
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import ogr
 
@@ -318,11 +319,15 @@ class LineTool(QgsMapTool):
             xvec.append(pt.GetX())
             yvec.append(pt.GetY())
             zvec.append(pt.GetZ())
-        plt.figure()
-        plt.scatter(xvec, zvec)
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(xvec, yvec, zvec)
         plt.title("Section")
-        plt.xlabel("Distance from Axis")
-        plt.ylabel("Height")
+        ax.view_init(0, 90)
+        ax.set_xlabel("Distance along section")
+        ax.set_ylabel("Distance across section")
+        ax.set_zlabel("Height")
         plt.show()
 
     def write_axis_shape(self, outShapeFile):
@@ -405,15 +410,18 @@ class PointTool(QgsMapTool):
                     at = attrcloud.GetGeometryRef(i)
                     cvec.append(at.GetZ())
 
-            plt.figure()
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+            ax.view_init(0, 90)
             if attrcloud:
-                plt.scatter(x = xvec, y = zvec, c = cvec, cmap='summer')
-                plt.colorbar()
+                ax.scatter(x = xvec, y = yvec, z=zvec, c=cvec, cmap='summer')
+                ax.colorbar()
             else:
-                plt.scatter(xvec,zvec)
+                ax.scatter(xvec, yvec, zvec)
             plt.title("Section %.1f" %self.sections[closestFeatureId]['name'])
-            plt.xlabel("Distance from Axis")
-            plt.ylabel("Height")
+            ax.set_xlabel("Distance across axis")
+            ax.set_ylabel("Distance along axis")
+            ax.set_zlabel("Height")
             plt.show()
 
     def activate(self):
