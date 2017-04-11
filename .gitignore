@@ -1,4 +1,4 @@
 # ignore python compiled files
 .pyc
 # pycharm folder
-.idea\*
+/.idea/*
