@@ -19,11 +19,11 @@ email                : lukas.winiwarter@tuwien.ac.at
 """
 
 def name(): 
-  return "qpals lidar tools" 
+  return "qpals"
 def description():
   return "integrates the opals software as a qgis plugin"
 def version(): 
-  return "Version 0.1" 
+  return "Version 1.2"
 def qgisMinimumVersion():
   return "1.8"
 def classFactory(iface): 

@@ -8,8 +8,8 @@ qgisMinimumVersion=2.8
 description=OPALS LiDAR software integrated into QGIS
 about=Developed at Vienna University of Technology
 version=1.2
-tracker=geo.tuwien.ac.at/opals
-repository=http://bitbucket.org/Meep001/qgis
+tracker=https://github.com/lwiniwar/qpals/issues
+repository=https://github.com/lwiniwar/qpals
 ; end of mandatory metadata
 
 ; start of optional metadata
@@ -25,10 +25,10 @@ changelog=Prior versions:
 ; tag name.
 ; Tags should be in English language. Please also check for existing tags and
 ; synonyms before creating a new one.
-tags=lidar,laser scanning,opals,als
+tags=lidar,laser scanning,opals,als,point cloud
 
 ; these metadata can be empty, they will eventually become mandatory.
-homepage=http://bitbucket.org/Meep001/qgis
+homepage=https://github.com/lwiniwar/qpals
 icon=media/opalsIcon.png
 
 ; experimental flag (applies to the single version)
