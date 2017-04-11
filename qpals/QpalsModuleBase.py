@@ -38,6 +38,9 @@ qtwhite = QtGui.QColor(255,255,255)
 qtsoftred = QtGui.QColor(255,140,140)
 qtsoftgreen = QtGui.QColor(140,255,140)
 
+def getTagContent(xml_tag):
+    return xml_tag.firstChild.nodeValue
+
 def parseXML(xml):
     dom = minidom.parseString(xml)
     outd = dict()
@@ -63,7 +66,7 @@ def parseXML(xml):
                         valString = values[0].firstChild.nodeValue
             if choices:
                 for choice in choices:
-                    choiceList.append(choice.getAttribute("Val"))
+                    choiceList.append(getTagContent(choice))
             elements.append(QpalsParameter.QpalsParameter(opt.attributes['Name'].value, valString, choiceList,
                                                           opt.attributes['Type'].value, opt.attributes['Opt'].value,
                                                           opt.attributes['Desc'].value,
@@ -309,6 +312,7 @@ class QpalsModuleBase():
             param.field = QTextComboBox.QTextComboBox()
             for choice in param.choices:
                 param.field.addItem(choice)
+            param.field.setText(param.val)
             # 'QString' is necessary so that the text and not the index will be passed as parameter
             if global_common:
                 param.field.activated['QString'].connect(self.updateCommonGlobals)

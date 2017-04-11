@@ -6,7 +6,13 @@ email=lukas.winiwarter@geo.tuwien.ac.at
 author=Lukas Winiwarter
 qgisMinimumVersion=2.8
 description=OPALS LiDAR software integrated into QGIS
-about=Developed at Vienna University of Technology
+about=IMPORTANT: This plugin requires an installation of OPALS developed by GEO at TU Wien.
+You can get an evaluation copy (processing up to 1.000.000 points) at photo.geo.tuwien.ac.at/opals .
+When the plugin is first loaded, you will be prompted to set a path to your opals installation.
+-
+The point cloud processing software OPALS developed by GEO/TU Wien can be easily accessed from within QGIS through
+a custom-made gui. Also, special modules are availiable for specific tasks, i.e. creating sections.
+
 version=1.2
 tracker=https://github.com/lwiniwar/qpals/issues
 repository=https://github.com/lwiniwar/qpals
