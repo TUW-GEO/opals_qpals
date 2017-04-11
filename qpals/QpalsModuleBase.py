@@ -80,9 +80,7 @@ class ModuleLoadWorker(QtCore.QObject):
     def run(self):
         ret = None
         try:
-            #print "loading"
             self.module.paramClass.load()
-            #print "loaded"
             if not self.killed:
                 self.progress.emit(100)
                 ret = (self.module, "42",)
