@@ -3,8 +3,8 @@
 Name			 	 : qpalsModuleBase
 Description          : base class and functions for all modules
 Date                 : 2016-05-21
-copyright            : (C) 2016 by Lukas Winiwarter/TU Wien
-email                : lukas.winiwarter@tuwien.ac.at
+copyright            : (C) 2016 by Lukas Winiwarter/GEO @ TU Wien
+email                : lukas.winiwarter@geo.tuwien.ac.at
  ***************************************************************************/
 
 /***************************************************************************
