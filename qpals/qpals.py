@@ -81,7 +81,7 @@ class qpals:
 
     def showModuleSelector(self):
         self.modSel = moduleSelector.moduleSelector(self.iface, self.layerlist, self.prjSet)
-        self.modSelWindow = QDockWidget("Opals Module Selector", self.iface.mainWindow(), Qt.WindowMinimizeButtonHint)
+        self.modSelWindow = QDockWidget("Qpals Module Selector", self.iface.mainWindow(), Qt.WindowMinimizeButtonHint)
         self.modSelWindow.setWidget(self.modSel)
         self.modSelWindow.setAllowedAreas(Qt.NoDockWidgetArea)  # don't let it dock
         self.modSelWindow.setMinimumSize(800, 400)
@@ -134,7 +134,7 @@ class qpals:
             menuBar = self.iface.mainWindow().menuBar()
             menuBar.insertMenu(self.iface.firstRightStandardMenu().menuAction(), self.menu)
 
-            self.dropspace = QDockWidget("Opals Visualizer", self.iface.mainWindow())
+            self.dropspace = QDockWidget("Qpals Visualizer", self.iface.mainWindow())
             self.dropspace.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
             self.dropobject = QpalsShowFile.QpalsShowFile(self.iface, self.layerlist, self.prjSet)
             self.dropobject.initUI()

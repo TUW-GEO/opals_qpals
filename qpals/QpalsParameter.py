@@ -30,7 +30,7 @@ class QpalsParameter:
         self.choices = choices
         self.type = type
         self.val = val
-        if "estimation" in longdesc.lower():
+        if longdesc and "estimation" in longdesc.lower():
             self.opt = "estimable"
         else:
             self.opt = opt

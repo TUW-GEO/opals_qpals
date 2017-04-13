@@ -3,7 +3,7 @@ import QpalsModuleBase
 import tempfile
 import os
 import QpalsParameter
-from PyQt4 import QtGui
+from PyQt4 import QtGui, QtCore
 from qgis.core import *
 from qgis.gui import *
 
@@ -41,8 +41,11 @@ class QpalsShowFile():
     def initUI(self):
         self.ui = QtGui.QDialog()
         lo = QtGui.QFormLayout()
+        self.ui.setSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Maximum)
         lo.addRow(QtGui.QLabel("Load ALS file(s):"))
         self.dropspace = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)
+        self.dropspace.setMinimumContentsLength(20)
+        self.dropspace.setSizeAdjustPolicy(QtGui.QComboBox.AdjustToMinimumContentsLength)
         lo.addRow(self.dropspace)
         self.visMethod = QtGui.QComboBox()
         self.visMethod.addItem("Shading (raster)")

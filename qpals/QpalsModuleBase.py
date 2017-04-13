@@ -20,7 +20,7 @@ email                : lukas.winiwarter@geo.tuwien.ac.at
 from PyQt4 import QtCore, QtGui
 import subprocess
 import os, shlex
-import copy
+import copy, time
 from xml.dom import minidom
 
 import QpalsParamMsgBtn
@@ -42,6 +42,7 @@ def getTagContent(xml_tag):
     return xml_tag.firstChild.nodeValue
 
 def parseXML(xml):
+    xml = xml.decode('utf-8').encode('ascii', errors='ignore')
     dom = minidom.parseString(xml)
     outd = dict()
     for type in ['Specific', 'Global', 'Common']:
@@ -134,11 +135,12 @@ class ModuleRunWorker(QtCore.QObject):
     def run(self):
         ret = None
         try:
-            self.module.paramClass.run()
+            self.module.paramClass.run(statusSignal=self.status)
             if not self.killed:
                 self.progress.emit(100)
                 ret = (self.module, "42")
         except Exception as e:
+            print "exc", str(e)
             self.error.emit(e, str(e), self.module)
         self.finished.emit(ret)
 
@@ -148,6 +150,7 @@ class ModuleRunWorker(QtCore.QObject):
     finished = QtCore.pyqtSignal(object)
     error = QtCore.pyqtSignal(Exception, basestring, object)
     progress = QtCore.pyqtSignal(float)
+    status = QtCore.pyqtSignal(basestring)
 
 class QpalsModuleBase():
     def __init__(self, execName, QpalsProject, layerlist=None, listitem=None, visualize=False):
@@ -208,7 +211,7 @@ class QpalsModuleBase():
                 return param
         return None
 
-    def call(self, show=0, *args):
+    def call(self, show=0, statusSignal=None, *args):
         info = subprocess.STARTUPINFO()
         info.dwFlags = subprocess.STARTF_USESHOWWINDOW
         info.wShowWindow = show  # 0=HIDE
@@ -216,13 +219,22 @@ class QpalsModuleBase():
         proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 stdin=subprocess.PIPE, cwd=self.project.workdir, startupinfo=info)
         proc.stdin.close()
-        stdout, stderr = proc.communicate()
+        if statusSignal is None:
+            stdout, stderr = proc.communicate()
+        else:
+            stdout = ""
+            while proc.poll() is None:
+                currstdout = proc.stdout.read(1)
+                statusSignal.emit(currstdout)
+                stdout += currstdout
+
+            stderr = "\n".join(proc.stderr.readlines())
         return {'stdout': stdout,
                 'stderr': stderr,
                 'returncode': proc.returncode}
 
     def load(self):
-        calld = self.call(0, '--options')
+        calld = self.call(0, None, '--options')
         if calld['returncode'] != 0:
             raise Exception('Call failed:\n %s' % calld['stdout'])
         xml_parsed = parseXML(calld['stderr'])
@@ -291,6 +303,8 @@ class QpalsModuleBase():
         if len(param.choices) == 0:
             if "path" in param.type.lower():
                 param.field = QpalsDropTextbox.QpalsDropTextbox(self.layerlist, param.val)
+                param.field.setMinimumContentsLength(20)
+                param.field.setSizeAdjustPolicy(QtGui.QComboBox.AdjustToMinimumContentsLength)
                 if global_common:
                     param.field.textChanged.connect(self.updateCommonGlobals)
                 else:
@@ -442,7 +456,7 @@ class QpalsModuleBase():
                     paramlist.append(item.strip('"'))
         if allmandatoryset:
             self.listitem.setToolTip("All mandatory parameters set and validated.")
-            calld = self.call(0, '--options', '1', *paramlist)
+            calld = self.call(0, None, '--options', '1', *paramlist)
             valid = True
             if calld['returncode'] != 0:
                 valid = False
@@ -488,7 +502,7 @@ class QpalsModuleBase():
                             break
             return valid
 
-    def run(self, show=1, onlytext=False):
+    def run(self, show=0, onlytext=False, statusSignal=None):
         paramlist = []
         for param in self.params:
             if param.val:
@@ -518,7 +532,7 @@ class QpalsModuleBase():
                     paramlist.append(item.strip('"'))
         if onlytext:
             return os.path.basename(self.execName) + " " + " ".join(paramlist)
-        result = self.call(show, *paramlist)
+        result = self.call(show, statusSignal, *paramlist)
         return result
 
     def reset(self):

@@ -22,10 +22,21 @@ from QpalsListWidgetItem import QpalsListWidgetItem
 from QpalsModuleBase import QpalsModuleBase, QpalsRunBatch, ModuleLoadWorker, ModuleRunWorker
 import QpalsShowFile
 import glob, os
-
+import re
 
 qtwhite = QtGui.QColor(255, 255, 255)
 qtsoftred = QtGui.QColor(255, 140, 140)
+
+
+
+def apply_backspace(s):
+    while True:
+        # if you find a character followed by a backspace, remove both
+        t = re.sub('.\b', '', s, count=1)
+        if len(s) == len(t):
+            # now remove any backspaces from beginning of string
+            return re.sub('\b+', '', t)
+        s = t
 
 
 class moduleSelector(QtGui.QDialog):
@@ -143,9 +154,18 @@ class moduleSelector(QtGui.QDialog):
 
         lowerhbox = QtGui.QHBoxLayout()
 
+        statusLayoutBox = QtGui.QHBoxLayout()
+        self.statusText = QtGui.QTextEdit()
+        self.statusText.setReadOnly(True)
+        self.statusBar = QtGui.QProgressBar()
+        self.statusBar.setRange(0,100)
+        statusLayoutBox.addWidget(self.statusText, 1)
+        statusLayoutBox.addWidget(self.statusBar)
+
         overallBox = QtGui.QVBoxLayout()
         overallBox.addLayout(grpBoxContainer)
         overallBox.addLayout(lowerhbox)
+        overallBox.addLayout(statusLayoutBox)
 
         self.main_widget = QtGui.QWidget()
         self.main_widget.setLayout(overallBox)
@@ -300,10 +320,25 @@ class moduleSelector(QtGui.QDialog):
         worker.moveToThread(thread)
         worker.finished.connect(self.runModuleWorkerFinished)
         worker.error.connect(self.runModuleWorkerError)
+        worker.status.connect(self.workerStatus)
         thread.started.connect(worker.run)
         thread.start()
         self.threads.append(thread)
         self.workers.append(worker)
+
+
+    def workerStatus(self, message):
+        curtext = apply_backspace(self.statusText.toPlainText() + message)
+        if "\n" in curtext:
+            curtext = "\n".join(curtext.split("\n")[-3:])
+        self.statusText.setPlainText(curtext)
+
+        # get percentage
+        curtext = self.statusText.toPlainText()
+        # if "%%" in curtext:
+        #     perc = int(curtext[:3])
+        #     self.statusBar.setValue(perc)
+
 
     def runModuleWorkerFinished(self, ret):
         module, code = ret
