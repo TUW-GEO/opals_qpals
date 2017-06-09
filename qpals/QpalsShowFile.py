@@ -55,6 +55,7 @@ class QpalsShowFile():
         self.visMethod.addItem("Minimum bounding rectangle (vector)")
         self.visMethod.addItem("Convex hull (vector)")
         self.visMethod.addItem("Alpha shape (vector)")
+        self.visMethod.addItem("Isolines (vector, based on Z-Value)")
         self.visMethod.currentIndexChanged.connect(self.updatevisMethod)
 
 
@@ -62,6 +63,9 @@ class QpalsShowFile():
         self.cellSizeBox = QtGui.QLineEdit()
         self.cellFeatLbl = QtGui.QLabel("Set feature:")
         self.cellFeatCmb = QtGui.QComboBox()
+        self.isoInteLbl = QtGui.QLabel("Set isoline interval:")
+        self.isoInteBox = QtGui.QLineEdit()
+        self.isoInteBox.setText("10")
         cellInst = QpalsModuleBase.QpalsModuleBase(os.path.join(self.project.opalspath, "opalsCell.exe"), self.project)
         cellInst.load()
         for param in cellInst.params:
@@ -73,6 +77,7 @@ class QpalsShowFile():
         self.cellFeatCmb.setCurrentIndex(3)
         lo.addRow(self.cellSizeLbl, self.cellSizeBox)
         lo.addRow(self.cellFeatLbl, self.cellFeatCmb)
+        lo.addRow(self.isoInteLbl, self.isoInteBox)
         lo.addRow(self.visMethod)
         self.okBtn = QtGui.QPushButton("Load")
         self.okBtn.clicked.connect(self.loadHelper)
@@ -84,7 +89,7 @@ class QpalsShowFile():
 
     def updatevisMethod(self):
         self.curVisMethod = self.visMethod.currentIndex()
-        if self.curVisMethod in [0, 1, 2]:
+        if self.curVisMethod in [0, 1, 2, 7]:
             self.cellSizeLbl.show()
             self.cellSizeBox.show()
             self.cellFeatLbl.show()
@@ -95,72 +100,88 @@ class QpalsShowFile():
             self.cellFeatLbl.hide()
             self.cellFeatCmb.hide()
 
+        if self.curVisMethod in [7]:
+            self.isoInteLbl.show()
+            self.isoInteBox.show()
+        else:
+            self.isoInteLbl.hide()
+            self.isoInteBox.hide()
+
+
     def loadHelper(self):
         return self.load(self.dropspace.text().split(";"))
 
     def load(self, infile_s=None):
-        layer = None
-        if self.ui:
-            self.okBtn.setText("Loading...")
-            self.okBtn.setEnabled(False)
-        for drop in infile_s:
-            if drop:
-                if drop.endswith(".tif") or drop.endswith(".tiff"):
-                    layer = self.iface.addRasterLayer(drop, os.path.basename(drop))
-                elif drop.endswith(".shp"):
-                    layer = self.iface.addVectorLayer(drop, os.path.basename(drop), "ogr")
-                else:
-                    if not drop.endswith(".odm"):
-                        drop = self.callImport(drop)
-                    if self.curVisMethod == 0:
-                        cellf = self.callCell(drop)
-                        visfile = self.callShade(cellf)
-                    elif self.curVisMethod == 1:
-                        cellf = self.callCell(drop)
-                        visfile = self.callZColor(cellf)
-                    elif self.curVisMethod == 2:
-                        visfile = self.callCell(drop)
-                    elif self.curVisMethod == 3:
-                        (xmin, ymin, xmax, ymax) = self.callInfo(drop)
-                    elif self.curVisMethod == 4:
-                        visfile = self.callBounds(drop, "minimumRectangle")
-                    elif self.curVisMethod == 5:
-                        visfile = self.callBounds(drop, "convexHull")
-                    elif self.curVisMethod == 6:
-                        visfile = self.callBounds(drop, "alphaShape")
+        try:
+            layer = None
+            if self.ui:
+                self.okBtn.setText("Loading...")
+                self.okBtn.setEnabled(False)
+            for drop in infile_s:
+                if drop:
+                    if drop.endswith(".tif") or drop.endswith(".tiff"):
+                        layer = self.iface.addRasterLayer(drop, os.path.basename(drop))
+                    elif drop.endswith(".shp"):
+                        layer = self.iface.addVectorLayer(drop, os.path.basename(drop), "ogr")
+                    else:
+                        if not drop.endswith(".odm"):
+                            drop = self.callImport(drop)
+                        if self.curVisMethod == 0:
+                            cellf = self.callCell(drop)
+                            visfile = self.callShade(cellf)
+                        elif self.curVisMethod == 1:
+                            cellf = self.callCell(drop)
+                            visfile = self.callZColor(cellf)
+                        elif self.curVisMethod == 2:
+                            visfile = self.callCell(drop)
+                        elif self.curVisMethod == 3:
+                            (xmin, ymin, xmax, ymax) = self.callInfo(drop)
+                        elif self.curVisMethod == 4:
+                            visfile = self.callBounds(drop, "minimumRectangle")
+                        elif self.curVisMethod == 5:
+                            visfile = self.callBounds(drop, "convexHull")
+                        elif self.curVisMethod == 6:
+                            visfile = self.callBounds(drop, "alphaShape")
+                        elif self.curVisMethod == 7:
+                            cellf = self.callCell(drop)
+                            visfile = self.callIsolines(cellf)
 
-                    self.updateText("Loading layer into QGIS...")
-                    # load layer
-                    if self.curVisMethod in [4, 5, 6]:  # vector file
-                        layer = self.iface.addVectorLayer(visfile, os.path.basename(drop), "ogr")
-                    elif self.curVisMethod in [0, 1, 2]:
-                        layer = self.iface.addRasterLayer(visfile, os.path.basename(drop))
-                    elif self.curVisMethod == 3:
-                        layer = self.iface.addVectorLayer("Polygon", os.path.basename(drop), "memory")
-                        pr = layer.dataProvider()
-                        feat = QgsFeature()
-                        feat.setGeometry(QgsGeometry.fromPolygon([[QgsPoint(xmin, ymin),
-                                                                   QgsPoint(xmax, ymin),
-                                                                   QgsPoint(xmax, ymax),
-                                                                   QgsPoint(xmin, ymax)]]))
-                        pr.addFeatures([feat])
-                        layer.updateExtents()
+                        self.updateText("Loading layer into QGIS...")
+                        # load layer
+                        if self.curVisMethod in [4, 5, 6, 7]:  # vector file
+                            layer = self.iface.addVectorLayer(visfile, os.path.basename(drop), "ogr")
+                        elif self.curVisMethod in [0, 1, 2]:
+                            layer = self.iface.addRasterLayer(visfile, os.path.basename(drop))
+                        elif self.curVisMethod == 3:
+                            layer = self.iface.addVectorLayer("Polygon", os.path.basename(drop), "memory")
+                            pr = layer.dataProvider()
+                            feat = QgsFeature()
+                            feat.setGeometry(QgsGeometry.fromPolygon([[QgsPoint(xmin, ymin),
+                                                                       QgsPoint(xmax, ymin),
+                                                                       QgsPoint(xmax, ymax),
+                                                                       QgsPoint(xmin, ymax)]]))
+                            pr.addFeatures([feat])
+                            layer.updateExtents()
 
 
-                layer.setCustomProperty("qpals-odmpath", drop)
-                QgsMapLayerRegistry.instance().addMapLayer(layer)
+                    layer.setCustomProperty("qpals-odmpath", drop)
+                    QgsMapLayerRegistry.instance().addMapLayer(layer)
 
-                if self.curVisMethod in [3, 4, 5, 6]:
-                    layer.setCustomProperty("labeling", "pal")
-                    layer.setCustomProperty("labeling/enabled", "true")
-                    layer.setCustomProperty("labeling/isExpression", "true")
-                    layer.setCustomProperty("labeling/fontFamily", "Arial")
-                    layer.setCustomProperty("labeling/fontSize", "10")
-                    layer.setCustomProperty("labeling/fieldName", "'%s'" % os.path.splitext(os.path.basename(drop))[0])
-                    layer.setCustomProperty("labeling/placement", "1")
-                    layer.triggerRepaint()
-                    self.iface.mapCanvas().refresh()
-                self.layerlist[layer.id()] = drop
+                    if self.curVisMethod in [3, 4, 5, 6]:
+                        layer.setCustomProperty("labeling", "pal")
+                        layer.setCustomProperty("labeling/enabled", "true")
+                        layer.setCustomProperty("labeling/isExpression", "true")
+                        layer.setCustomProperty("labeling/fontFamily", "Arial")
+                        layer.setCustomProperty("labeling/fontSize", "10")
+                        layer.setCustomProperty("labeling/fieldName", "'%s'" % os.path.splitext(os.path.basename(drop))[0])
+                        layer.setCustomProperty("labeling/placement", "1")
+                        layer.triggerRepaint()
+                        self.iface.mapCanvas().refresh()
+                    self.layerlist[layer.id()] = drop
+        except Exception as e:
+            self.iface.messageBar().pushMessage('Something went wrong! See the message log for more information.',
+                                                duration=3)
+            print e
 
         if self.ui:
             self.okBtn.setText("Load")
@@ -193,6 +214,11 @@ class QpalsShowFile():
     def callBounds(self, infile, shapetype):
         self.updateText("Calling module opalsBounds...")
         shapefile = self.call("opalsBounds", {"inFile": infile, "boundsType": shapetype}, ".shp")
+        return shapefile
+
+    def callIsolines(self, infile):
+        self.updateText("Calling module opalsIsolines...")
+        shapefile = self.call("opalsIsolines", {"inFile": infile, "interval": self.isoInteBox.text()}, ".shp")
         return shapefile
 
     def callCell(self, infile):

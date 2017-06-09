@@ -43,7 +43,10 @@ def getTagContent(xml_tag):
 
 def parseXML(xml):
     xml = xml.decode('utf-8').encode('ascii', errors='ignore')
-    dom = minidom.parseString(xml)
+    try:
+        dom = minidom.parseString(xml)
+    except:
+        raise LookupError(xml)
     outd = dict()
     for type in ['Specific', 'Global', 'Common']:
         elements = []

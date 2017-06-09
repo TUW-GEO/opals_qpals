@@ -22,7 +22,7 @@ from PyQt4.QtGui import *
 from qgis.core import *
 from qgis.gui import *
 
-import QpalsShowFile, QpalsProject, moduleSelector, QpalsSection
+import QpalsShowFile, QpalsProject, moduleSelector, QpalsSection, QpalsLog
 
 import tempfile, os
 
@@ -97,6 +97,10 @@ class qpals:
         self.drop = qpals.QpalsDropTextbox.droptester()
         self.drop.show()
 
+    def showlog(self):
+        self.log = QpalsLog.QpalsLog(iface=self.iface)
+        self.log.ui.show()
+
     def showSecGUI(self):
         self.sec = QpalsSection.QpalsSection(project=self.prjSet, layerlist=self.layerlist, iface=self.iface)
         self.secUI = self.sec.createWidget()
@@ -120,6 +124,11 @@ class qpals:
             self.menuItemModuleSelector.setStatusTip("Select module from list")
             QObject.connect(self.menuItemModuleSelector, SIGNAL("triggered()"), self.showModuleSelector)
             self.menu.addAction(self.menuItemModuleSelector)
+
+            self.mnulog = QAction(opalsIcon, "Opals log", self.iface.mainWindow())
+            self.mnulog.setStatusTip("Show log information")
+            QObject.connect(self.mnulog, SIGNAL("triggered()"), self.showlog)
+            self.menu.addAction(self.mnulog)
 
             self.mnuproject = QAction(opalsIcon, "Project settings", self.iface.mainWindow())
             self.mnuproject.setStatusTip("Project settings")
