@@ -38,6 +38,11 @@ def apply_backspace(s):
             return re.sub('\b+', '', t)
         s = t
 
+def get_percentage(s):
+    t = re.compile(r"(\d+)%")
+    match = t.search(s)
+    return match.group(1)
+
 
 class moduleSelector(QtGui.QDialog):
 
@@ -47,6 +52,8 @@ class moduleSelector(QtGui.QDialog):
     loadingIcon = QtGui.QIcon(os.path.join(IconPath, "spinner_icon.png"))
     errorIcon = QtGui.QIcon(os.path.join(IconPath, "error_icon.png"))
     checkIcon = QtGui.QIcon(os.path.join(IconPath, "checkIcon.png"))
+
+    abort_signal = QtCore.pyqtSignal(name='abort_signal')
 
     def getModulesAvailiable(self):
         for opalsexe in glob.glob(os.path.join(self.project.opalspath, "opals*.exe")):
@@ -74,6 +81,7 @@ class moduleSelector(QtGui.QDialog):
         self.currentruncount = 0
 
         self.runModuleSelected = None
+
 
     def initUi(self):
 
@@ -157,20 +165,50 @@ class moduleSelector(QtGui.QDialog):
         statusLayoutBox = QtGui.QHBoxLayout()
         self.statusText = QtGui.QTextEdit()
         self.statusText.setReadOnly(True)
-        self.statusBar = QtGui.QProgressBar()
-        self.statusBar.setRange(0,100)
+        self.statusText.setVisible(False)
+        self.progressBar = QtGui.QProgressBar()
+        self.progressBar.setRange(0, 100)
         statusLayoutBox.addWidget(self.statusText, 1)
-        statusLayoutBox.addWidget(self.statusBar)
+
+        self.statusBar = QtGui.QPushButton()
+        self.statusBar.clicked.connect(self.showHideStatusText)
+        self.statusBar.setFlat(True)
+        self.statusBar.setStyleSheet("text-align:left")
+        self.statusBar.setToolTip("Click to show/hide command line output")
+        statusBarLayout = QtGui.QHBoxLayout()
+        self.stopExec = QtGui.QPushButton()
+        self.stopExec.setText("Stop")
+        self.stopExec.clicked.connect(self.stop)
+        statusBarLayout.addWidget(self.statusBar, 1)
+        statusBarLayout.addWidget(self.progressBar)
+        statusBarLayout.addWidget(self.stopExec)
+        self.setWorkerRunning(False)
 
         overallBox = QtGui.QVBoxLayout()
         overallBox.addLayout(grpBoxContainer)
         overallBox.addLayout(lowerhbox)
         overallBox.addLayout(statusLayoutBox)
+        overallBox.addLayout(statusBarLayout)
 
         self.main_widget = QtGui.QWidget()
         self.main_widget.setLayout(overallBox)
         self.setLayout(overallBox)
         self.setWindowTitle('qpals')
+
+    def showHideStatusText(self):
+        currstatus = self.statusText.isHidden()
+        self.statusText.setHidden(not currstatus)
+
+    def setWorkerRunning(self, status):
+        self.workerrunning = status
+        self.stopExec.setEnabled(status)
+
+    def stop(self):
+        if self.workerrunning:
+            self.abort_signal.emit()
+        self.setWorkerRunning(False)
+        self.statusBar.setText("Stopped Execution.")
+        self.progressBar.setValue(0)
 
     def filterModuleList(self, text):
         self.moduleList.clear()
@@ -184,7 +222,7 @@ class moduleSelector(QtGui.QDialog):
         #https://snorfalorpagus.net/blog/2013/12/07/multithreading-in-qgis-python-plugins/
         if self.workerrunning:
             return
-        self.workerrunning = True
+        self.setWorkerRunning(True)
         worker = ModuleLoadWorker(module)
         module.setIcon(self.loadingIcon)
         self.moduleList.setEnabled(False)
@@ -212,13 +250,13 @@ class moduleSelector(QtGui.QDialog):
         else:
             # notify the user that something went wrong
             self.iface.messageBar().pushMessage('Something went wrong! See the message log for more information.', duration=3)
-        self.workerrunning = False
+        self.setWorkerRunning(False)
         self.moduleList.setEnabled(True)
 
     def workerError(self, e, exception_string, module):
         print('Worker thread raised an exception: {}\n'.format(exception_string))
         module.setIcon(self.errorIcon)
-        self.workerrunning = False
+        self.setWorkerRunning(False)
 
     def loadModuleAsync(self, module):
         self.moduleList.clearSelection()
@@ -321,23 +359,31 @@ class moduleSelector(QtGui.QDialog):
         worker.finished.connect(self.runModuleWorkerFinished)
         worker.error.connect(self.runModuleWorkerError)
         worker.status.connect(self.workerStatus)
+        self.abort_signal.connect(worker.stop)
         thread.started.connect(worker.run)
+        self.setWorkerRunning(True)
         thread.start()
         self.threads.append(thread)
         self.workers.append(worker)
 
 
     def workerStatus(self, message):
-        curtext = apply_backspace(self.statusText.toPlainText() + message)
-        if "\n" in curtext:
-            curtext = "\n".join(curtext.split("\n")[-3:])
+        curtext = message.replace("\r", "").replace("\b", "")  # eliminate carriage returns and backspaces
         self.statusText.setPlainText(curtext)
+        self.statusText.verticalScrollBar().setValue(self.statusText.verticalScrollBar().maximum())
 
-        # get percentage
-        curtext = self.statusText.toPlainText()
-        # if "%%" in curtext:
-        #     perc = int(curtext[:3])
-        #     self.statusBar.setValue(perc)
+        out_lines = ["Stage 0: Initializing"] + [item for item in re.split("[\n\r\b]", message) if item]
+        curr_stage = [stage for stage in out_lines if "Stage" in stage][-1]
+        percentage = out_lines[-1]
+        #print percentage
+        if r"%" in percentage:
+            perc = get_percentage(percentage)
+            self.progressBar.setValue(int(perc))
+            statusbartext = curr_stage
+        else:
+            statusbartext = out_lines[-1]
+
+        self.statusBar.setText(statusbartext)
 
 
     def runModuleWorkerFinished(self, ret):
@@ -348,6 +394,7 @@ class moduleSelector(QtGui.QDialog):
                 moduleClass.outf = os.path.join(self.project.workdir, moduleClass.outf).replace("\\", "/")
             showfile = QpalsShowFile.QpalsShowFile(self.project.iface, self.layerlist, self.project)
             showfile.load(infile_s=[moduleClass.outf])
+        self.setWorkerRunning(False)
         if self.runningRunList == True:
             module.setIcon(self.checkIcon)
             self.currentruncount += 1

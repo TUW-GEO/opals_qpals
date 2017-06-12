@@ -18,6 +18,7 @@ email                : lukas.winiwarter@geo.tuwien.ac.at
  """
 
 from PyQt4 import QtCore, QtGui
+from PyQt4.QtCore import pyqtSlot
 import subprocess
 import os, shlex
 import copy, time
@@ -46,7 +47,7 @@ def parseXML(xml):
     try:
         dom = minidom.parseString(xml)
     except:
-        raise LookupError(xml)
+        raise Exception('Error: xml string (%s characters) could not be parsed \n %s' % (len(xml), str(xml)))
     outd = dict()
     for type in ['Specific', 'Global', 'Common']:
         elements = []
@@ -133,27 +134,28 @@ class ModuleRunWorker(QtCore.QObject):
     def __init__(self, module):
         QtCore.QObject.__init__(self)
         self.module = module
-        self.killed = False
+        self.killed = [False]
 
     def run(self):
-        ret = None
         try:
-            self.module.paramClass.run(statusSignal=self.status)
-            if not self.killed:
+            self.module.paramClass.run(statusSignal=self.status, killSignal=self.killed)
+            if not self.killed[0]:
                 self.progress.emit(100)
-                ret = (self.module, "42")
         except Exception as e:
-            print "exc", str(e)
             self.error.emit(e, str(e), self.module)
+            print "Error:", str(e)
+        ret = (self.module, "42")
         self.finished.emit(ret)
 
-    def kill(self):
-        self.killed = True
+    @pyqtSlot()
+    def stop(self):
+        self.killed[0] = True
 
     finished = QtCore.pyqtSignal(object)
     error = QtCore.pyqtSignal(Exception, basestring, object)
     progress = QtCore.pyqtSignal(float)
     status = QtCore.pyqtSignal(basestring)
+
 
 class QpalsModuleBase():
     def __init__(self, execName, QpalsProject, layerlist=None, listitem=None, visualize=False):
@@ -214,7 +216,7 @@ class QpalsModuleBase():
                 return param
         return None
 
-    def call(self, show=0, statusSignal=None, *args):
+    def call(self, show=0, statusSignal=None, killSignal=None, *args):
         info = subprocess.STARTUPINFO()
         info.dwFlags = subprocess.STARTF_USESHOWWINDOW
         info.wShowWindow = show  # 0=HIDE
@@ -226,18 +228,29 @@ class QpalsModuleBase():
             stdout, stderr = proc.communicate()
         else:
             stdout = ""
+            killflag = False
             while proc.poll() is None:
-                currstdout = proc.stdout.read(1)
-                statusSignal.emit(currstdout)
+                QtGui.QApplication.processEvents()
+                if killSignal[0] and not killflag:
+                    proc.kill()
+                    killflag = True
+                    statusSignal.emit("Stopped Execution.")
+                    return
+                currstdout = proc.stdout.read(1)  # read byte for byte while it is running
                 stdout += currstdout
-
+                if stdout[-1] in ["\n", "\b"]:
+                    statusSignal.emit(stdout)
+            currstdout = proc.stdout.read()  # read the rest once the process is finished
+            stdout += currstdout
+            statusSignal.emit(stdout)
             stderr = "\n".join(proc.stderr.readlines())
+
         return {'stdout': stdout,
                 'stderr': stderr,
                 'returncode': proc.returncode}
 
     def load(self):
-        calld = self.call(0, None, '--options')
+        calld = self.call(0, None, None, '--options')
         if calld['returncode'] != 0:
             raise Exception('Call failed:\n %s' % calld['stdout'])
         xml_parsed = parseXML(calld['stderr'])
@@ -459,7 +472,7 @@ class QpalsModuleBase():
                     paramlist.append(item.strip('"'))
         if allmandatoryset:
             self.listitem.setToolTip("All mandatory parameters set and validated.")
-            calld = self.call(0, None, '--options', '1', *paramlist)
+            calld = self.call(0, None, None, '--options', '1', *paramlist)
             valid = True
             if calld['returncode'] != 0:
                 valid = False
@@ -505,7 +518,7 @@ class QpalsModuleBase():
                             break
             return valid
 
-    def run(self, show=0, onlytext=False, statusSignal=None):
+    def run(self, show=0, onlytext=False, statusSignal=None, killSignal=None):
         paramlist = []
         for param in self.params:
             if param.val:
@@ -535,7 +548,7 @@ class QpalsModuleBase():
                     paramlist.append(item.strip('"'))
         if onlytext:
             return os.path.basename(self.execName) + " " + " ".join(paramlist)
-        result = self.call(show, statusSignal, *paramlist)
+        result = self.call(show, statusSignal, killSignal, *paramlist)
         return result
 
     def reset(self):
