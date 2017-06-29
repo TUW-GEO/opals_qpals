@@ -16,15 +16,21 @@ email                : lukas.winiwarter@tuwien.ac.at
  *                                                                         *
  ***************************************************************************/
 """
+import os
+import tempfile
+
 # Import the PyQt and QGIS libraries
-from PyQt4.QtCore import * 
+from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from qgis.core import *
 from qgis.gui import *
 
-import QpalsShowFile, QpalsProject, moduleSelector, QpalsSection, QpalsLog
+import QpalsLog
+import QpalsProject
+import QpalsShowFile
+import moduleSelector
+from modules import QpalsSection, QpalsLM
 
-import tempfile, os
 
 class qpals:
     def __init__(self, iface):
@@ -110,6 +116,16 @@ class qpals:
         self.secUIDock.setFloating(True)
         self.secUIDock.show()
 
+    def showLMGUI(self):
+        self.linemodeler = QpalsLM.QpalsLM(project=self.prjSet, layerlist=self.layerlist, iface=self.iface)
+        self.linemodelerUI = self.linemodeler.createWidget()
+        self.linemodelerUIDock = QDockWidget("Qpals LineModeler GUI", self.iface.mainWindow())
+        self.linemodelerUIDock.setWidget(self.linemodelerUI)
+        self.linemodelerUIDock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.linemodelerUIDock.setFloating(True)
+        self.linemodelerUIDock.show()
+
+
     def initGui(self):
         if self.active:
             self.menu = QMenu(self.iface.mainWindow())
@@ -139,6 +155,11 @@ class qpals:
             self.mnusec.setStatusTip("Project settings")
             QObject.connect(self.mnusec, SIGNAL("triggered()"), self.showSecGUI)
             self.menu.addAction(self.mnusec)
+
+            self.mnulm = QAction(opalsIcon, "qpals LineModeller GUI", self.iface.mainWindow())
+            self.mnulm.setStatusTip("Start the LineModeller GUI")
+            QObject.connect(self.mnulm, SIGNAL("triggered()"), self.showLMGUI)
+            self.menu.addAction(self.mnulm)
 
             menuBar = self.iface.mainWindow().menuBar()
             menuBar.insertMenu(self.iface.firstRightStandardMenu().menuAction(), self.menu)

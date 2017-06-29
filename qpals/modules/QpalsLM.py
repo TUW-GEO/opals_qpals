@@ -32,9 +32,17 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import ogr
 
-import QpalsShowFile, QpalsModuleBase, QpalsDropTextbox, QpalsParameter
 
-class QpalsSection:
+from .. import QpalsShowFile, QpalsModuleBase, QpalsDropTextbox, QpalsParameter
+
+def switchToNextTab(tabWidget):
+    curridx = tabWidget.currentIndex()
+    tabWidget.setCurrentIndex(curridx+1)
+def switchToPrevTab(tabWidget):
+    curridx = tabWidget.currentIndex()
+    tabWidget.setCurrentIndex(curridx-1)
+
+class QpalsLM:
 
     def __init__(self, project, layerlist, iface):
         self.advanced_widget = None
@@ -48,11 +56,82 @@ class QpalsSection:
         self.sections = dict()
 
 
-
     def createWidget(self):
+        self.tabs = QtGui.QTabWidget()
+        names = ['Settings',
+                 'DTM',
+                 'Slope',
+                 '2D-Approximation',
+                 'Topologic correction',
+                 'Editing',
+                 '3D-Modelling',
+                 'Topologic correction',
+                 'Quality check',
+                 'Export']
+        self.widgets = {}
+        self.settings = {}
+
+        for idx, name in enumerate(names):
+            self.widgets[name] = QtGui.QDialog()
+            ls = QtGui.QFormLayout()
+            # Tab-specific options
+            if name == "Settings":
+                desc = QtGui.QLabel("Welcome to the qpals LineModeler GUI! \nThis tool will help you to detect and "
+                                    "model breaklines based on a DTM and/or a point cloud using the opals module "
+                                    "opalsLineModeler.\nThe process includes manual editing in QGIS (\"Editing\") "
+                                    "as well as automatic dectection and modelling.\n\n"
+                                    "To begin, please enter some basic information.")
+                desc.setWordWrap(True)
+                ls.addRow(desc)
+                boxRun = QtGui.QGroupBox("Run multiple steps automatically:")
+                boxVL = QtGui.QVBoxLayout()
+                boxRun.setLayout(boxVL)
+                self.settings['settings'] = {
+                    'name': QtGui.QLineEdit(),
+                    'inFile': QpalsDropTextbox.QpalsDropTextbox(),
+                    'tempFolder': QpalsDropTextbox.QpalsDropTextbox(),
+                    'outFolder': QpalsDropTextbox.QpalsDropTextbox(),
+                    'chkDTM': QtGui.QCheckBox("DTM"),
+                    'chkSlope': QtGui.QCheckBox("Slope"),
+                    'chk2D': QtGui.QCheckBox("2D-Approximation"),
+                    'chktopo2D': QtGui.QCheckBox("Topological correction"),
+                    'chkEditing': QtGui.QCheckBox("Skip manual editing of 2D-Approximations"),
+                }
+                for key, value in self.settings['settings'].items():
+                    if isinstance(value, QpalsDropTextbox.QpalsDropTextbox):
+                        value.setMinimumContentsLength(20)
+                        value.setSizeAdjustPolicy(QtGui.QComboBox.AdjustToMinimumContentsLength)
+                    if key.startswith("chk"):
+                        boxVL.addWidget(value)
+
+                ls.addRow(QtGui.QLabel("Project name"), self.settings['settings']['name'])
+                ls.addRow(QtGui.QLabel("Input file (TIFF/LAS/ODM)"), self.settings['settings']['inFile'])
+                ls.addRow(QtGui.QLabel("Folder for temporary files"), self.settings['settings']['tempFolder'])
+                ls.addRow(QtGui.QLabel("Folder for output files"), self.settings['settings']['outFolder'])
+                ls.addRow(QtGui.QLabel(""))
+                boxVL.addWidget()
+                ls.addRow(boxRun)
+
+            vl = QtGui.QVBoxLayout()
+            vl.addLayout(ls, 1)
+            navbar = QtGui.QHBoxLayout()
+            next = QtGui.QPushButton("Next step >")
+            next.clicked.connect(lambda: switchToNextTab(self.tabs))
+            prev = QtGui.QPushButton("< Previous step")
+            prev.clicked.connect(lambda: switchToPrevTab(self.tabs))
+            if idx > 0:
+                navbar.addWidget(prev)
+            navbar.addStretch()
+            if idx < len(names):
+                navbar.addWidget(next)
+            vl.addLayout(navbar)
+            self.widgets[name].setLayout(vl)
+            self.tabs.addTab(self.widgets[name], name)
+
+        return self.tabs
+
         self.advanced_widget = QtGui.QDialog()
         self.simple_widget = QtGui.QDialog()
-        self.tabs = QtGui.QTabWidget()
         ### SIMPLE ###
         ls = QtGui.QFormLayout()
         ls.addRow(QtGui.QLabel("Choose input file:"))
@@ -128,8 +207,8 @@ class QpalsSection:
     def loadShading(self):
         self.runShdBtn.setEnabled(False)
         self.runShdBtn.setText("Calculating shading...")
-        showfile = QpalsShowFile.QpalsShowFile(self.project.iface, self.layerlist, self.project)
-        showfile.curVisMethod = QpalsShowFile.QpalsShowFile.METHOD_SHADING
+        showfile = qpals.QpalsShowFile.QpalsShowFile(self.project.iface, self.layerlist, self.project)
+        showfile.curVisMethod = qpals.QpalsShowFile.QpalsShowFile.METHOD_SHADING
         showfile.cellSizeBox = QtGui.QLineEdit("1")
         self.secInst.getParam("inFile").val = self.txtinfile.text()
         self.secInst.getParam("inFile").field.setText(self.txtinfile.text())
@@ -147,7 +226,7 @@ class QpalsSection:
         outParamFileH.close()
         self.runSecBtn.setEnabled(False)
         self.runSecBtn.setText("Calculating sections...")
-        outParamFileParam = QpalsParameter.QpalsParameter('outParamFile', outParamFile, None, None, None, None, None)
+        outParamFileParam = qpals.QpalsParameter.QpalsParameter('outParamFile', outParamFile, None, None, None, None, None)
         self.secInst.params.append(outParamFileParam)
         self.secInst.run()
         self.secInst.params.remove(outParamFileParam)
@@ -281,17 +360,17 @@ class LineTool(QgsMapTool):
         self.write_axis_shape(outShapeFile)
 
         #run section
-        Module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.secInst.project.opalspath, "opalsSection.exe"), QpalsProject=self.secInst.project)
-        infile = QpalsParameter.QpalsParameter('inFile', self.secInst.txtinfileSimple.text(), None, None, None, None, None)
-        axisfile = QpalsParameter.QpalsParameter('axisFile', outShapeFile, None, None, None, None, None)
-        thickness = QpalsParameter.QpalsParameter('patchSize', '%s;%s'%(self.seclength, self.secInst.txtthickness.text()),
-                                                  None, None, None, None, None
-                                                  )
+        Module = qpals.QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.secInst.project.opalspath, "opalsSection.exe"), QpalsProject=self.secInst.project)
+        infile = qpals.QpalsParameter.QpalsParameter('inFile', self.secInst.txtinfileSimple.text(), None, None, None, None, None)
+        axisfile = qpals.QpalsParameter.QpalsParameter('axisFile', outShapeFile, None, None, None, None, None)
+        thickness = qpals.QpalsParameter.QpalsParameter('patchSize', '%s;%s' % (self.seclength, self.secInst.txtthickness.text()),
+                                                        None, None, None, None, None
+                                                        )
 
         outParamFileH = tempfile.NamedTemporaryFile(delete=False)
         outParamFile = outParamFileH.name + "x.xml"
         outParamFileH.close()
-        outParamFileParam = QpalsParameter.QpalsParameter('outParamFile', outParamFile, None, None, None, None, None)
+        outParamFileParam = qpals.QpalsParameter.QpalsParameter('outParamFile', outParamFile, None, None, None, None, None)
         Module.params.append(infile)
         Module.params.append(axisfile)
         Module.params.append(thickness)
