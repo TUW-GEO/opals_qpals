@@ -18,13 +18,11 @@ email                : lukas.winiwarter@tuwien.ac.at
  """
 
 from PyQt4 import QtCore, QtGui
-
 from qgis.core import *
 from qgis.gui import *
 
-
 from QpalsShowFile import QpalsShowFile
-import QpalsDropTextbox
+from qt_extensions import QpalsDropTextbox
 
 
 class QpalsProject:

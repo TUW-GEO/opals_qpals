@@ -99,7 +99,7 @@ class qpals:
         self.prjUI.show()
 
     def showdd(self):
-        import qpals.QpalsDropTextbox
+        import qpals.qt_extensions.QpalsDropTextbox
         self.drop = qpals.QpalsDropTextbox.droptester()
         self.drop.show()
 
@@ -123,6 +123,7 @@ class qpals:
         self.linemodelerUIDock.setWidget(self.linemodelerUI)
         self.linemodelerUIDock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self.linemodelerUIDock.setFloating(True)
+        self.linemodelerUIDock.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         self.linemodelerUIDock.show()
 
 

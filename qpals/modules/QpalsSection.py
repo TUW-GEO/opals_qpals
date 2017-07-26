@@ -17,22 +17,21 @@ email                : lukas.winiwarter@tuwien.ac.at
  ***************************************************************************/
  """
 
-from PyQt4 import QtCore, QtGui
-
-from qgis.core import *
-from qgis.gui import *
-
-from qgis.core import QgsMapLayerRegistry
-
-
-import os, tempfile, time
+import os
+import tempfile
 from xml.dom import minidom
+
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import ogr
+from PyQt4 import QtGui
+from qgis.core import *
+from qgis.core import QgsMapLayerRegistry
+from qgis.gui import *
 
-from .. import QpalsShowFile, QpalsModuleBase, QpalsDropTextbox, QpalsParameter
+from ..qt_extensions import QpalsDropTextbox
+from .. import QpalsShowFile, QpalsModuleBase, QpalsParameter
+
 
 class QpalsSection:
 

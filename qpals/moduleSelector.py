@@ -17,12 +17,15 @@ email                : lukas.winiwarter@tuwien.ac.at
  ***************************************************************************/
  """
 
-from PyQt4 import QtCore, QtGui
-from QpalsListWidgetItem import QpalsListWidgetItem
-from QpalsModuleBase import QpalsModuleBase, QpalsRunBatch, ModuleLoadWorker, ModuleRunWorker
-import QpalsShowFile
-import glob, os
+import glob
+import os
 import re
+
+from PyQt4 import QtCore, QtGui
+
+import QpalsShowFile
+from QpalsModuleBase import QpalsModuleBase, QpalsRunBatch, ModuleLoadWorker, ModuleRunWorker
+from qt_extensions.QpalsListWidgetItem import QpalsListWidgetItem
 
 qtwhite = QtGui.QColor(255, 255, 255)
 qtsoftred = QtGui.QColor(255, 140, 140)

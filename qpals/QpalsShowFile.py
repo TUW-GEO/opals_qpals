@@ -1,11 +1,14 @@
-import QpalsDropTextbox
-import QpalsModuleBase
-import tempfile
 import os
-import QpalsParameter
-from PyQt4 import QtGui, QtCore
+import tempfile
+
+from PyQt4 import QtGui
 from qgis.core import *
 from qgis.gui import *
+
+import QpalsModuleBase
+import QpalsParameter
+from qt_extensions import QpalsDropTextbox
+
 
 class QpalsShowFile():
     METHOD_SHADING = 0

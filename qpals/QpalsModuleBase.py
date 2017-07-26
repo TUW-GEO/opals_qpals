@@ -17,17 +17,18 @@ email                : lukas.winiwarter@geo.tuwien.ac.at
  ***************************************************************************/
  """
 
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import pyqtSlot
+import os
+import shlex
 import subprocess
-import os, shlex
-import copy, time
 from xml.dom import minidom
 
+from qt_extensions import QTextComboBox
+from PyQt4 import QtCore, QtGui
+from PyQt4.QtCore import pyqtSlot
+
 import QpalsParamMsgBtn
-import QTextComboBox
-import QpalsDropTextbox
 import QpalsParameter
+from qt_extensions import QpalsDropTextbox
 
 IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
 
@@ -383,6 +384,17 @@ class QpalsModuleBase():
         for param in self.params:
             (l1, l2) = self.getUIOneliner(param, parent=parent)
             form.addRow(l1, l2)
+        return form
+
+    def getFilteredParamUi(self, parent=None, filter=[], notfilter=[]):
+        if not self.loaded:
+            self.load()
+        form = QtGui.QFormLayout()
+        for param in self.params:
+            if (len(filter) > 0 and param.name in filter) or \
+               (len(notfilter) > 0 and param.name not in notfilter):
+                (l1, l2) = self.getUIOneliner(param, parent=parent)
+                form.addRow(l1, l2)
         return form
 
     def updateCommonGlobals(self, string):

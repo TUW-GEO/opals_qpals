@@ -23,10 +23,6 @@ from qgis.core import *
 from qgis.gui import *
 
 
-from QpalsShowFile import QpalsShowFile
-import QpalsDropTextbox
-
-
 class QpalsLog:
     def __init__(self, iface=None, logpaths=[r"C:\Users\lwiniwar\AppData\Local\Temp\opalsLog.xml", r"D:\01_Opals\02_Installations\opalsLog.xml"]):
         self.iface = iface
