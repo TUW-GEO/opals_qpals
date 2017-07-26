@@ -18,15 +18,24 @@ email                : lukas.winiwarter@tuwien.ac.at
  This script initializes the plugin, making it known to QGIS.
 """
 
+
 def name(): 
-  return "qpals"
+    return "qpals"
+
+
 def description():
-  return "integrates the opals software as a qgis plugin"
+    return "integrates the opals software as a qgis plugin"
+
+
 def version(): 
-  return "Version 1.2"
+    return "Version 1.2"
+
+
 def qgisMinimumVersion():
-  return "1.8"
+    return "1.8"
+
+
 def classFactory(iface): 
-  # load qpals class from file qpals
-  from qpals import qpals 
-  return qpals.qpals(iface)
+    # load qpals class from file qpals
+    from qpals import qpals
+    return qpals.qpals(iface)

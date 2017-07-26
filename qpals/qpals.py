@@ -29,7 +29,7 @@ import QpalsLog
 import QpalsProject
 import QpalsShowFile
 import moduleSelector
-from modules import QpalsSection, QpalsLM
+from modules import QpalsSection
 
 
 class qpals:
@@ -116,16 +116,6 @@ class qpals:
         self.secUIDock.setFloating(True)
         self.secUIDock.show()
 
-    def showLMGUI(self):
-        self.linemodeler = QpalsLM.QpalsLM(project=self.prjSet, layerlist=self.layerlist, iface=self.iface)
-        self.linemodelerUI = self.linemodeler.createWidget()
-        self.linemodelerUIDock = QDockWidget("Qpals LineModeler GUI", self.iface.mainWindow())
-        self.linemodelerUIDock.setWidget(self.linemodelerUI)
-        self.linemodelerUIDock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        self.linemodelerUIDock.setFloating(True)
-        self.linemodelerUIDock.show()
-
-
     def initGui(self):
         if self.active:
             self.menu = QMenu(self.iface.mainWindow())
@@ -171,7 +161,6 @@ class qpals:
             self.dropspace.setWidget(self.dropobject.ui)
             self.iface.mainWindow().addDockWidget(Qt.LeftDockWidgetArea, self.dropspace)
             self.dropspace.setContentsMargins(9, 9, 9, 9)
-            #self.dropspace.removeEventFilter(self.iface.mainWindow())
 
 
     def unload(self):
