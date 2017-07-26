@@ -146,11 +146,6 @@ class qpals:
             QObject.connect(self.mnusec, SIGNAL("triggered()"), self.showSecGUI)
             self.menu.addAction(self.mnusec)
 
-            self.mnulm = QAction(opalsIcon, "qpals LineModeller GUI", self.iface.mainWindow())
-            self.mnulm.setStatusTip("Start the LineModeller GUI")
-            QObject.connect(self.mnulm, SIGNAL("triggered()"), self.showLMGUI)
-            self.menu.addAction(self.mnulm)
-
             menuBar = self.iface.mainWindow().menuBar()
             menuBar.insertMenu(self.iface.firstRightStandardMenu().menuAction(), self.menu)
 
