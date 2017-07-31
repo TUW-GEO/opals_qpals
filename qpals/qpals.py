@@ -29,7 +29,7 @@ import QpalsLog
 import QpalsProject
 import QpalsShowFile
 import moduleSelector
-from modules import QpalsSection, QpalsLM
+from modules import QpalsSection, QpalsLM, QpalsAttributeMan
 
 
 class qpals:
@@ -107,6 +107,12 @@ class qpals:
         self.log = QpalsLog.QpalsLog(iface=self.iface)
         self.log.ui.show()
 
+    def showAttrMan(self):
+        self.attrman = QpalsAttributeMan.QpalsAttributeMan(project=self.prjSet,
+                                                           layerlist=self.layerlist,
+                                                           iface=self.iface)
+        self.attrman.ui.show()
+
     def showSecGUI(self):
         self.sec = QpalsSection.QpalsSection(project=self.prjSet, layerlist=self.layerlist, iface=self.iface)
         self.secUI = self.sec.createWidget()
@@ -161,6 +167,11 @@ class qpals:
             self.mnulm.setStatusTip("Start the LineModeller GUI")
             QObject.connect(self.mnulm, SIGNAL("triggered()"), self.showLMGUI)
             self.menu.addAction(self.mnulm)
+
+            self.mnuatt = QAction(opalsIcon, "qpals Attribute Manager", self.iface.mainWindow())
+            self.mnuatt.setStatusTip("Start the attribute manager")
+            QObject.connect(self.mnuatt, SIGNAL("triggered()"), self.showAttrMan)
+            self.menu.addAction(self.mnuatt)
 
             menuBar = self.iface.mainWindow().menuBar()
             menuBar.insertMenu(self.iface.firstRightStandardMenu().menuAction(), self.menu)

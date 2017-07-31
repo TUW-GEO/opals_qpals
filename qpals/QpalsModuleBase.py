@@ -537,6 +537,8 @@ class QpalsModuleBase():
                 paramlist.append('-' + param.name)
                 for item in param.val.split(";"):
                     paramlist.append(item.strip('"'))
+            elif param.flag_mode:
+                paramlist.append('-' + param.name)
             if param.name == 'outFile':
                 self.outf = param.val
         globcommon_set = []
