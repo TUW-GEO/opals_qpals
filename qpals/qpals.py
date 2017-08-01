@@ -44,9 +44,8 @@ class qpals:
         opalspath = s.value("qpals/opalspath", "")
         tempdir = proj.readEntry("qpals","tempdir", tempfile.gettempdir())[0]
         workdir = proj.readEntry("qpals","workdir", tempfile.gettempdir())[0]
-        vismethod = proj.readNumEntry("qpals", "vismethod", QpalsShowFile.QpalsShowFile.METHOD_BOX)[0]
         firstrun = False
-        if opalspath == "":
+        while opalspath == "":
             msg = QMessageBox()
             msg.setText("The path to the opals binaries has not been set.")
             msg.setInformativeText("Please set it now, or press cancel to unload the qpals plugin.")
@@ -56,14 +55,25 @@ class qpals:
             if ret == QMessageBox.Ok:
                 opalspath = QFileDialog.getExistingDirectory(None, caption='Select path containing opals*.exe binaries')
                 if opalspath:
-                    s.setValue("qpals/opalspath", opalspath)
-                    firstrun = True
+                    if os.path.exists(os.path.join(opalspath, "opalsCell.exe")):
+                        s.setValue("qpals/opalspath", opalspath)
+                        firstrun = True
+                    else:
+                        opalspath = ""
+                        msg = QMessageBox()
+                        msg.setText("Ooops..")
+                        msg.setInformativeText("Could not validate opals path. Please make sure to select the folder "
+                                               "containing the opals binaries, i.e. opalsCell.exe, opalsInfo.exe, etc.")
+                        msg.setWindowTitle("Qpals opals path")
+                        msg.setStandardButtons(QMessageBox.Ok)
+                        ret = msg.exec_()
+
             else:
                 self.active = False
 
         if self.active:
             self.prjSet = QpalsProject.QpalsProject(name="", opalspath=opalspath,
-                                                    tempdir=tempdir, workdir=workdir, iface=self.iface, vismethod=vismethod)
+                                                    tempdir=tempdir, workdir=workdir, iface=self.iface)
 
         if firstrun:
             self.showproject()
@@ -158,17 +168,17 @@ class qpals:
             QObject.connect(self.mnuproject, SIGNAL("triggered()"), self.showproject)
             self.menu.addAction(self.mnuproject)
 
-            self.mnusec = QAction(opalsIcon, "qpals Section GUI", self.iface.mainWindow())
+            self.mnusec = QAction(opalsIcon, "Section GUI", self.iface.mainWindow())
             self.mnusec.setStatusTip("Project settings")
             QObject.connect(self.mnusec, SIGNAL("triggered()"), self.showSecGUI)
             self.menu.addAction(self.mnusec)
 
-            self.mnulm = QAction(opalsIcon, "qpals LineModeller GUI", self.iface.mainWindow())
+            self.mnulm = QAction(opalsIcon, "LineModeller GUI", self.iface.mainWindow())
             self.mnulm.setStatusTip("Start the LineModeller GUI")
             QObject.connect(self.mnulm, SIGNAL("triggered()"), self.showLMGUI)
             self.menu.addAction(self.mnulm)
 
-            self.mnuatt = QAction(opalsIcon, "qpals Attribute Manager", self.iface.mainWindow())
+            self.mnuatt = QAction(opalsIcon, "Attribute Manager", self.iface.mainWindow())
             self.mnuatt.setStatusTip("Start the attribute manager")
             QObject.connect(self.mnuatt, SIGNAL("triggered()"), self.showAttrMan)
             self.menu.addAction(self.mnuatt)

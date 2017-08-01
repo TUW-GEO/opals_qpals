@@ -19,12 +19,21 @@ class QpalsShowFile():
     METHOD_CONVEX_HULL = 5
     METHOD_ALPHA_SHAPE = 6
 
+    features = [
+        "min", "max", "diff", "mean", "median", "sum", "variance", "rms", "pdens", "pcount",
+        "minority", "majority", "entropy"
+    ]
+
     def __init__(self, iface, qpalsLayerList, project=None):
         self.dropspace = None
         self.visMethod = None
         self.curVisMethod = -1
         if project:
+            print "Project: cells %s, cellm %s, iso %s" % (project.viscells, project.viscellm, project.visisoint)
             self.curVisMethod = project.vismethod
+            self.cellSize = project.viscells
+            self.cellMethod = project.viscellm
+            self.isoInt = project.visisoint
         self.iface = iface
         self.layerlist = qpalsLayerList
         self.ui = None
@@ -75,8 +84,7 @@ class QpalsShowFile():
             if param.name.lower() == "cellsize":
                 self.cellSizeBox.setText(param.val)
                 break
-        self.cellFeatCmb.addItems(["min", "max", "diff", "mean", "median", "sum", "variance", "rms", "pdens", "pcount",
-                                   "minority", "majority", "entropy"])
+        self.cellFeatCmb.addItems(self.features)
         self.cellFeatCmb.setCurrentIndex(3)
         lo.addRow(self.cellSizeLbl, self.cellSizeBox)
         lo.addRow(self.cellFeatLbl, self.cellFeatCmb)
@@ -221,12 +229,15 @@ class QpalsShowFile():
 
     def callIsolines(self, infile):
         self.updateText("Calling module opalsIsolines...")
-        shapefile = self.call("opalsIsolines", {"inFile": infile, "interval": self.isoInteBox.text()}, ".shp")
+        interval = str(self.isoInt) if self.isoInt is not None else self.isoInteBox.text()
+        shapefile = self.call("opalsIsolines", {"inFile": infile, "interval": interval}, ".shp")
         return shapefile
 
     def callCell(self, infile):
         self.updateText("Calling module opalsCell...")
-        rasfile = self.call("opalsCell", {"inFile": infile, "feature": "mean", "cellSize": self.cellSizeBox.text()}, ".tif")
+        cellsize = str(self.cellSize) if self.cellSize is not None else self.cellSizeBox.text()
+        feature = self.features[self.cellMethod] if self.cellMethod is not None else self.cellFeatCmb.currentText()
+        rasfile = self.call("opalsCell", {"inFile": infile, "feature": feature, "cellSize": cellsize}, ".tif")
         return rasfile
 
     def callShade(self, infile):
