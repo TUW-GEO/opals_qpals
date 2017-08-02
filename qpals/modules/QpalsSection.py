@@ -31,6 +31,8 @@ from qgis.gui import *
 
 from ..qt_extensions import QpalsDropTextbox
 from .. import QpalsShowFile, QpalsModuleBase, QpalsParameter
+from QpalsAttributeMan import getAttributeInformation
+from matplotlib_section import plotwindow
 
 
 class QpalsSection:
@@ -111,6 +113,7 @@ class QpalsSection:
         self.tabs.addTab(self.simple_widget, "Simple")
         self.tabs.addTab(self.advanced_widget, "Advanced")
         return self.tabs
+
 
     def simpleIsLoaded(self):
         layers = QgsMapLayerRegistry.instance().mapLayers().values()
@@ -272,62 +275,90 @@ class LineTool(QgsMapTool):
                 QgsMapLayerRegistry.instance().removeMapLayer(self.visLayer.id())
 
     def runsec(self):
+
         #write polyline shp to file
         outShapeFileH = tempfile.NamedTemporaryFile(suffix=".shp", delete=True)
         outShapeFile = outShapeFileH.name
         outShapeFileH.close()
 
         self.write_axis_shape(outShapeFile)
+        # grab availiable attributes
+        attrs, _ = getAttributeInformation(self.secInst.txtinfileSimple.text(), self.secInst.project)
+        mins = {attr[0]: attr[3] for attr in attrs}
+        maxes = {attr[0]: attr[4] for attr in attrs}
+        names = [attr[0] for attr in attrs]
+        data = {}
 
-        #run section
-        Module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.secInst.project.opalspath, "opalsSection.exe"), QpalsProject=self.secInst.project)
-        infile = QpalsParameter.QpalsParameter('inFile', self.secInst.txtinfileSimple.text(), None, None, None, None, None)
-        axisfile = QpalsParameter.QpalsParameter('axisFile', outShapeFile, None, None, None, None, None)
-        thickness = QpalsParameter.QpalsParameter('patchSize', '%s;%s' % (self.seclength, self.secInst.txtthickness.text()),
-                                                        None, None, None, None, None
-                                                        )
+        for attr in names:
+            #run section
+            Module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.secInst.project.opalspath, "opalsSection.exe"), QpalsProject=self.secInst.project)
+            infile = QpalsParameter.QpalsParameter('inFile', self.secInst.txtinfileSimple.text(), None, None, None, None, None)
+            axisfile = QpalsParameter.QpalsParameter('axisFile', outShapeFile, None, None, None, None, None)
+            attribute = QpalsParameter.QpalsParameter('attribute', attr, None, None, None, None, None)
+            thickness = QpalsParameter.QpalsParameter('patchSize', '%s;%s' % (self.seclength, self.secInst.txtthickness.text()),
+                                                            None, None, None, None, None
+                                                            )
 
-        outParamFileH = tempfile.NamedTemporaryFile(delete=False)
-        outParamFile = outParamFileH.name + "x.xml"
-        outParamFileH.close()
-        outParamFileParam = QpalsParameter.QpalsParameter('outParamFile', outParamFile, None, None, None, None, None)
-        Module.params.append(infile)
-        Module.params.append(axisfile)
-        Module.params.append(thickness)
-        Module.params.append(outParamFileParam)
+            outParamFileH = tempfile.NamedTemporaryFile(delete=False)
+            outParamFile = outParamFileH.name + "x.xml"
+            outParamFileH.close()
+            outParamFileParam = QpalsParameter.QpalsParameter('outParamFile', outParamFile, None, None, None, None, None)
+            Module.params.append(infile)
+            Module.params.append(axisfile)
+            Module.params.append(thickness)
+            Module.params.append(attribute)
+            Module.params.append(outParamFileParam)
 
-        Module.run()
+            Module.run()
 
-        #read from file and display
-        dom = minidom.parse(outParamFile)
-        parameters = dom.getElementsByTagName("Parameter")
-        outGeoms = []
-        for param in parameters:
-            if param.attributes["Name"].value == "outGeometry":
-                for val in param.getElementsByTagName("Val"):
-                    outGeoms.append(val.firstChild.nodeValue)  # contains WKT for one section
-        dom.unlink()
+            #read from file and display
+            dom = minidom.parse(outParamFile)
+            parameters = dom.getElementsByTagName("Parameter")
+            outGeoms = []
+            for param in parameters:
+                if param.attributes["Name"].value == "outGeometry":
+                    for val in param.getElementsByTagName("Val"):
+                        outGeoms.append(val.firstChild.nodeValue)  # contains WKT for one section
+            dom.unlink()
 
-        geoms = ogr.CreateGeometryFromWkt(outGeoms[0])
-        pointcloud = geoms.GetGeometryRef(3)
-        xvec = []
-        yvec = []
-        zvec = []
-        for i in range(pointcloud.GetGeometryCount()):
-            pt = pointcloud.GetGeometryRef(i)
-            xvec.append(pt.GetX())
-            yvec.append(pt.GetY())
-            zvec.append(pt.GetZ())
+            if len(outGeoms) > 0:
+                geoms = ogr.CreateGeometryFromWkt(outGeoms[0])
+                pointcloud = geoms.GetGeometryRef(3)
+                xvec = []
+                yvec = []
+                zvec = []
+                cvec = []
+                attrcloud = None
+                if geoms.GetGeometryCount() > 4:
+                    print "getting attribute %s" % attr
+                    attrcloud = geoms.GetGeometryRef(4)
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(xvec, yvec, zvec, c=zvec)
-        plt.title("Section")
-        ax.view_init(0, 90)
-        ax.set_xlabel("Distance along section")
-        ax.set_ylabel("Distance across section")
-        ax.set_zlabel("Height")
-        plt.show()
+
+                for i in range(pointcloud.GetGeometryCount()):
+                    pt = pointcloud.GetGeometryRef(i)
+                    xvec.append(pt.GetX())
+                    yvec.append(pt.GetY())
+                    zvec.append(pt.GetZ())
+                    if attrcloud:
+                        at = attrcloud.GetGeometryRef(i)
+                        cvec.append(at.GetZ())
+
+                data.update({'X': xvec,
+                        'Y': yvec,
+                        'Z': zvec,
+                        attr: cvec})
+
+        self.pltwindow = plotwindow(self.secInst.project, self.secInst.iface, data, mins, maxes)
+        #
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111, projection='3d')
+        # ax.scatter(xvec, yvec, zvec, c=zvec)
+        # plt.title("Section")
+        # ax.view_init(0, 90)
+        # ax.set_xlabel("Distance along section")
+        # ax.set_ylabel("Distance across section")
+        # ax.set_zlabel("Height")
+        # plt.show()
 
     def write_axis_shape(self, outShapeFile):
         driver = ogr.GetDriverByName("ESRI Shapefile")

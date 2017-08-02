@@ -8,7 +8,7 @@ from qgis.gui import *
 import QpalsModuleBase
 import QpalsParameter
 from qt_extensions import QpalsDropTextbox
-
+from modules.QpalsAttributeMan import getAttributeInformation
 
 class QpalsShowFile():
     METHOD_SHADING = 0
@@ -29,7 +29,6 @@ class QpalsShowFile():
         self.visMethod = None
         self.curVisMethod = -1
         if project:
-            print "Project: cells %s, cellm %s, iso %s" % (project.viscells, project.viscellm, project.visisoint)
             self.curVisMethod = project.vismethod
             self.cellSize = project.viscells
             self.cellMethod = project.viscellm
@@ -58,6 +57,7 @@ class QpalsShowFile():
         self.dropspace = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)
         self.dropspace.setMinimumContentsLength(20)
         self.dropspace.setSizeAdjustPolicy(QtGui.QComboBox.AdjustToMinimumContentsLength)
+        self.dropspace.editingFinished.connect(self.inFileUpdated)
         lo.addRow(self.dropspace)
         self.visMethod = QtGui.QComboBox()
         self.visMethod.addItem("Shading (raster)")
@@ -75,6 +75,10 @@ class QpalsShowFile():
         self.cellSizeBox = QtGui.QLineEdit()
         self.cellFeatLbl = QtGui.QLabel("Set feature:")
         self.cellFeatCmb = QtGui.QComboBox()
+        self.cellAttrLbl = QtGui.QLabel("Select attribute:")
+        self.cellAttrCmb = QtGui.QComboBox()
+        self.cellAttrCmb.addItem("Z")
+        self.cellAttrCmb.setSizeAdjustPolicy(QtGui.QComboBox.AdjustToContents)
         self.isoInteLbl = QtGui.QLabel("Set isoline interval:")
         self.isoInteBox = QtGui.QLineEdit()
         self.isoInteBox.setText("10")
@@ -86,6 +90,7 @@ class QpalsShowFile():
                 break
         self.cellFeatCmb.addItems(self.features)
         self.cellFeatCmb.setCurrentIndex(3)
+        lo.addRow(self.cellAttrLbl, self.cellAttrCmb)
         lo.addRow(self.cellSizeLbl, self.cellSizeBox)
         lo.addRow(self.cellFeatLbl, self.cellFeatCmb)
         lo.addRow(self.isoInteLbl, self.isoInteBox)
@@ -98,6 +103,22 @@ class QpalsShowFile():
 
         self.visMethod.setCurrentIndex(3)
 
+    def inFileUpdated(self):
+        newFile = self.dropspace.text()
+        if newFile.endswith(".odm"):
+            try:
+                attrs, _ = getAttributeInformation(newFile, self.project)
+                self.cellAttrCmb.clear()
+                self.cellAttrCmb.addItems(["X", "Y", "Z"])
+                for attr in attrs:
+                    self.cellAttrCmb.addItem(attr[0])
+                self.cellAttrCmb.setCurrentIndex(2)
+            except:
+                self.cellAttrCmb.clear()
+                self.cellAttrCmb.addItem(["X", "Y", "Z"])
+                self.cellAttrCmb.setCurrentIndex(2)
+
+
     def updatevisMethod(self):
         self.curVisMethod = self.visMethod.currentIndex()
         if self.curVisMethod in [0, 1, 2, 7]:
@@ -105,11 +126,15 @@ class QpalsShowFile():
             self.cellSizeBox.show()
             self.cellFeatLbl.show()
             self.cellFeatCmb.show()
+            self.cellAttrCmb.show()
+            self.cellAttrLbl.show()
         else:
             self.cellSizeLbl.hide()
             self.cellSizeBox.hide()
             self.cellFeatLbl.hide()
             self.cellFeatCmb.hide()
+            self.cellAttrCmb.hide()
+            self.cellAttrLbl.hide()
 
         if self.curVisMethod in [7]:
             self.isoInteLbl.show()
@@ -229,15 +254,19 @@ class QpalsShowFile():
 
     def callIsolines(self, infile):
         self.updateText("Calling module opalsIsolines...")
-        interval = str(self.isoInt) if self.isoInt is not None else self.isoInteBox.text()
+        interval = str(self.isoInt) if not self.isoInteBox is not None else self.isoInteBox.text()
         shapefile = self.call("opalsIsolines", {"inFile": infile, "interval": interval}, ".shp")
         return shapefile
 
     def callCell(self, infile):
         self.updateText("Calling module opalsCell...")
-        cellsize = str(self.cellSize) if self.cellSize is not None else self.cellSizeBox.text()
-        feature = self.features[self.cellMethod] if self.cellMethod is not None else self.cellFeatCmb.currentText()
-        rasfile = self.call("opalsCell", {"inFile": infile, "feature": feature, "cellSize": cellsize}, ".tif")
+        cellsize = str(self.cellSize) if not self.cellSizeBox else self.cellSizeBox.text()
+        feature = self.features[self.cellMethod] if not self.cellFeatCmb else self.cellFeatCmb.currentText()
+        attribute = "Z" if not self.cellAttrCmb else self.cellAttrCmb.currentText()
+        rasfile = self.call("opalsCell", {"inFile": infile,
+                                          "feature": feature,
+                                          "cellSize": cellsize,
+                                          "attribute": attribute}, ".tif")
         return rasfile
 
     def callShade(self, infile):

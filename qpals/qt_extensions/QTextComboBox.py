@@ -11,3 +11,5 @@ class QTextComboBox(QtGui.QComboBox):
         i = self.findText(QString)
         if i > 0:
             self.setCurrentIndex(i)
+        elif self.isEditable():
+            self.lineEdit().setText(QString)

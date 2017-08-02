@@ -20,113 +20,10 @@ email                : lukas.winiwarter@tuwien.ac.at
 from PyQt4 import QtCore, QtGui, QtWebKit
 from qgis.core import *
 from qgis.gui import *
-
-import os, operator, webbrowser
+import os
+import operator, webbrowser
 from ..qt_extensions import QpalsDropTextbox
-from .. import QpalsParameter, QpalsModuleBase
-
-odm_data_types=[
-"64bit integer",
-"integer",
-"unsigned integer",
-"short",
-"unsigned short",
-"byte",
-"unsigned byte",
-"boolean",
-"float",
-"double",
-"string",
-]
-
-odm_predef_attributes = {
-    "Amplitude": "float",
-    "Attribute": "unsigned byte",
-    "BeamVectorX": "float",
-    "BeamVectorY": "float",
-    "BeamVectorZ": "float",
-    "Blue": "unsigned short",
-    "ChannelDesc": "unsigned byte",
-    "Classification": "unsigned byte",
-    "ClassificationFlags": "unsigned byte",
-    "Confidence": "unsigned byte",
-    "ConstrainedFlag": "bool",
-    "CrossSection": "float",
-    "CumulativeDistance": "float",
-    "CurveParam": "float",
-    "CustomClassId": "unsigned byte",
-    "EchoNumber": "unsigned byte",
-    "EchoRatio": "float",
-    "EchoWidth": "float",
-    "EchoWidthNormalised": "float",
-    "EdgeOfFlightLine": "bool",
-    "Estimator": "unsigned byte",
-    "FaceId": "unsigned integer",
-    "FileId": "unsigned short",
-    "GPSTime": "double",
-    "Green": "unsigned short",
-    "Id": "64bit integer",
-    "InfraRed": "unsigned short",
-    "LASExtensions": "string",
-    "LayerId": "unsigned short",
-    "MarkedFlag": "bool",
-    "MaxCurvature": "float",
-    "MaxCurvatureDirection": "float",
-    "MinCurvature": "float",
-    "NormalEigenvalue1": "float",
-    "NormalEigenvalue2": "float",
-    "NormalEigenvalue3": "float",
-    "NormalEstimationMethod": "unsigned byte",
-    "NormalLeftX": "float",
-    "NormalLeftY": "float",
-    "NormalLeftZ": "float",
-    "NormalPlaneOffset": "float",
-    "NormalPtsGiven": "unsigned byte",
-    "NormalPtsUsed": "unsigned byte",
-    "NormalRightX": "float",
-    "NormalRightY": "float",
-    "NormalRightZ": "float",
-    "NormalSigma0": "float",
-    "NormalX": "float",
-    "NormalY": "float",
-    "NormalZ": "float",
-    "NormalizedZ": "float",
-    "NrOfEchos": "unsigned byte",
-    "PitchAngle": "float",
-    "PointCode": "string",
-    "PointLabel": "string",
-    "PointSourceId": "unsigned short",
-    "RGIndex": "unsigned short",
-    "Range": "float",
-    "Red": "unsigned short",
-    "Reflectance": "float",
-    "Residual": "float",
-    "RollAngle": "float",
-    "ScanAngle": "float",
-    "ScanDirection": "bool",
-    "ScopSemantic": "integer",
-    "SegmentID": "unsigned integer",
-    "SegmentPtsUsed": "integer",
-    "SigmaNormalFit": "float",
-    "SigmaX": "float",
-    "SigmaY": "float",
-    "SigmaZ": "float",
-    "SpreadAngle": "float",
-    "StructNr": "unsigned short",
-    "TangentSigmaX": "float",
-    "TangentSigmaY": "float",
-    "TangentSigmaZ": "float",
-    "TangentX": "float",
-    "TangentY": "float",
-    "TangentZ": "float",
-    "TiltAngle": "float",
-    "UltraViolet": "unsigned short",
-    "UserData": "unsigned byte",
-    "VertexId": "unsigned integer",
-    "WaterDepth": "float",
-    "WinputCode": "unsigned short",
-    "YawAngle": "float",
-}
+from ..resources.attribute_types import odm_predef_attributes, odm_data_types
 
 class QpalsAttributeMan:
     def __init__(self, project, iface=None, layerlist=None):
@@ -206,6 +103,7 @@ class QpalsAttributeMan:
             self.newnamebox.lineEdit().setText(attrname[1:])
 
     def fieldcalc(self):
+        from .. import QpalsModuleBase, QpalsParameter
         attrname = self.newnamebox.currentText()
         attrtype = self.typedropdown.currentText()
         if attrname not in odm_predef_attributes:
@@ -257,6 +155,7 @@ class QpalsAttributeMan:
 
 
 def getAttributeInformation(file, project):
+    from .. import QpalsModuleBase, QpalsParameter
     infoinst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(project.opalspath, "opalsInfo.exe"),
                                                QpalsProject=project)
     infoinst.params = [QpalsParameter.QpalsParameter('inFile', file,

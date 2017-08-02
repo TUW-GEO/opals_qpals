@@ -29,6 +29,7 @@ from PyQt4.QtCore import pyqtSlot
 import QpalsParamMsgBtn
 import QpalsParameter
 from qt_extensions import QpalsDropTextbox
+from modules.QpalsAttributeMan import getAttributeInformation
 
 IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
 
@@ -331,6 +332,18 @@ class QpalsModuleBase():
                 param.browse = QtGui.QToolButton()
                 param.browse.setText("...")
                 param.browse.clicked.connect(self.makefilebrowser(param.name))
+                if "infile" in param.name.lower():
+                    param.field.editingFinished.connect(self.inFileUpdated)
+
+            elif "attribute" in param.name.lower():
+                param.field = QTextComboBox.QTextComboBox()
+                param.field.setEditable(True)
+                param.field.setText(param.val)
+                if global_common:
+                    param.field.editTextChanged.connect(self.updateCommonGlobals)
+                else:
+                    param.field.editTextChanged.connect(self.updateVals)
+
             else:
                 param.field = QtGui.QLineEdit(param.val)
                 if global_common:
@@ -338,7 +351,6 @@ class QpalsModuleBase():
                 else:
                     param.field.textChanged.connect(self.updateVals)
                 param.field.editingFinished.connect(self.validate)
-
         else:
             param.field = QTextComboBox.QTextComboBox()
             for choice in param.choices:
@@ -375,6 +387,26 @@ class QpalsModuleBase():
             l2.addWidget(param.use4proj)
 
         return (l1, l2)
+
+    def inFileUpdated(self):
+        attrp = None
+        attri = None
+        for param in self.params:
+            if param.name.lower() == "attribute":
+                attrp = param
+            if param.name.lower() == "infile":
+                attri = param
+        if attrp and attri:
+            attrp.field.clear()
+            attrp.field.addItems(["X", "Y", "Z"])
+            try:
+                attrs, entries = getAttributeInformation(attri.val, self.project)
+                for attr in attrs:
+                    attrp.field.addItem(attr[0])
+            except Exception as e:
+                self.project.iface.messageBar().pushMessage('Something went wrong! See the message log for more information.',
+                                                    duration=3)
+                print e
 
 
     def getParamUi(self, parent=None):

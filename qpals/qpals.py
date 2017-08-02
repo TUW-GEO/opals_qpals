@@ -114,8 +114,18 @@ class qpals:
         self.drop.show()
 
     def showlog(self):
-        self.log = QpalsLog.QpalsLog(iface=self.iface)
-        self.log.ui.show()
+        import webbrowser
+        webbrowser.open('file:///' + os.path.join(self.prjSet.tempdir, "opalsLog.xml"))
+        #self.log = QpalsLog.QpalsLog(iface=self.iface)
+        #self.log.ui.show()
+
+    def clearlog(self):
+        try:
+            os.remove(os.path.join(self.prjSet.tempdir, "opalsLog.xml"))
+        except Exception as e:
+            self.iface.messageBar().pushMessage('Something went wrong! See the message log for more information.',
+                                                duration=3)
+            print e
 
     def showAttrMan(self):
         self.attrman = QpalsAttributeMan.QpalsAttributeMan(project=self.prjSet,
@@ -158,10 +168,23 @@ class qpals:
             QObject.connect(self.menuItemModuleSelector, SIGNAL("triggered()"), self.showModuleSelector)
             self.menu.addAction(self.menuItemModuleSelector)
 
-            self.mnulog = QAction(opalsIcon, "Opals log", self.iface.mainWindow())
+            self.logmnu = QMenu(self.menu)
+            self.logmnu.setIcon(opalsIcon)
+            self.logmnu.setObjectName("qpalsLogMenu")
+            self.logmnu.setTitle("opalsLog")
+
+            self.mnulog = QAction(opalsIcon, "show opalsLog.xml", self.iface.mainWindow())
             self.mnulog.setStatusTip("Show log information")
             QObject.connect(self.mnulog, SIGNAL("triggered()"), self.showlog)
-            self.menu.addAction(self.mnulog)
+            self.logmnu.addAction(self.mnulog)
+
+            self.mnuclearlog = QAction(opalsIcon, "clear opalsLog.xml", self.iface.mainWindow())
+            self.mnuclearlog.setStatusTip("Delete log file")
+            self.mnuclearlog.triggered.connect(self.clearlog)
+            self.logmnu.addAction(self.mnuclearlog)
+
+            self.menu.addMenu(self.logmnu)
+
 
             self.mnuproject = QAction(opalsIcon, "Project settings", self.iface.mainWindow())
             self.mnuproject.setStatusTip("Project settings")
