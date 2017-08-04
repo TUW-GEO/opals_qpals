@@ -78,7 +78,14 @@ class QpalsSection:
         self.runSecBtnSimple = QtGui.QPushButton("Create section")
         self.runSecBtnSimple.clicked.connect(self.ltool.runsec)
         self.runSecBtnSimple.setEnabled(False)
+        self.simpleLineLayer = QtGui.QComboBox()
+        for layer in QgsMapLayerRegistry.instance().mapLayers().values():
+            if isinstance(layer, QgsVectorLayer) and layer.geometryType() == 1:
+                self.simpleLineLayer.addItem(layer.name(), layer)
+        self.simpleStatus = QtGui.QLabel()
+        ls.addRow(QtGui.QLabel("Visualize (3D) Line Layer:"), self.simpleLineLayer)
         ls.addRow(self.runSecBtnSimple)
+        ls.addRow(self.simpleStatus)
         self.simple_widget.setLayout(ls)
         ### ADVANCED ###
         lo = QtGui.QFormLayout()
@@ -112,8 +119,12 @@ class QpalsSection:
         self.advanced_widget.setLayout(lo)
         self.tabs.addTab(self.simple_widget, "Simple")
         self.tabs.addTab(self.advanced_widget, "Advanced")
+
         return self.tabs
 
+    def close(self):
+        if self.ltool.visLayer:
+            QgsMapLayerRegistry.instance().removeMapLayer(self.ltool.visLayer.id())
 
     def simpleIsLoaded(self):
         layers = QgsMapLayerRegistry.instance().mapLayers().values()
@@ -291,6 +302,7 @@ class LineTool(QgsMapTool):
 
         for attr in names:
             #run section
+            self.secInst.simpleStatus.setText("Running opalsSection for attribute %s..." % attr)
             Module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.secInst.project.opalspath, "opalsSection.exe"), QpalsProject=self.secInst.project)
             infile = QpalsParameter.QpalsParameter('inFile', self.secInst.txtinfileSimple.text(), None, None, None, None, None)
             axisfile = QpalsParameter.QpalsParameter('axisFile', outShapeFile, None, None, None, None, None)
@@ -323,6 +335,8 @@ class LineTool(QgsMapTool):
 
             if len(outGeoms) > 0:
                 geoms = ogr.CreateGeometryFromWkt(outGeoms[0])
+                trafo = [geoms.GetGeometryRef(0), geoms.GetGeometryRef(2)]
+                aoi = geoms.GetGeometryRef(1)
                 pointcloud = geoms.GetGeometryRef(3)
                 xvec = []
                 yvec = []
@@ -330,7 +344,6 @@ class LineTool(QgsMapTool):
                 cvec = []
                 attrcloud = None
                 if geoms.GetGeometryCount() > 4:
-                    print "getting attribute %s" % attr
                     attrcloud = geoms.GetGeometryRef(4)
 
 
@@ -348,7 +361,12 @@ class LineTool(QgsMapTool):
                         'Z': zvec,
                         attr: cvec})
 
-        self.pltwindow = plotwindow(self.secInst.project, self.secInst.iface, data, mins, maxes)
+        self.secInst.simpleStatus.setText("")
+        self.pltwindow = plotwindow(self.secInst.project, self.secInst.iface, data, mins, maxes,
+                                    linelayer=self.secInst.simpleLineLayer.itemData(
+                                        self.secInst.simpleLineLayer.currentIndex()),
+                                    aoi=aoi,
+                                    trafo=trafo)
         #
         # fig = plt.figure()
         # ax = fig.add_subplot(111, projection='3d')

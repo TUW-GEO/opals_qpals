@@ -19,6 +19,8 @@ email                : lukas.winiwarter@tuwien.ac.at
 
 from PyQt4 import QtGui, QtCore
 import matplotlib
+import ogr
+import numpy as np
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
@@ -43,12 +45,49 @@ class MyMplCanvas(FigureCanvas):
 
 
 class plotwindow():
-    def __init__(self, project, iface=None, data=None, mins=None, maxes=None):
+    def __init__(self, project, iface=None, data=None, mins=None, maxes=None, linelayer=None, aoi=None, trafo=None):
         self.project = project
         self.iface = iface
         self.data = data
         self.mins = mins
         self.maxes = maxes
+
+        if linelayer and trafo:
+            avgZ = np.mean(self.data['Z'])
+            X1 = trafo[0].GetPoint(0)[0]
+            Y1 = trafo[0].GetPoint(0)[1]
+            transX = -X1
+            transY = -Y1
+            X2 = trafo[0].GetPoint(1)[0]
+            Y2 = trafo[0].GetPoint(1)[1]
+            phi = np.arctan2((Y2-Y1), (X2-X1))
+            rot = np.array([[np.cos(phi), np.sin(phi)], [-np.sin(phi), np.cos(phi)]])
+            x2 = trafo[1].GetPoint(0)[0]
+            y2 = trafo[1].GetPoint(0)[1]
+            self.lines = []
+            for feat in linelayer.getFeatures():
+                geom = feat.geometry()
+                wkb = geom.asWkb()
+                ogeom = ogr.CreateGeometryFromWkb(wkb)
+                usegeom = ogeom.Intersection(aoi.Buffer(2))
+                if not usegeom:
+                    continue
+                x = []
+                y = []
+                z = []
+                for i in range(usegeom.GetPointCount()):
+                    pi = usegeom.GetPoint(i)
+                    xi = pi[0]
+                    yi = pi[1]
+                    zi = pi[2] if len(pi) > 2 else 0
+                    p_loc = np.dot(rot, (np.array([xi, yi]).T + np.array([transX, transY]).T)) + np.array([x2, y2]).T
+                    x_loc = p_loc[0]
+                    y_loc = p_loc[1]
+                    x.append(x_loc)
+                    y.append(y_loc)
+                    z.append(zi)
+                self.lines.append([x, y, z])
+
         self.ui = self.getUI()
         self.ui.show()
         self.ax = self.figure.add_subplot(111, projection='3d')
@@ -74,6 +113,7 @@ class plotwindow():
         self.scale_max.textChanged.connect(self.draw_new_plot)
         self.colormap = QtGui.QComboBox()
         self.colormap.addItems(sorted(m for m in cm.datad))
+        self.colormap.setCurrentIndex(self.colormap.findText("gist_earth"))
         self.colormap.currentIndexChanged.connect(self.draw_new_plot)
         self.closebtn = QtGui.QPushButton("Close")
 
@@ -120,6 +160,8 @@ class plotwindow():
                         c=self.data[newattr], cmap=colormap,
                         clim=[low, hi])
         self.colorbar = self.figure.colorbar(self.curplot)
+        for line in self.lines:
+            self.ax.plot(line[0], line[1], line[2], 'k-')
         self.ax.set_axis_off()
         self.ax.autoscale_view(True, True, True)
         self.ax.axis('equal')

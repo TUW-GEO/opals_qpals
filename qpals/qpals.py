@@ -29,7 +29,7 @@ import QpalsLog
 import QpalsProject
 import QpalsShowFile
 import moduleSelector
-from modules import QpalsSection, QpalsLM, QpalsAttributeMan
+from modules import QpalsSection, QpalsLM, QpalsAttributeMan, QpalsQuickLM
 
 
 class qpals:
@@ -141,6 +141,16 @@ class qpals:
         self.secUIDock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self.secUIDock.setFloating(True)
         self.secUIDock.show()
+        self.secUIDock.visibilityChanged.connect(self.sec.close)
+
+    def showQuickLMGUI(self):
+        self.sec = QpalsQuickLM.QpalsQuickLM(project=self.prjSet, layerlist=self.layerlist, iface=self.iface)
+        self.secUI = self.sec.ui
+        self.secUIDock = QDockWidget("Qpals quick LineModeller", self.iface.mainWindow())
+        self.secUIDock.setWidget(self.secUI)
+        self.secUIDock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.secUIDock.setFloating(True)
+        self.secUIDock.show()
 
     def showLMGUI(self):
         self.linemodeler = QpalsLM.QpalsLM(project=self.prjSet, layerlist=self.layerlist, iface=self.iface)
@@ -199,6 +209,11 @@ class qpals:
             self.mnulm = QAction(opalsIcon, "LineModeller GUI", self.iface.mainWindow())
             self.mnulm.setStatusTip("Start the LineModeller GUI")
             QObject.connect(self.mnulm, SIGNAL("triggered()"), self.showLMGUI)
+            self.menu.addAction(self.mnulm)
+
+            self.mnulm = QAction(opalsIcon, "quick LineModeller", self.iface.mainWindow())
+            self.mnulm.setStatusTip("Start the quick LineModeller GUI")
+            QObject.connect(self.mnulm, SIGNAL("triggered()"), self.showQuickLMGUI)
             self.menu.addAction(self.mnulm)
 
             self.mnuatt = QAction(opalsIcon, "Attribute Manager", self.iface.mainWindow())
