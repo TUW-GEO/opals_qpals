@@ -20,6 +20,7 @@ email                : lukas.winiwarter@geo.tuwien.ac.at
 import os
 import shlex
 import subprocess
+import re
 from xml.dom import minidom
 
 from qt_extensions import QTextComboBox
@@ -28,7 +29,7 @@ from PyQt4.QtCore import pyqtSlot
 
 import QpalsParamMsgBtn
 import QpalsParameter
-from qt_extensions import QpalsDropTextbox
+from qt_extensions import QpalsDropTextbox, QCollapsibleGroupBox
 from modules.QpalsAttributeMan import getAttributeInformation
 
 IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
@@ -210,6 +211,37 @@ class QpalsModuleBase():
         newModuleBase.globals = QpalsParameter.mergeParamLists(newModuleBase.globals, xml_parsed['Global'])
         newModuleBase.common = QpalsParameter.mergeParamLists(newModuleBase.common, xml_parsed['Common'])
         return newModuleBase
+
+    @classmethod
+    def createGroupBox(cls, module_name, box_header, project, params, param_show_list):
+        box = QtGui.QGroupBox(box_header)
+        scroll = QtGui.QScrollArea()
+        scroll.setWidget(box)
+        scroll.setFrameShape(QtGui.QFrame.NoFrame)
+        scroll.setWidgetResizable(True)
+        status = QtGui.QListWidgetItem("hidden status")
+        mod = cls(execName=os.path.join(project.opalspath, module_name + ".exe"),
+                                              QpalsProject=project)
+        mod.listitem = status
+        mod.load()
+        for p in mod.params:
+            if p.name in params:
+                p.val = params[p.name]
+
+        ui = mod.getFilteredParamUi(
+            filter=param_show_list)
+        advancedBox = QCollapsibleGroupBox.QCollapsibleGroupBox("Advanced options")
+        advancedBox.setChecked(False)
+        ui.addRow(advancedBox)
+        advancedLa = mod.getFilteredParamUi(
+            notfilter=param_show_list)
+        advancedBox.setLayout(advancedLa)
+        box.setLayout(ui)
+        height = box.minimumSizeHint().height()
+        scroll.setFixedHeight(height+10)
+
+        return mod, scroll
+
 
 
     def getParam(self, paramname):
@@ -406,7 +438,8 @@ class QpalsModuleBase():
             except Exception as e:
                 self.project.iface.messageBar().pushMessage('Something went wrong! See the message log for more information.',
                                                     duration=3)
-                print e
+                import traceback
+                traceback.print_exc()
 
 
     def getParamUi(self, parent=None):
@@ -423,8 +456,8 @@ class QpalsModuleBase():
             self.load()
         form = QtGui.QFormLayout()
         for param in self.params:
-            if (len(filter) > 0 and param.name in filter) or \
-               (len(notfilter) > 0 and param.name not in notfilter):
+            if (len(filter) > 0 and re.match(r"(?=("+'|'.join(filter)+'))', param.name)) or \
+               (len(notfilter) > 0 and not re.match(r"(?=("+'|'.join(notfilter)+'))', param.name)):
                 (l1, l2) = self.getUIOneliner(param, parent=parent)
                 form.addRow(l1, l2)
         return form
