@@ -18,6 +18,7 @@ email                : lukas.winiwarter@tuwien.ac.at
 """
 import os
 import tempfile
+import subprocess
 
 # Import the PyQt and QGIS libraries
 from PyQt4.QtCore import *
@@ -74,7 +75,18 @@ class qpals:
         if self.active:
             self.prjSet = QpalsProject.QpalsProject(name="", opalspath=opalspath,
                                                     tempdir=tempdir, workdir=workdir, iface=self.iface)
-
+            try:
+                resource_dir = os.path.join(os.path.dirname(__file__), "resources")
+                info = subprocess.STARTUPINFO()
+                info.dwFlags = subprocess.STARTF_USESHOWWINDOW
+                info.wShowWindow = 0
+                proc = subprocess.Popen([os.path.join(opalspath, "python.exe"),
+                                         os.path.join(resource_dir, "get_attribute_types.py"),
+                                         os.path.join(resource_dir, "attribute_types.py")],
+                                        startupinfo=info)
+                proc.communicate()
+            except:
+                print "Failed to update attribute types..."
         if firstrun:
             self.showproject()
 

@@ -59,7 +59,7 @@ class QpalsLM:
                  'Topologic correction',
                  'Editing',
                  '3D-Modelling',
-                 'Topologic correction',
+                 'Topologic correction (3D)',
                  'Quality check',
                  'Export']
         self.widgets = {}
@@ -128,41 +128,28 @@ class QpalsLM:
                                     "will be created for visualisation purposes.")
                 desc.setWordWrap(True)
                 ls.addRow(desc)
-                dtmBox = QtGui.QGroupBox("opalsGrid")
-                self.dtmGridStatus = QtGui.QListWidgetItem("hidden status")
-                dtmGrid = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsGrid.exe"), QpalsProject=self.project)
-                dtmGrid.listitem = self.dtmGridStatus
-                dtmGrid.load()
-                self.modules['dtmGrid'] = dtmGrid
-                for p in dtmGrid.params:
-                    if p.name == "interpolation":
-                        p.val = 'movingPlanes'
-                    if p.name == "gridSize":
-                        p.val = "1"
 
-                dtmUi = dtmGrid.getFilteredParamUi(filter=["inFile", "outFile", "neighbours", "searchRadius", "interpolation"])
-                advancedBox = QCollapsibleGroupBox("Advanced options")
-                advancedBox.setChecked(False)
-                dtmUi.addRow(advancedBox)
-                advancedLa = dtmGrid.getFilteredParamUi(notfilter=["inFile", "outFile", "neighbours", "searchRadius", "interpolation"])
-                advancedBox.setLayout(advancedLa)
-                dtmBox.setLayout(dtmUi)
-                ls.addRow(dtmBox)
+                dtmmod, dtmscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsGrid",
+                                                                                   "opalsGrid",
+                                                                                   self.project,
+                                                                                   {'interpolation': 'movingPlanes',
+                                                                                    'gridSize': '1'},
+                                                                                   ["inFile",
+                                                                                    "outFile",
+                                                                                    "neighbours",
+                                                                                    "searchRadius",
+                                                                                    "interpolation"])
+                self.modules['dtmGrid'] = dtmmod
+                ls.addRow(dtmscroll)
 
-                shdBox = QtGui.QGroupBox("opalsShade")
-                self.dtmShadeStatus = QtGui.QListWidgetItem("hidden status")
-                dtmShade = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsShade.exe"), QpalsProject=self.project)
-                dtmShade.listitem = self.dtmShadeStatus
-                dtmShade.load()
-                self.modules['dtmShade'] = dtmShade
-                shdUi = dtmShade.getFilteredParamUi(filter=["inFile", "outFile"])
-                advancedBox = QCollapsibleGroupBox("Advanced options")
-                advancedBox.setChecked(False)
-                shdUi.addRow(advancedBox)
-                advancedLa = dtmShade.getFilteredParamUi(notfilter=["inFile", "outFile"])
-                advancedBox.setLayout(advancedLa)
-                shdBox.setLayout(shdUi)
-                ls.addRow(shdBox)
+                shdmod, shdscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsShade",
+                                                                                   "opalsShade",
+                                                                                   self.project,
+                                                                                   {},
+                                                                                   ["inFile",
+                                                                                    "outFile",])
+                self.modules['dtmShade'] = shdmod
+                ls.addRow(shdscroll)
 
             if name == "Slope":
                 desc = QtGui.QLabel(
@@ -172,32 +159,19 @@ class QpalsLM:
                 desc.setWordWrap(True)
                 ls.addRow(desc)
 
-
-                slpBox = QtGui.QGroupBox("opalsGridFeature")
-                self.slopeStatus = QtGui.QListWidgetItem("hidden status")
-                slp = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsGridFeature.exe"), QpalsProject=self.project)
-                slp.listitem = self.slopeStatus
-                slp.load()
-                print slp
-                self.modules['slope'] = slp
-                for p in slp.params:
-                    if p.name == "feature":
-                        p.val = 'slpDeg'
-
-                slpUi = slp.getFilteredParamUi(
-                    filter=["inFile", "outFile", "feature"])
-                advancedBox = QCollapsibleGroupBox("Advanced options")
-                advancedBox.setChecked(False)
-                slpUi.addRow(advancedBox)
-                advancedLa = slp.getFilteredParamUi(
-                    notfilter=["inFile", "outFile", "feature"])
-                advancedBox.setLayout(advancedLa)
-                slpBox.setLayout(slpUi)
-                ls.addRow(slpBox)
+                gfmod, gfscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsGridFeature",
+                                                                                   "opalsGridFeature",
+                                                                                   self.project,
+                                                                                   {'feature': 'slpDeg'},
+                                                                                   ["inFile",
+                                                                                    "outFile",
+                                                                                    "feature"])
+                self.modules['slope'] = gfmod
+                ls.addRow(gfscroll)
 
             if name == "2D-Approximation":
                 desc = QtGui.QLabel(
-                    "The slope map is used to detect breaklines. For this, the algorithm ba Canny (1986) is used.\n"
+                    "The slope map is used to detect breaklines. For this, the algorithm by Canny (1986) is used.\n"
                     "First, the slope map is convoluted with a gaussian kernel for smoothing, then the derivative "
                     "is calculated. The two threshold parameters represent the upper and lower values for the "
                     "binarization of the derivative map. Edges that have at least one pixel > upper threshold will be "
@@ -206,86 +180,58 @@ class QpalsLM:
                 ls.addRow(desc)
 
 
-                cannyBox = QtGui.QGroupBox("opalsEdgeDetect")
-                self.cannyStatus = QtGui.QListWidgetItem("hidden status")
-                canny = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsEdgeDetect.exe"), QpalsProject=self.project)
-                canny.listitem = self.cannyStatus
-                canny.load()
-                self.modules['edgeDetect'] = canny
-                for p in canny.params:
-                    if p.name == "threshold":
-                        p.val = '1 4'
-
-                cannyUi = canny.getFilteredParamUi(
-                    filter=["inFile", "outFile", "threshold", "sigmaSmooth"])
-                advancedBox = QCollapsibleGroupBox("Advanced options")
-                advancedBox.setChecked(False)
-                cannyUi.addRow(advancedBox)
-                advancedLa = canny.getFilteredParamUi(
-                    notfilter=["inFile", "outFile", "threshold", "sigmaSmooth"])
-                advancedBox.setLayout(advancedLa)
-                cannyBox.setLayout(cannyUi)
-                ls.addRow(cannyBox)
+                edgeDmod, edgeDscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsEdgeDetect",
+                                                                                   "opalsEdgeDetect",
+                                                                                   self.project,
+                                                                                   {'threshold': '1 5'},
+                                                                                   ["inFile",
+                                                                                    "outFile",
+                                                                                    "threshold",
+                                                                                    "sigmaSmooth"])
+                self.modules['edgeDetect'] = edgeDmod
+                ls.addRow(edgeDscroll)
 
                 desc = QtGui.QLabel("Since the output of opalsEdgeDetect is still a raster, we need to vectorize it:")
-
-                vectBox = QtGui.QGroupBox("opalsVectorize")
-                self.vectStatus = QtGui.QListWidgetItem("hidden status")
-                vect = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsVectorize.exe"), QpalsProject=self.project)
-                vect.listitem = self.cannyStatus
-                vect.load()
-                self.modules['vectorize'] = vect
-                vectUi = canny.getFilteredParamUi(
-                    filter=["inFile", "outFile"])
-                advancedBox = QCollapsibleGroupBox("Advanced options")
-                advancedBox.setChecked(False)
-                vectUi.addRow(advancedBox)
-                advancedLa = canny.getFilteredParamUi(
-                    notfilter=["inFile", "outFile"])
-                advancedBox.setLayout(advancedLa)
-                vectBox.setLayout(vectUi)
-                ls.addRow(vectBox)
-
-
-
-
-            if name == "Topologic correction":
-                desc = QtGui.QLabel(
-                    "The ")
                 desc.setWordWrap(True)
                 ls.addRow(desc)
 
 
-                lt1Box = QtGui.QGroupBox("opalsLineTopolgy (1)")
-                self.lt1Status = QtGui.QListWidgetItem("hidden status")
-                lt1 = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsLineTopology.exe"), QpalsProject=self.project)
-                lt1.listitem = self.lt1Status
-                lt1.load()
-                self.modules['lt1'] = lt1
-                for p in lt1.params:
-                    if p.name == "method":
-                        p.val = 'longest'
-                    if p.name == "minLength":
-                        p.val = '10'
-                    if p.name == "snapRadius":
-                        p.val = '0'
-                    if p.name == "maxTol":
-                        p.val = '0.5'
-                    if p.name == "maxAngleDev":
-                        p.val = '75 15'
-                    if p.name == "avgDist":
-                        p.val = '3'
+                vecmod, vecscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsVectorize",
+                                                                                   "opalsVectorize",
+                                                                                   self.project,
+                                                                                   {},
+                                                                                   ["inFile",
+                                                                                    "outFile"
+                                                                                    ])
+                self.modules['vectorize'] = vecmod
+                ls.addRow(vecscroll)
 
-                lt1Ui = lt1.getFilteredParamUi(
-                    filter=["inFile", "outFile", "method", "minLength", "maxTol"])
-                advancedBox = QCollapsibleGroupBox("Advanced options")
-                advancedBox.setChecked(False)
-                lt1Ui.addRow(advancedBox)
-                advancedLa = lt1.getFilteredParamUi(
-                    notfilter=["inFile", "outFile", "method", "minLength", "maxTol"])
-                advancedBox.setLayout(advancedLa)
-                lt1Box.setLayout(lt1Ui)
-                ls.addRow(lt1Box)
+            if name == "Topologic correction":
+                desc = QtGui.QLabel(
+                    "Vectorized binary rasters usually need some topological cleaning. Here, this is done in three steps: \n"
+                    "1) Find the longest line and remove all lines < 10m\n"
+                    "2) Merge lines iteratively"
+                    "3) Clean up")
+                desc.setWordWrap(True)
+                ls.addRow(desc)
+
+
+                lt1mod, lt1scroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsLineTopology",
+                                                                                   "opalsLineTopology (1)",
+                                                                                   self.project,
+                                                                                   {'method': 'longest',
+                                                                                   'minLength': '10',
+                                                                                   'snapRadius': '0',
+                                                                                   'maxTol': '0.5',
+                                                                                   'maxAngleDev': '75 15',
+                                                                                   'avgDist': '3'},
+                                                                                   ["inFile",
+                                                                                    "outFile",
+                                                                                    "method",
+                                                                                    "minLength",
+                                                                                    "maxTol"])
+                self.modules['lt1'] = lt1mod
+                ls.addRow(lt1scroll)
 
                 lt2mod, lt2scroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsLineTopology",
                                                                                    "opalsLineTopology (2)",
