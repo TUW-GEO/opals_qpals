@@ -210,7 +210,7 @@ class QpalsLM:
                 desc = QtGui.QLabel(
                     "Vectorized binary rasters usually need some topological cleaning. Here, this is done in three steps: \n"
                     "1) Find the longest line and remove all lines < 10m\n"
-                    "2) Merge lines iteratively"
+                    "2) Merge lines iteratively\n"
                     "3) Clean up")
                 desc.setWordWrap(True)
                 ls.addRow(desc)
