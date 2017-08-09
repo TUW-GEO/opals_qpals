@@ -255,8 +255,10 @@ class QpalsModuleBase():
         info.dwFlags = subprocess.STARTF_USESHOWWINDOW
         info.wShowWindow = show  # 0=HIDE
         #print " ".join([self.execName] + list(args))
+        my_env = os.environ.copy()
+        my_env["GDAL_DRIVER_PATH"] = "" # clear gdal driver paths, since this messes with some opals modules
         proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                stdin=subprocess.PIPE, cwd=self.project.workdir, startupinfo=info)
+                                stdin=subprocess.PIPE, cwd=self.project.workdir, startupinfo=info, env=my_env)
         proc.stdin.close()
         if statusSignal is None:
             stdout, stderr = proc.communicate()

@@ -89,7 +89,7 @@ class plotwindow():
                 self.lines.append([x, y, z])
 
         self.ui = self.getUI()
-        self.ui.show()
+        #self.ui.show()
         self.ax = self.figure.add_subplot(111, projection='3d')
         self.figure.subplots_adjust(left=0, right=1, top=0.99, bottom=0.01)
         self.curplot = self.ax.scatter(self.data['X'], self.data['Y'], self.data['Z'])
@@ -101,7 +101,7 @@ class plotwindow():
 
 
     def getUI(self):
-        ui = QtGui.QDialog()
+        ui = QtGui.QWidget()
         self.figure = plt.figure()
         self.mpl_canvas = FigureCanvas(self.figure)
         self.attrsel = QtGui.QComboBox()

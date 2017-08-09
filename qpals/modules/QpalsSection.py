@@ -56,17 +56,17 @@ class QpalsSection:
         self.simple_widget = QtGui.QDialog()
         self.tabs = QtGui.QTabWidget()
         ### SIMPLE ###
-        ls = QtGui.QFormLayout()
-        ls.addRow(QtGui.QLabel("Choose input file:"))
+        self.ls = QtGui.QFormLayout()
+        self.ls.addRow(QtGui.QLabel("Choose input file:"))
         self.txtinfileSimple = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)
         hboxsimple1 = QtGui.QHBoxLayout()
         hboxsimple1.addWidget(self.txtinfileSimple, 1)
         self.txtinfileSimple.textChanged.connect(self.simpleIsLoaded)
-        ls.addRow(QtGui.QLabel("Input file (odm)"), hboxsimple1)
+        self.ls.addRow(QtGui.QLabel("Input file (odm)"), hboxsimple1)
         self.linetoolBtn = QtGui.QPushButton("Pick section")
         self.linetoolBtn.clicked.connect(self.activateLineTool)
         self.linetoolBtn.setEnabled(False)
-        ls.addRow(self.linetoolBtn)
+        self.ls.addRow(self.linetoolBtn)
         self.runSecBtnSimple = QtGui.QPushButton("Create section")
         self.runSecBtnSimple.clicked.connect(self.ltool.runsec)
         self.runSecBtnSimple.setEnabled(False)
@@ -75,10 +75,10 @@ class QpalsSection:
             if isinstance(layer, QgsVectorLayer) and layer.geometryType() == 1:
                 self.simpleLineLayer.addItem(layer.name(), layer)
         self.simpleStatus = QtGui.QLabel()
-        ls.addRow(QtGui.QLabel("Visualize (3D) Line Layer:"), self.simpleLineLayer)
-        ls.addRow(self.runSecBtnSimple)
-        ls.addRow(self.simpleStatus)
-        self.simple_widget.setLayout(ls)
+        self.ls.addRow(QtGui.QLabel("Visualize (3D) Line Layer:"), self.simpleLineLayer)
+        self.ls.addRow(self.runSecBtnSimple)
+        self.ls.addRow(self.simpleStatus)
+        self.simple_widget.setLayout(self.ls)
         ### ADVANCED ###
         lo = QtGui.QFormLayout()
         ######
@@ -224,6 +224,7 @@ class LineTool(QgsMapTool):
         self.midpoint = None
         self.ab0N = None
         self.rb = None
+        self.pltwindow = None
 
     def canvasPressEvent(self, event):
         pass
@@ -293,6 +294,8 @@ class LineTool(QgsMapTool):
             self.canvas.scene().removeItem(self.rb)
 
     def runsec(self):
+        if self.pltwindow:
+            self.pltwindow.ui.deleteLater()
 
         #write polyline shp to file
         outShapeFileH = tempfile.NamedTemporaryFile(suffix=".shp", delete=True)
@@ -374,6 +377,7 @@ class LineTool(QgsMapTool):
                                         self.secInst.simpleLineLayer.currentIndex()),
                                     aoi=aoi,
                                     trafo=trafo)
+        self.secInst.ls.addRow(self.pltwindow.ui)
         #
         # fig = plt.figure()
         # ax = fig.add_subplot(111, projection='3d')
