@@ -115,7 +115,7 @@ class QpalsShowFile():
                 self.cellAttrCmb.setCurrentIndex(2)
             except:
                 self.cellAttrCmb.clear()
-                self.cellAttrCmb.addItem(["X", "Y", "Z"])
+                self.cellAttrCmb.addItems(["X", "Y", "Z"])
                 self.cellAttrCmb.setCurrentIndex(2)
 
 

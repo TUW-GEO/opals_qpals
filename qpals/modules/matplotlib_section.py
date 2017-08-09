@@ -28,22 +28,6 @@ from matplotlib.pyplot import cm
 from mpl_toolkits.mplot3d import Axes3D
 
 
-class MyMplCanvas(FigureCanvas):
-    """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
-
-    def __init__(self, parent=None, width=7, height=6, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111, projection='3d')
-        FigureCanvas.__init__(self, fig)
-        self.setParent(parent)
-
-        FigureCanvas.setSizePolicy(self,
-                                   QtGui.QSizePolicy.Expanding,
-                                   QtGui.QSizePolicy.Expanding)
-        FigureCanvas.updateGeometry(self)
-
-
-
 class plotwindow():
     def __init__(self, project, iface=None, data=None, mins=None, maxes=None, linelayer=None, aoi=None, trafo=None):
         self.project = project
@@ -93,8 +77,10 @@ class plotwindow():
         self.ax = self.figure.add_subplot(111, projection='3d')
         self.figure.subplots_adjust(left=0, right=1, top=0.99, bottom=0.01)
         self.curplot = self.ax.scatter(self.data['X'], self.data['Y'], self.data['Z'])
+        self.figure.canvas.mpl_connect('pick_event', self.pointPicked)
         self.ax.view_init(0, 0)
         self.colorbar = None
+        self.ann = None
         self.currattr = "Z"
         self.attrsel.setCurrentIndex(self.attrsel.findText('Z'))
         self.draw_new_plot()
@@ -108,16 +94,42 @@ class plotwindow():
         self.attrsel.addItems(sorted([m for m in self.data]))
         self.attrsel.currentIndexChanged.connect(self.draw_new_plot)
         self.scale_min = QtGui.QLineEdit("0")
+        self.scale_min.setMinimumWidth(5)
         self.scale_min.textChanged.connect(self.draw_new_plot)
         self.scale_max = QtGui.QLineEdit("10")
+        self.scale_max.setMinimumWidth(5)
         self.scale_max.textChanged.connect(self.draw_new_plot)
         self.colormap = QtGui.QComboBox()
         self.colormap.addItems(sorted(m for m in cm.datad))
         self.colormap.setCurrentIndex(self.colormap.findText("gist_earth"))
         self.colormap.currentIndexChanged.connect(self.draw_new_plot)
-        self.closebtn = QtGui.QPushButton("Close")
+        self.marker = QtGui.QComboBox()
+        self.marker.addItems(['.', ',', 'o', 'v', '^', '<', '>', '1', '2', '3', '4', '8', 's', 'p',
+                              'P', '*', 'h', 'H', '+', 'x', 'X', 'D', 'd', '|', '_'])
+        self.marker.setCurrentIndex(2)
+        self.marker.currentIndexChanged.connect(self.draw_new_plot)
+        self.markerSize = QtGui.QDoubleSpinBox()
+        self.markerSize.setValue(0.5)
+        self.markerSize.setRange(0.1, 50)
+        self.markerSize.setSingleStep(0.1)
+        self.markerSize.valueChanged.connect(self.draw_new_plot)
+        self.lineSize = QtGui.QDoubleSpinBox()
+        self.lineSize.setValue(1)
+        self.lineSize.setRange(0.1, 20)
+        self.lineSize.setSingleStep(0.1)
+        self.lineSize.valueChanged.connect(self.draw_new_plot)
+        self.zex = QtGui.QDoubleSpinBox()
+        self.zex.setValue(1)
+        self.zex.setRange(0.1, 50)
+        self.zex.setSingleStep(0.1)
+        self.zex.setDecimals(1)
+        self.zex.valueChanged.connect(self.draw_new_plot)
+
+        self.linecolor = QtGui.QPushButton("#000000")
+        self.linecolor.clicked.connect(self.colorpicker)
 
         self.hb = QtGui.QHBoxLayout()
+        self.hb2 = QtGui.QHBoxLayout()
 
         self.hb.addWidget(QtGui.QLabel("Select attribute:"))
         self.hb.addWidget(self.attrsel)
@@ -125,18 +137,50 @@ class plotwindow():
         self.hb.addWidget(self.scale_min)
         self.hb.addWidget(QtGui.QLabel("Scale to:"))
         self.hb.addWidget(self.scale_max)
-        self.hb.addWidget(QtGui.QLabel("Colormap:"))
-        self.hb.addWidget(self.colormap)
         self.hb.addStretch()
-        self.hb.addWidget(self.closebtn)
+
+        self.hb2.addWidget(QtGui.QLabel("Colormap:"))
+        self.hb2.addWidget(self.colormap)
+        self.hb2.addWidget(QtGui.QLabel("Marker:"))
+        self.hb2.addWidget(self.marker)
+        self.hb2.addWidget(QtGui.QLabel("Marker size:"))
+        self.hb2.addWidget(self.markerSize)
+        self.hb2.addWidget(QtGui.QLabel("Line color:"))
+        self.hb2.addWidget(self.linecolor)
+        self.hb2.addWidget(QtGui.QLabel("Line width:"))
+        self.hb2.addWidget(self.lineSize)
+        self.hb2.addWidget(QtGui.QLabel("Z exagg.:"))
+        self.hb2.addWidget(self.zex)
+        self.hb2.addStretch()
+
 
         self.vb = QtGui.QVBoxLayout()
         self.vb.addWidget(self.mpl_canvas, 1)
         self.vb.addWidget(NavigationToolbar(self.mpl_canvas, ui))
         self.vb.addLayout(self.hb)
+        self.vb.addLayout(self.hb2)
 
         ui.setLayout(self.vb)
         return ui
+
+    def colorpicker(self):
+        color = QtGui.QColorDialog.getColor()
+        self.linecolor.setStyleSheet('color: %s' % color.name())
+        self.linecolor.setText(color.name())
+        self.draw_new_plot()
+
+    def pointPicked(self, ev):
+        if self.ann:
+            self.ann.remove()
+            self.ann = None
+        if ev.mouseevent.button != 2:
+            return
+        x = self.data['X'][ev.ind[0]]
+        y = self.data['Y'][ev.ind[0]]
+        z = self.data['Z'][ev.ind[0]] * self.zex.value()
+        str = "\n".join(["%s: %s" % (key, self.data[key][ev.ind[0]]) for key in self.data])
+        self.ann = self.ax.text(x, y, z, str, zorder=1, color='k', size=8)
+        self.figure.canvas.draw()
 
     def draw_new_plot(self):
         newattr = self.attrsel.currentText()
@@ -154,18 +198,30 @@ class plotwindow():
         self.currattr = newattr
         colormap = self.colormap.currentText()
         self.ax.cla()
+        self.ann = None
         if self.colorbar:
             self.colorbar.remove()
-        self.curplot = self.ax.scatter(self.data['X'], self.data['Y'], self.data['Z'],
+        X = self.data['X']
+        Y = self.data['Y']
+        Z = self.data['Z'] * self.zex.value()
+        self.curplot = self.ax.scatter(X, Y, Z,
                         c=self.data[newattr], cmap=colormap,
-                        clim=[low, hi])
+                        clim=[low, hi], marker=self.marker.currentText(), s=self.markerSize.value(), picker=1)
         self.colorbar = self.figure.colorbar(self.curplot)
         if self.lines:
             for line in self.lines:
-                self.ax.plot(line[0], line[1], line[2], 'k-')
+                self.ax.plot(line[0], line[1], line[2], color=self.linecolor.text(), linewidth=self.lineSize.value())
+
+        max_range = np.array([X.max()-X.min(), Y.max()-Y.min(), Z.max()-Z.min()]).max()
+        Xb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][0].flatten() + 0.5 * (X.max() + X.min())
+        Yb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][1].flatten() + 0.5 * (Y.max() + Y.min())
+        Zb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][2].flatten() + 0.5 * (Z.max() + Z.min())
+        # Comment or uncomment following both lines to test the fake bounding box:
+        for xb, yb, zb in zip(Xb, Yb, Zb):
+            self.ax.plot([xb], [yb], [zb], 'w')
+
         self.ax.set_axis_off()
-        self.ax.autoscale_view(True, True, True)
-        self.ax.axis('equal')
+        self.figure.canvas.draw()
 
 
     def close(self):

@@ -24,6 +24,7 @@ from xml.dom import minidom
 import matplotlib.pyplot as plt
 import numpy as np
 import ogr
+import re
 from PyQt4 import QtGui
 from PyQt4.QtGui import QColor
 from qgis.core import *
@@ -71,13 +72,19 @@ class QpalsSection:
         self.runSecBtnSimple.clicked.connect(self.ltool.runsec)
         self.runSecBtnSimple.setEnabled(False)
         self.simpleLineLayer = QtGui.QComboBox()
+        self.simpleLineLayer.addItem("None", None)
         for layer in QgsMapLayerRegistry.instance().mapLayers().values():
             if isinstance(layer, QgsVectorLayer) and layer.geometryType() == 1:
                 self.simpleLineLayer.addItem(layer.name(), layer)
-        self.simpleStatus = QtGui.QLabel()
         self.ls.addRow(QtGui.QLabel("Visualize (3D) Line Layer:"), self.simpleLineLayer)
+        self.showSection = QtGui.QCheckBox("Show section")
+        self.progress = QtGui.QProgressBar()
+        self.showSection.stateChanged.connect(self.checkBoxChanged)
+        self.showSection.setCheckState(2)
+        self.showSection.setTristate(False)
+        self.ls.addRow(self.showSection)
         self.ls.addRow(self.runSecBtnSimple)
-        self.ls.addRow(self.simpleStatus)
+        self.ls.addRow(self.progress)
         self.simple_widget.setLayout(self.ls)
         ### ADVANCED ###
         lo = QtGui.QFormLayout()
@@ -117,6 +124,17 @@ class QpalsSection:
     def close(self):
         if self.ltool.rb:
             self.ltool.canvas.scene().removeItem(self.ltool.rb)
+        self.iface.actionPan().trigger()
+
+    def checkBoxChanged(self):
+        if self.showSection.checkState() == 2:
+            # on
+            if self.ltool.rb:
+                self.ltool.canvas.scene().addItem(self.ltool.rb)
+        else:
+            #off
+            if self.ltool.rb:
+                self.ltool.canvas.scene().removeItem(self.ltool.rb)
 
 
     def simpleIsLoaded(self):
@@ -225,6 +243,18 @@ class LineTool(QgsMapTool):
         self.ab0N = None
         self.rb = None
         self.pltwindow = None
+        self.thread = None
+        self.worker = None
+        self.outParamFile = None
+        self.currattr = None
+        self.aoi = None
+        self.trafo = None
+        self.data = {}
+        self.mins = {}
+        self.maxes = {}
+        self.attrs_left = []
+        self.count = 0
+        self.total = 0
 
     def canvasPressEvent(self, event):
         pass
@@ -293,101 +323,125 @@ class LineTool(QgsMapTool):
             self.secInst.runSecBtnSimple.setEnabled(False)
             self.canvas.scene().removeItem(self.rb)
 
+    def update_status(self, message):
+        out_lines = [item for item in re.split("[\n\r\b]", message) if item]
+        percentage = out_lines[-1]
+        # print percentage
+        if r"%" in percentage:
+            perc = QpalsModuleBase.get_percentage(percentage)
+            self.secInst.progress.setValue(int(perc))
+
+
     def runsec(self):
+        self.currattr = None
+        self.aoi = None
+        self.trafo = None
+        self.data = {}
+        self.mins = {}
+        self.maxes = {}
+        self.attrs_left = []
+        self.count = 0
+        self.total = 0
+
+        # grab availiable attributes
+        attrs, _ = getAttributeInformation(self.secInst.txtinfileSimple.text(), self.secInst.project)
+        self.mins = {attr[0]: attr[3] for attr in attrs}
+        self.maxes = {attr[0]: attr[4] for attr in attrs}
+        self.attrs_left = [attr[0] for attr in attrs]
+        self.total = len(self.attrs_left)
         if self.pltwindow:
             self.pltwindow.ui.deleteLater()
 
-        #write polyline shp to file
+        self.run_next()
+
+    def run_next(self):
+        self.count += 1
         outShapeFileH = tempfile.NamedTemporaryFile(suffix=".shp", delete=True)
         outShapeFile = outShapeFileH.name
         outShapeFileH.close()
 
         self.write_axis_shape(outShapeFile)
-        # grab availiable attributes
-        attrs, _ = getAttributeInformation(self.secInst.txtinfileSimple.text(), self.secInst.project)
-        mins = {attr[0]: attr[3] for attr in attrs}
-        maxes = {attr[0]: attr[4] for attr in attrs}
-        names = [attr[0] for attr in attrs]
-        data = {}
 
-        for attr in names:
-            #run section
-            self.secInst.simpleStatus.setText("Running opalsSection for attribute %s..." % attr)
-            Module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.secInst.project.opalspath, "opalsSection.exe"), QpalsProject=self.secInst.project)
-            infile = QpalsParameter.QpalsParameter('inFile', self.secInst.txtinfileSimple.text(), None, None, None, None, None)
-            axisfile = QpalsParameter.QpalsParameter('axisFile', outShapeFile, None, None, None, None, None)
-            attribute = QpalsParameter.QpalsParameter('attribute', attr, None, None, None, None, None)
-            thickness = QpalsParameter.QpalsParameter('patchSize', '%s;%s' % (self.seclength, self.width*4),
-                                                            None, None, None, None, None
-                                                            )
+        self.currattr = self.attrs_left.pop()
+        self.secInst.progress.setFormat("Running opalsSection for attribute %s (%s/%s)..." % (self.currattr,
+                                                                                              self.count,
+                                                                                              self.total))
+        Module = QpalsModuleBase.QpalsModuleBase(
+            execName=os.path.join(self.secInst.project.opalspath, "opalsSection.exe"),
+            QpalsProject=self.secInst.project)
+        infile = QpalsParameter.QpalsParameter('inFile', self.secInst.txtinfileSimple.text(), None, None, None,
+                                               None, None)
+        axisfile = QpalsParameter.QpalsParameter('axisFile', outShapeFile, None, None, None, None, None)
+        attribute = QpalsParameter.QpalsParameter('attribute', self.currattr, None, None, None, None, None)
+        thickness = QpalsParameter.QpalsParameter('patchSize', '%s;%s' % (self.seclength, self.width * 4),
+                                                  None, None, None, None, None
+                                                  )
 
-            outParamFileH = tempfile.NamedTemporaryFile(delete=False)
-            outParamFile = outParamFileH.name + "x.xml"
-            outParamFileH.close()
-            outParamFileParam = QpalsParameter.QpalsParameter('outParamFile', outParamFile, None, None, None, None, None)
-            Module.params.append(infile)
-            Module.params.append(axisfile)
-            Module.params.append(thickness)
-            Module.params.append(attribute)
-            Module.params.append(outParamFileParam)
+        outParamFileH = tempfile.NamedTemporaryFile(delete=False)
+        self.outParamFile = outParamFileH.name + "x.xml"
+        outParamFileH.close()
+        outParamFileParam = QpalsParameter.QpalsParameter('outParamFile', self.outParamFile, None, None, None, None,
+                                                          None)
+        Module.params.append(infile)
+        Module.params.append(axisfile)
+        Module.params.append(thickness)
+        Module.params.append(attribute)
+        Module.params.append(outParamFileParam)
 
-            Module.run()
+        self.thread, self.worker = Module.run_async(status=self.update_status, on_finish=self.parse_output)
 
-            #read from file and display
-            dom = minidom.parse(outParamFile)
-            parameters = dom.getElementsByTagName("Parameter")
-            outGeoms = []
-            for param in parameters:
-                if param.attributes["Name"].value == "outGeometry":
-                    for val in param.getElementsByTagName("Val"):
-                        outGeoms.append(val.firstChild.nodeValue)  # contains WKT for one section
-            dom.unlink()
+    def parse_output(self):
+        #read from file and display
+        dom = minidom.parse(self.outParamFile)
+        parameters = dom.getElementsByTagName("Parameter")
+        outGeoms = []
+        for param in parameters:
+            if param.attributes["Name"].value == "outGeometry":
+                for val in param.getElementsByTagName("Val"):
+                    outGeoms.append(val.firstChild.nodeValue)  # contains WKT for one section
+        dom.unlink()
 
-            if len(outGeoms) > 0:
-                geoms = ogr.CreateGeometryFromWkt(outGeoms[0])
-                trafo = [geoms.GetGeometryRef(0), geoms.GetGeometryRef(2)]
-                aoi = geoms.GetGeometryRef(1)
-                pointcloud = geoms.GetGeometryRef(3)
-                xvec = []
-                yvec = []
-                zvec = []
-                cvec = []
-                attrcloud = None
-                if geoms.GetGeometryCount() > 4:
-                    attrcloud = geoms.GetGeometryRef(4)
+        if len(outGeoms) > 0:
+            geoms = ogr.CreateGeometryFromWkt(outGeoms[0])
+            self.trafo = [geoms.GetGeometryRef(0), geoms.GetGeometryRef(2)]
+            self.aoi = geoms.GetGeometryRef(1)
+            pointcloud = geoms.GetGeometryRef(3)
+            xvec = []
+            yvec = []
+            zvec = []
+            cvec = []
+            attrcloud = None
+            if geoms.GetGeometryCount() > 4:
+                attrcloud = geoms.GetGeometryRef(4)
+            for i in range(pointcloud.GetGeometryCount()):
+                pt = pointcloud.GetGeometryRef(i)
+                xvec.append(pt.GetX())
+                yvec.append(pt.GetY())
+                zvec.append(pt.GetZ())
+                if attrcloud:
+                    at = attrcloud.GetGeometryRef(i)
+                    cvec.append(at.GetZ())
 
+            self.data.update({'X': np.array(xvec),
+                              'Y': np.array(yvec),
+                              'Z': np.array(zvec),
+                              self.currattr: np.array(cvec)})
+        if self.attrs_left:
+            self.run_next()
+        else:
+            self.show_pltwindow()
 
-                for i in range(pointcloud.GetGeometryCount()):
-                    pt = pointcloud.GetGeometryRef(i)
-                    xvec.append(pt.GetX())
-                    yvec.append(pt.GetY())
-                    zvec.append(pt.GetZ())
-                    if attrcloud:
-                        at = attrcloud.GetGeometryRef(i)
-                        cvec.append(at.GetZ())
-
-                data.update({'X': xvec,
-                        'Y': yvec,
-                        'Z': zvec,
-                        attr: cvec})
-
-        self.secInst.simpleStatus.setText("")
-        self.pltwindow = plotwindow(self.secInst.project, self.secInst.iface, data, mins, maxes,
+    def show_pltwindow(self):
+        self.secInst.progress.setFormat("")
+        self.pltwindow = plotwindow(self.secInst.project, self.secInst.iface, self.data, self.mins, self.maxes,
                                     linelayer=self.secInst.simpleLineLayer.itemData(
                                         self.secInst.simpleLineLayer.currentIndex()),
-                                    aoi=aoi,
-                                    trafo=trafo)
+                                    aoi=self.aoi,
+                                    trafo=self.trafo)
         self.secInst.ls.addRow(self.pltwindow.ui)
-        #
-        # fig = plt.figure()
-        # ax = fig.add_subplot(111, projection='3d')
-        # ax.scatter(xvec, yvec, zvec, c=zvec)
-        # plt.title("Section")
-        # ax.view_init(0, 90)
-        # ax.set_xlabel("Distance along section")
-        # ax.set_ylabel("Distance across section")
-        # ax.set_zlabel("Height")
-        # plt.show()
+
+
+
 
     def write_axis_shape(self, outShapeFile):
         driver = ogr.GetDriverByName("ESRI Shapefile")

@@ -42,6 +42,12 @@ qtwhite = QtGui.QColor(255,255,255)
 qtsoftred = QtGui.QColor(255,140,140)
 qtsoftgreen = QtGui.QColor(140,255,140)
 
+
+def get_percentage(s):
+    t = re.compile(r"(\d+)%")
+    match = t.search(s)
+    return match.group(1)
+
 def getTagContent(xml_tag):
     return xml_tag.firstChild.nodeValue
 
@@ -158,6 +164,34 @@ class ModuleRunWorker(QtCore.QObject):
     error = QtCore.pyqtSignal(Exception, basestring, object)
     progress = QtCore.pyqtSignal(float)
     status = QtCore.pyqtSignal(basestring)
+
+class ModuleBaseRunWorker(QtCore.QObject):
+    def __init__(self, module):
+        QtCore.QObject.__init__(self)
+        self.module = module
+        self.killed = [False]
+
+    def run(self):
+        try:
+            self.module.run(statusSignal=self.status, killSignal=self.killed)
+            if not self.killed[0]:
+                self.progress.emit(100)
+        except Exception as e:
+            self.error.emit(e, str(e), self.module)
+            print "Error:", str(e)
+        ret = (self.module, "42")
+        self.finished.emit(ret)
+
+    @pyqtSlot()
+    def stop(self):
+        self.killed[0] = True
+
+    finished = QtCore.pyqtSignal(object)
+    error = QtCore.pyqtSignal(Exception, basestring, object)
+    progress = QtCore.pyqtSignal(float)
+    status = QtCore.pyqtSignal(basestring)
+
+
 
 
 class QpalsModuleBase():
@@ -640,6 +674,22 @@ class QpalsModuleBase():
     def __str__(self):
         return self.run(onlytext=True)
 
+    def run_async(self, on_finish=None, on_error=None, status=None, abort_signal=None):
+        worker = ModuleBaseRunWorker(self)
+        thread = QtCore.QThread()
+        worker.moveToThread(thread)
+        if on_error:
+            worker.error.connect(on_error)
+        if on_finish:
+            worker.finished.connect(on_finish)
+        if status:
+            worker.status.connect(status)
+        if abort_signal:
+            abort_signal.connect(worker.stop)
+        worker.finished.connect(thread.quit)
+        thread.started.connect(worker.run)
+        thread.start()
+        return thread, worker
 
 class QpalsRunBatch():
     revalidate = False
