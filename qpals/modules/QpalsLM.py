@@ -254,6 +254,7 @@ class QpalsLM:
                                                                                      "method",
                                                                                      "maxAngleDev",
                                                                                      "merge\..*"])
+                lt2scroll.setFixedHeight(lt2scroll.height()-200)
                 self.modules['lt2'] = lt2mod
                 ls.addRow(lt2scroll)
 

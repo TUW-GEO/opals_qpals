@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import ogr
 from PyQt4 import QtGui
+from PyQt4.QtGui import QColor
 from qgis.core import *
 from qgis.core import QgsMapLayerRegistry
 from qgis.gui import *
@@ -60,21 +61,12 @@ class QpalsSection:
         self.txtinfileSimple = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)
         hboxsimple1 = QtGui.QHBoxLayout()
         hboxsimple1.addWidget(self.txtinfileSimple, 1)
-        self.txtinfileSimple.editingFinished.connect(self.simpleIsLoaded)
+        self.txtinfileSimple.textChanged.connect(self.simpleIsLoaded)
         ls.addRow(QtGui.QLabel("Input file (odm)"), hboxsimple1)
-        self.runShdBtnSimple = QtGui.QPushButton("Load File")
-        self.runShdBtnSimple.clicked.connect(self.loadShading)
-        ls.addRow(self.runShdBtnSimple)
-        self.txtthickness = QtGui.QLineEdit("5")
-        ls.addRow(QtGui.QLabel("Section thickness [m]"), self.txtthickness)
-        self.linetoolBtn = QtGui.QPushButton("Pick section (two clicks)")
+        self.linetoolBtn = QtGui.QPushButton("Pick section")
         self.linetoolBtn.clicked.connect(self.activateLineTool)
         self.linetoolBtn.setEnabled(False)
         ls.addRow(self.linetoolBtn)
-        self.p1label = QtGui.QLabel("")
-        self.p2label = QtGui.QLabel("")
-        ls.addRow(QtGui.QLabel("Point 1:"), self.p1label)
-        ls.addRow(QtGui.QLabel("Point 2:"), self.p2label)
         self.runSecBtnSimple = QtGui.QPushButton("Create section")
         self.runSecBtnSimple.clicked.connect(self.ltool.runsec)
         self.runSecBtnSimple.setEnabled(False)
@@ -123,8 +115,9 @@ class QpalsSection:
         return self.tabs
 
     def close(self):
-        if self.ltool.visLayer:
-            QgsMapLayerRegistry.instance().removeMapLayer(self.ltool.visLayer.id())
+        if self.ltool.rb:
+            self.ltool.canvas.scene().removeItem(self.ltool.rb)
+
 
     def simpleIsLoaded(self):
         layers = QgsMapLayerRegistry.instance().mapLayers().values()
@@ -222,68 +215,82 @@ class LineTool(QgsMapTool):
         QgsMapTool.__init__(self, canvas)
         self.canvas = canvas
         self.layer = layer
-        self.visLayer = None
         self.secInst = secInst
         self.p1 = None
         self.p2 = None
+        self.p3 = None
         self.seclength = 0
+        self.width = 0
         self.midpoint = None
         self.ab0N = None
-
-    def __del__(self):
-        if self.visLayer:
-            QgsMapLayerRegistry.instance().removeMapLayer(self.visLayer.id())
+        self.rb = None
 
     def canvasPressEvent(self, event):
         pass
 
     def canvasMoveEvent(self, event):
-        pass
-
-    def canvasReleaseEvent(self, event):
-
-        print self.layer
-        layerPoint = self.toLayerCoordinates(self.layer, event.pos())
+        if self.rb and not all([self.p1, self.p2, self.p3]):
+            self.canvas.scene().removeItem(self.rb)
         if self.p1 and not self.p2:
-            self.p2 = layerPoint
-            self.secInst.p2label.setText(str(layerPoint))
-            self.secInst.runSecBtnSimple.setEnabled(True)
+            self.rb = QgsRubberBand(self.canvas, False)
+            points = [self.p1, self.toLayerCoordinates(self.layer,event.pos())]
+            self.rb.setToGeometry(QgsGeometry.fromPolyline(points), None)
+            self.rb.setColor(QColor(0, 128, 255))
+            self.rb.setWidth(1)
+        elif self.p1 and self.p2 and not self.p3:
+            self.rb = QgsRubberBand(self.canvas, False)
+            p0 = self.toLayerCoordinates(self.layer,event.pos())
+            x0 = p0.x()
+            x1 = self.p1.x()
+            x2 = self.p2.x()
+            y0 = p0.y()
+            y1 = self.p1.y()
+            y2 = self.p2.y()
+            dist = (abs((y2-y1)*x0 - (x2-x1)*y0 + x2*y1-y2*x1) / np.sqrt((y2-y1)**2 + (x2-x1)**2))
 
-            self.visLayer = self.secInst.iface.addVectorLayer("Polygon?crs=" + self.layer.crs().toWkt(), "Sections", "memory")
-            pr = self.visLayer.dataProvider()
-            feat = QgsFeature()
+
             a = np.array([self.p1.x(), self.p1.y()])
             b = np.array([self.p2.x(), self.p2.y()])
             ab = b-a
             self.seclength = np.linalg.norm(ab)
             self.midpoint = a + ab/2
+            self.width = dist / 2
             ab0 = ab/self.seclength
             self.ab0N = np.array([-ab0[1], ab0[0]])
 
-            c1 = a + float(self.secInst.txtthickness.text())/2*self.ab0N
-            c2 = b + float(self.secInst.txtthickness.text())/2*self.ab0N
-            c3 = b - float(self.secInst.txtthickness.text())/2*self.ab0N
-            c4 = a - float(self.secInst.txtthickness.text())/2*self.ab0N
-            points = [QgsPoint(c1[0], c1[1]),
+            c1 = a + dist*self.ab0N
+            c2 = b + dist*self.ab0N
+            c3 = b - dist*self.ab0N
+            c4 = a - dist*self.ab0N
+            points = [[QgsPoint(c1[0], c1[1]),
                       QgsPoint(c2[0], c2[1]),
                       QgsPoint(c3[0], c3[1]),
                       QgsPoint(c4[0], c4[1])
-                      ]
+                      ]]
+            self.rb.setToGeometry(QgsGeometry.fromPolygon(points), None)
+            self.rb.setColor(QColor(0, 128, 255))
+            fc = QColor(0, 128, 255)
+            fc.setAlpha(128)
+            self.rb.setFillColor(fc)
+            self.rb.setWidth(1)
+        else:
+            pass
 
-            feat.setGeometry(QgsGeometry.fromPolygon([points]))
-            pr.addFeatures([feat])
 
-            self.visLayer.setLayerTransparency(50)
-            #QgsMapLayerRegistry.instance().addMapLayer(self.visLayer)
-            self.secInst.iface.mapCanvas().refresh()
+    def canvasReleaseEvent(self, event):
+        print self.layer
+        layerPoint = self.toLayerCoordinates(self.layer, event.pos())
+        if self.p1 and not self.p2:
+            self.p2 = layerPoint
+        elif self.p1 and self.p2 and not self.p3:
+            self.p3 = layerPoint
+            self.secInst.runSecBtnSimple.setEnabled(True)
         else:
             self.p1 = layerPoint
-            self.secInst.p1label.setText(str(layerPoint))
             self.p2 = None
-            self.secInst.p2label.setText("")
+            self.p3 = None
             self.secInst.runSecBtnSimple.setEnabled(False)
-            if self.visLayer:
-                QgsMapLayerRegistry.instance().removeMapLayer(self.visLayer.id())
+            self.canvas.scene().removeItem(self.rb)
 
     def runsec(self):
 
@@ -307,7 +314,7 @@ class LineTool(QgsMapTool):
             infile = QpalsParameter.QpalsParameter('inFile', self.secInst.txtinfileSimple.text(), None, None, None, None, None)
             axisfile = QpalsParameter.QpalsParameter('axisFile', outShapeFile, None, None, None, None, None)
             attribute = QpalsParameter.QpalsParameter('attribute', attr, None, None, None, None, None)
-            thickness = QpalsParameter.QpalsParameter('patchSize', '%s;%s' % (self.seclength, self.secInst.txtthickness.text()),
+            thickness = QpalsParameter.QpalsParameter('patchSize', '%s;%s' % (self.seclength, self.width*4),
                                                             None, None, None, None, None
                                                             )
 
@@ -386,9 +393,9 @@ class LineTool(QgsMapTool):
         feature = ogr.Feature(layer.GetLayerDefn())
         feature.SetField("ID", 1)
         line = ogr.Geometry(ogr.wkbLineString)
-        prevpoint = self.midpoint - self.ab0N * float(self.secInst.txtthickness.text()) / 2
+        prevpoint = self.midpoint - self.ab0N * self.width * 2
         line.AddPoint(prevpoint[0], prevpoint[1])
-        nextpoint = self.midpoint + self.ab0N * float(self.secInst.txtthickness.text()) / 2
+        nextpoint = self.midpoint + self.ab0N * self.width * 2
         line.AddPoint(nextpoint[0], nextpoint[1])
         feature.SetGeometry(line)
         layer.CreateFeature(feature)

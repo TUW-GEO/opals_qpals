@@ -51,7 +51,7 @@ class plotwindow():
         self.data = data
         self.mins = mins
         self.maxes = maxes
-
+        self.lines = None
         if linelayer and trafo:
             avgZ = np.mean(self.data['Z'])
             X1 = trafo[0].GetPoint(0)[0]
@@ -93,7 +93,7 @@ class plotwindow():
         self.ax = self.figure.add_subplot(111, projection='3d')
         self.figure.subplots_adjust(left=0, right=1, top=0.99, bottom=0.01)
         self.curplot = self.ax.scatter(self.data['X'], self.data['Y'], self.data['Z'])
-        self.ax.view_init(0, 90)
+        self.ax.view_init(0, 0)
         self.colorbar = None
         self.currattr = "Z"
         self.attrsel.setCurrentIndex(self.attrsel.findText('Z'))
@@ -160,8 +160,9 @@ class plotwindow():
                         c=self.data[newattr], cmap=colormap,
                         clim=[low, hi])
         self.colorbar = self.figure.colorbar(self.curplot)
-        for line in self.lines:
-            self.ax.plot(line[0], line[1], line[2], 'k-')
+        if self.lines:
+            for line in self.lines:
+                self.ax.plot(line[0], line[1], line[2], 'k-')
         self.ax.set_axis_off()
         self.ax.autoscale_view(True, True, True)
         self.ax.axis('equal')

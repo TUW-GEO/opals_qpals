@@ -1,7 +1,7 @@
 """
 Automatically generated file from 
 C:/Users/lwiniwar/.qgis2/python/plugins\qpals\qpals\resources\get_attribute_types.py 
-on 2017-08-08 
+on 2017-08-09 
 /***************************************************************************
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *

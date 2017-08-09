@@ -161,8 +161,7 @@ class qpals:
         self.secUIDock = QDockWidget("Qpals quick LineModeller", self.iface.mainWindow())
         self.secUIDock.setWidget(self.secUI)
         self.secUIDock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        self.secUIDock.setFloating(True)
-        self.secUIDock.show()
+        self.iface.mainWindow().addDockWidget(Qt.LeftDockWidgetArea, self.secUIDock)
 
     def showLMGUI(self):
         self.linemodeler = QpalsLM.QpalsLM(project=self.prjSet, layerlist=self.layerlist, iface=self.iface)
@@ -172,6 +171,8 @@ class qpals:
         self.linemodelerUIDock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self.linemodelerUIDock.setFloating(True)
         self.linemodelerUIDock.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        self.linemodelerUIDock.resize(800, 800)
+        self.linemodelerUIDock.move(50,50)
         self.linemodelerUIDock.show()
 
 
