@@ -274,6 +274,122 @@ class QpalsLM:
                                                                                     "maxTol"])
                 self.modules['lt3'] = lt3mod
                 ls.addRow(lt3scroll)
+            if name == "Editing":
+                desc = QtGui.QLabel(
+                    "Please start editing the 2D approximations that have been loaded into qgis. Here are some tools "
+                    "that might help:")
+                desc.setWordWrap(True)
+                ls.addRow(desc)
+                box1 = QtGui.QGroupBox("QuickLineModeller")
+                import QpalsQuickLM
+                self.quicklm = QpalsQuickLM.QpalsQuickLM(project=self.project, layerlist=self.layerlist, iface=self.iface)
+                box1.setLayout(self.quicklm.fl)
+                ls.addRow(box1)
+                box2 = QtGui.QGroupBox("QpalsSection")
+                import QpalsSection
+                self.section = QpalsSection.QpalsSection(project=self.project, layerlist=self.layerlist, iface=self.iface)
+                self.section.createWidget()
+                box1.setLayout(self.section.ls)
+                ls.addRow(box2)
+
+            if name == "3D-Modelling":
+                desc = QtGui.QLabel(
+                    "The 2D approximations can now be used to model 3D breaklines in the pointcloud/the DTM.")
+                desc.setWordWrap(True)
+                ls.addRow(desc)
+
+
+                # lmmod, lmscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsLineModeler",
+                #                                                                    "opalsLineModeler",
+                #                                                                    self.project,
+                #                                                                    {"filter": "Class[Ground]"},
+                #                                                                    ["inFile",
+                #                                                                     "approxFile",
+                #                                                                     "outFile",
+                #                                                                     "filter",
+                #                                                                     "patchLength",
+                #                                                                     "patchWidth",
+                #                                                                     "overlap",
+                #                                                                     "angle",
+                #                                                                     "minLength",
+                #                                                                     "pointCount",
+                #                                                                     "sigmaApriori"])
+                # self.modules['lm'] = lmmod
+                # ls.addRow(lmscroll)
+
+            if name == "Topologic correction (3D)":
+                desc = QtGui.QLabel("Is this necessary??")
+                desc.setWordWrap(True)
+                ls.addRow(desc)
+
+
+                lt4mod, lt4scroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsLineTopology",
+                                                                                   "opalsLineTopology (1)",
+                                                                                   self.project,
+                                                                                   {'method': 'longest',
+                                                                                   'minLength': '10',
+                                                                                   'snapRadius': '0',
+                                                                                   'maxTol': '0.5',
+                                                                                   'maxAngleDev': '75 15',
+                                                                                   'avgDist': '3'},
+                                                                                   ["inFile",
+                                                                                    "outFile",
+                                                                                    "method",
+                                                                                    "minLength",
+                                                                                    "maxTol"])
+                self.modules['lt4'] = lt4mod
+                ls.addRow(lt4scroll)
+
+            if name == "Quality check":
+                desc = QtGui.QLabel("Difference Pointcloud/DTM - lines")
+                desc.setWordWrap(True)
+                ls.addRow(desc)
+                imp2mod, imp2scroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsImport",
+                                                                                     "opalsImport",
+                                                                                     self.project,
+                                                                                     {},
+                                                                                     ["inFile",
+                                                                                      "outFile"])
+                self.modules['imp2'] = imp2mod
+                ls.addRow(imp2scroll)
+
+                normod, norscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsNormals",
+                                                                                     "opalsImport",
+                                                                                     self.project,
+                                                                                     {'neighbours': '8',
+                                                                                      'searchRadius': '2',
+                                                                                      'storeMetaInfo': 'medium',
+                                                                                      'filter': 'Generic[FileID==1] Generic[FileID==2]'},
+                                                                                     ["inFile",
+                                                                                      "filter",
+                                                                                      "neighbours",
+                                                                                      "searchRadius",
+                                                                                      "storeMetaInfo"])
+                self.modules['nor'] = normod
+                ls.addRow(norscroll)
+
+                expmod, expscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsExport",
+                                                                                     "opalsExport",
+                                                                                     self.project,
+                                                                                     {'oformat': 'shp'},
+                                                                                     ["inFile",
+                                                                                      "outFile"])
+
+                self.modules['exp_debug'] = expmod
+                ls.addRow(expscroll)
+
+            if name == "Export":
+
+                exp2mod, exp2scroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsExport",
+                                                                                     "opalsExport",
+                                                                                     self.project,
+                                                                                     {'oformat': 'shp'},
+                                                                                     ["inFile",
+                                                                                      "outFile"])
+
+                self.modules['exp'] = exp2mod
+                ls.addRow(exp2scroll)
+
 
 
             vl = QtGui.QVBoxLayout()

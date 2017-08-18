@@ -110,7 +110,7 @@ class plotwindow():
         self.marker.currentIndexChanged.connect(self.draw_new_plot)
         self.markerSize = QtGui.QDoubleSpinBox()
         self.markerSize.setValue(0.5)
-        self.markerSize.setRange(0.1, 50)
+        self.markerSize.setRange(0.1, 200)
         self.markerSize.setSingleStep(0.1)
         self.markerSize.valueChanged.connect(self.draw_new_plot)
         self.lineSize = QtGui.QDoubleSpinBox()
@@ -125,7 +125,8 @@ class plotwindow():
         self.zex.setDecimals(1)
         self.zex.valueChanged.connect(self.draw_new_plot)
 
-        self.linecolor = QtGui.QPushButton("#000000")
+        self.linecolor = QtGui.QPushButton("#FF0000")
+        self.linecolor.setStyleSheet('color: #FF0000')
         self.linecolor.clicked.connect(self.colorpicker)
 
         self.hb = QtGui.QHBoxLayout()
@@ -210,7 +211,9 @@ class plotwindow():
         self.colorbar = self.figure.colorbar(self.curplot)
         if self.lines:
             for line in self.lines:
-                self.ax.plot(line[0], line[1], line[2], color=self.linecolor.text(), linewidth=self.lineSize.value())
+                self.ax.plot(line[0], line[1], [z*self.zex.value() for z in line[2]],
+                             color=self.linecolor.text(),
+                             linewidth=self.lineSize.value())
 
         max_range = np.array([X.max()-X.min(), Y.max()-Y.min(), Z.max()-Z.min()]).max()
         Xb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][0].flatten() + 0.5 * (X.max() + X.min())

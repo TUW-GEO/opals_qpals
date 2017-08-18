@@ -42,6 +42,7 @@ class QpalsSection:
     def __init__(self, project, layerlist, iface):
         self.advanced_widget = None
         self.simple_widget = None
+        self.ls = None
         self.tabs = None
         self.project = project
         self.layerlist = layerlist
@@ -59,7 +60,7 @@ class QpalsSection:
         ### SIMPLE ###
         self.ls = QtGui.QFormLayout()
         self.ls.addRow(QtGui.QLabel("Choose input file:"))
-        self.txtinfileSimple = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)
+        self.txtinfileSimple = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist, filterrex=".*\.odm")
         hboxsimple1 = QtGui.QHBoxLayout()
         hboxsimple1.addWidget(self.txtinfileSimple, 1)
         self.txtinfileSimple.textChanged.connect(self.simpleIsLoaded)
