@@ -50,6 +50,35 @@ class QpalsLM:
         self.layerlist = layerlist
         self.iface = iface
 
+    def demoMouseClick(self):
+        from PyQt4.QtGui import QMouseEvent, QDockWidget
+        from PyQt4.QtCore import Qt
+        from qgis.gui import QgsMapTool
+        from qgis.core import QgsPoint, QgsCoordinateTransform, QgsGeometry
+        from PyQt4.QtCore import QEvent, QPoint
+        mc = self.iface.mapCanvas()
+        # get first layer
+        lay = mc.layers()[0]
+        lay.startEditing()
+        prevTool = mc.mapTool()
+        self.iface.actionNodeTool().trigger()
+        # get first line
+        line = list(lay.getFeatures())[0]
+        lineGeom = line.geometry()
+        # get second node
+        node = lineGeom.asPolyline()[1]
+        pos = QgsMapTool(self.iface.mapCanvas()).toCanvasCoordinates(node)
+        click = QMouseEvent(QEvent.MouseButtonPress, pos, Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
+        mc.mousePressEvent(click)
+        mc.mousePressEvent(click)
+        vertexDock = [ch for ch in self.iface.mainWindow().findChildren(QDockWidget, "") if ch.windowTitle() == 'Vertex Editor'][0]
+        self.editingls.addWidget(vertexDock)
+        t = QgsCoordinateTransform(lay.crs(), mc.mapSettings().destinationCrs())
+        tCenter = t.transform(node)
+        mc.setCenter(tCenter)
+        mc.refresh()
+
+
     def createWidget(self):
         self.tabs = QtGui.QTabWidget()
         names = ['Settings',
@@ -59,7 +88,7 @@ class QpalsLM:
                  'Topologic correction',
                  'Editing',
                  '3D-Modelling',
-                 'Topologic correction (3D)',
+                 'Editing (3D)',
                  'Quality check',
                  'Export']
         self.widgets = {}
@@ -317,10 +346,14 @@ class QpalsLM:
                 # self.modules['lm'] = lmmod
                 # ls.addRow(lmscroll)
 
-            if name == "Topologic correction (3D)":
+            if name == "Editing (3D)":
                 desc = QtGui.QLabel("Is this necessary??")
                 desc.setWordWrap(True)
                 ls.addRow(desc)
+                self.editingls = ls
+
+                selectNodeBtn = QtGui.QPushButton("Select Node")
+                selectNodeBtn.clicked.connect(self.demoMouseClick)
 
 
                 lt4mod, lt4scroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsLineTopology",
@@ -339,6 +372,7 @@ class QpalsLM:
                                                                                     "maxTol"])
                 self.modules['lt4'] = lt4mod
                 ls.addRow(lt4scroll)
+                ls.addRow(selectNodeBtn)
 
             if name == "Quality check":
                 desc = QtGui.QLabel("Difference Pointcloud/DTM - lines")

@@ -102,7 +102,7 @@ class QpalsShowFile():
                 self.cellSizeBox.setText(param.val)
                 break
         self.cellFeatCmb.addItems(self.features)
-        self.cellFeatCmb.setCurrentIndex(1)
+        self.cellFeatCmb.setCurrentIndex(4)
         lo.addRow(self.cellAttrLbl, self.cellAttrCmb)
         lo.addRow(self.cellSizeLbl, self.cellSizeBox)
         lo.addRow(self.cellFeatLbl, self.cellFeatCmb)
@@ -114,7 +114,7 @@ class QpalsShowFile():
         self.ui.setLayout(lo)
         self.ui.setWindowTitle("Open ALS file")
 
-        self.visMethod.setCurrentIndex(3)
+        self.visMethod.setCurrentIndex(1)
 
     def inFileUpdated(self):
         newFile = self.dropspace.text()

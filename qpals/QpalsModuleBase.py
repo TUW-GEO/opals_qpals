@@ -469,8 +469,10 @@ class QpalsModuleBase():
             attrp.field.addItems(["X", "Y", "Z"])
             try:
                 attrs, entries = getAttributeInformation(attri.val, self.project)
-                for attr in attrs:
-                    attrp.field.addItem(attr[0])
+                if attrs:
+                    for attr in attrs:
+                        attrp.field.addItem(attr[0])
+                attrp.field.setCurrentIndex(2)
             except Exception as e:
                 self.project.iface.messageBar().pushMessage('Something went wrong! See the message log for more information.',
                                                     duration=3)

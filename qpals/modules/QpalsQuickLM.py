@@ -43,7 +43,7 @@ class QpalsQuickLM:
         for layer in QgsMapLayerRegistry.instance().mapLayers().values():
             if isinstance(layer, QgsVectorLayer) and layer.geometryType() == 1:
                 self.cmbLineLayer.addItem(layer.name(), layer)
-        self.cmbOdmPath =QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)
+        self.cmbOdmPath =QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist, filterrex=".*\.odm$")
         self.runBtn = QtGui.QPushButton("Run")
         self.runBtn.clicked.connect(self.runLM)
         self.ui = QtGui.QWidget()

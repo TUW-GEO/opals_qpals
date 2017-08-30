@@ -17,6 +17,10 @@ class QpalsDropTextbox(QtGui.QComboBox):
         self.filterrex = filterrex
         self.reloadLayers()
 
+    def showPopup(self):
+        self.reloadLayers()
+        super(QpalsDropTextbox, self).showPopup()
+
 
     def dragEnterEvent(self, e):
         if e.mimeData().hasFormat(u"application/qgis.layertreemodeldata") or e.mimeData().hasUrls():  #is a qgis layer or a file

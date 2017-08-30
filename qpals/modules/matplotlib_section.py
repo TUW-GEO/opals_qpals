@@ -24,9 +24,20 @@ import numpy as np
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
+import matplotlib.lines as lines
 from matplotlib.pyplot import cm
 from mpl_toolkits.mplot3d import Axes3D
 
+class HighlightSelected(lines.VertexSelector):
+    def __init__(self, line, lineId, fmt='bo', **kwargs):
+        lines.VertexSelector.__init__(self, line)
+        self.lineId = lineId
+        self.markers, = self.axes.plot([], [], [], fmt, **kwargs)
+
+    def process_selected(self, ind, xs, ys, zs):
+        print "clicked %s" % ind
+        self.markers.set_data(xs, ys, zs)
+        self.canvas.draw()
 
 class plotwindow():
     def __init__(self, project, iface=None, data=None, mins=None, maxes=None, linelayer=None, aoi=None, trafo=None):
@@ -55,29 +66,37 @@ class plotwindow():
                 ogeom = ogr.CreateGeometryFromWkb(wkb)
                 usegeom = ogeom.Intersection(aoi.Buffer(2))
                 if not usegeom:
+                    print ogeom.Intersection(aoi)
                     continue
-                x = []
-                y = []
-                z = []
-                for i in range(usegeom.GetPointCount()):
-                    pi = usegeom.GetPoint(i)
-                    xi = pi[0]
-                    yi = pi[1]
-                    zi = pi[2] if len(pi) > 2 else 0
-                    p_loc = np.dot(rot, (np.array([xi, yi]).T + np.array([transX, transY]).T)) + np.array([x2, y2]).T
-                    x_loc = p_loc[0]
-                    y_loc = p_loc[1]
-                    x.append(x_loc)
-                    y.append(y_loc)
-                    z.append(zi)
-                self.lines.append([x, y, z])
+                linelist = []
+                if usegeom.GetGeometryType() in [ogr.wkbMultiLineString, ogr.wkbMultiLineString25D]:
+                    for lineId in range(usegeom.GetGeometryCount()):
+                        linelist.append(usegeom.GetGeometryRef(lineId))
+                else:
+                    linelist = [usegeom]
+
+                for line in linelist:
+                    x = []
+                    y = []
+                    z = []
+                    for i in range(line.GetPointCount()):
+                        pi = line.GetPoint(i)
+                        xi = pi[0]
+                        yi = pi[1]
+                        zi = pi[2] if len(pi) > 2 else 0
+                        p_loc = np.dot(rot, (np.array([xi, yi]).T + np.array([transX, transY]).T)) + np.array([x2, y2]).T
+                        x_loc = p_loc[0]
+                        y_loc = p_loc[1]
+                        x.append(x_loc)
+                        y.append(y_loc)
+                        z.append(zi)
+                    self.lines.append([x, y, z])
 
         self.ui = self.getUI()
-        #self.ui.show()
         self.ax = self.figure.add_subplot(111, projection='3d')
         self.figure.subplots_adjust(left=0, right=1, top=0.99, bottom=0.01)
         self.curplot = self.ax.scatter(self.data['X'], self.data['Y'], self.data['Z'])
-        self.figure.canvas.mpl_connect('pick_event', self.pointPicked)
+        #self.figure.canvas.mpl_connect('pick_event', self.pointPicked)
         self.ax.view_init(0, 0)
         self.colorbar = None
         self.ann = None
@@ -174,14 +193,18 @@ class plotwindow():
         if self.ann:
             self.ann.remove()
             self.ann = None
-        if ev.mouseevent.button != 2:
-            return
-        x = self.data['X'][ev.ind[0]]
-        y = self.data['Y'][ev.ind[0]]
-        z = self.data['Z'][ev.ind[0]] * self.zex.value()
-        str = "\n".join(["%s: %s" % (key, self.data[key][ev.ind[0]]) for key in self.data])
-        self.ann = self.ax.text(x, y, z, str, zorder=1, color='k', size=8)
-        self.figure.canvas.draw()
+        if ev.mouseevent.button == 1:
+            self.linePointPicked(ev)
+        elif ev.mouseevent.button == 2:
+            x = self.data['X'][ev.ind[0]]
+            y = self.data['Y'][ev.ind[0]]
+            z = self.data['Z'][ev.ind[0]] * self.zex.value()
+            str = "\n".join(["%s: %s" % (key, self.data[key][ev.ind[0]]) for key in self.data])
+            self.ann = self.ax.text(x, y, z, str, zorder=1, color='k', size=8)
+            self.figure.canvas.draw()
+
+    def linePointPicked(self, ev):
+        pass
 
     def draw_new_plot(self):
         newattr = self.attrsel.currentText()
@@ -209,11 +232,14 @@ class plotwindow():
                         c=self.data[newattr], cmap=colormap,
                         clim=[low, hi], marker=self.marker.currentText(), s=self.markerSize.value(), picker=1)
         self.colorbar = self.figure.colorbar(self.curplot)
+        self.selectors = []
         if self.lines:
-            for line in self.lines:
-                self.ax.plot(line[0], line[1], [z*self.zex.value() for z in line[2]],
+            for (i, line) in enumerate(self.lines):
+                curl, = self.ax.plot(line[0], line[1], [z*self.zex.value() for z in line[2]],
                              color=self.linecolor.text(),
-                             linewidth=self.lineSize.value())
+                             linewidth=self.lineSize.value(), picker=1)
+                selector = HighlightSelected(curl, i)
+                self.selectors.append(selector)
 
         max_range = np.array([X.max()-X.min(), Y.max()-Y.min(), Z.max()-Z.min()]).max()
         Xb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][0].flatten() + 0.5 * (X.max() + X.min())
