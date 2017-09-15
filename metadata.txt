@@ -4,7 +4,7 @@
 name=qpals
 email=lukas.winiwarter@geo.tuwien.ac.at
 author=Lukas Winiwarter
-qgisMinimumVersion=2.8
+qgisMinimumVersion=2.14
 description=OPALS software integrated into QGIS
 about=IMPORTANT: This plugin requires an installation of OPALS developed by GEO at TU Wien.
  You can get an evaluation copy (processing up to 1.000.000 points) at photo.geo.tuwien.ac.at/opals .

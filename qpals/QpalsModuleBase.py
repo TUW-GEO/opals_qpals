@@ -38,9 +38,9 @@ WaitIcon = QtGui.QIcon(os.path.join(IconPath, "wait_icon.png"))
 WaitIconMandatory = QtGui.QIcon(os.path.join(IconPath, "wait_icon_mandatory.png"))
 ErrorIcon = QtGui.QIcon(os.path.join(IconPath, "error_icon.png"))
 
-qtwhite = QtGui.QColor(255,255,255)
-qtsoftred = QtGui.QColor(255,140,140)
-qtsoftgreen = QtGui.QColor(140,255,140)
+qtwhite = QtGui.QColor(255, 255, 255)
+qtsoftred = QtGui.QColor(255, 140, 140)
+qtsoftgreen = QtGui.QColor(140, 255, 140)
 
 
 def get_percentage(s):
@@ -48,8 +48,10 @@ def get_percentage(s):
     match = t.search(s)
     return match.group(1)
 
+
 def getTagContent(xml_tag):
     return xml_tag.firstChild.nodeValue
+
 
 def parseXML(xml):
     xml = xml.decode('utf-8').encode('ascii', errors='ignore')
@@ -87,6 +89,7 @@ def parseXML(xml):
                                                           opt.attributes['LongDesc'].value))
         outd[type] = elements
     return outd
+
 
 class ModuleLoadWorker(QtCore.QObject):
     def __init__(self, module):
@@ -138,7 +141,6 @@ class ModuleValidateWorker(QtCore.QObject):
     progress = QtCore.pyqtSignal(float)
 
 
-
 class ModuleRunWorker(QtCore.QObject):
     def __init__(self, module):
         QtCore.QObject.__init__(self)
@@ -152,7 +154,8 @@ class ModuleRunWorker(QtCore.QObject):
                 self.progress.emit(100)
         except Exception as e:
             self.error.emit(e, str(e), self.module)
-            print "Error:", str(e)
+            print
+            "Error:", str(e)
         ret = (self.module, "42")
         self.finished.emit(ret)
 
@@ -164,6 +167,7 @@ class ModuleRunWorker(QtCore.QObject):
     error = QtCore.pyqtSignal(Exception, basestring, object)
     progress = QtCore.pyqtSignal(float)
     status = QtCore.pyqtSignal(basestring)
+
 
 class ModuleBaseRunWorker(QtCore.QObject):
     def __init__(self, module):
@@ -178,7 +182,8 @@ class ModuleBaseRunWorker(QtCore.QObject):
                 self.progress.emit(100)
         except Exception as e:
             self.error.emit(e, str(e), self.module)
-            print "Error:", str(e)
+            print
+            "Error:", str(e)
         ret = (self.module, "42")
         self.finished.emit(ret)
 
@@ -192,8 +197,6 @@ class ModuleBaseRunWorker(QtCore.QObject):
     status = QtCore.pyqtSignal(basestring)
 
 
-
-
 class QpalsModuleBase():
     def __init__(self, execName, QpalsProject, layerlist=None, listitem=None, visualize=False):
         self.params = []
@@ -202,7 +205,7 @@ class QpalsModuleBase():
         self.execName = execName
         self.loaded = False
         self.view = False
-        self.revalidate=False
+        self.revalidate = False
         self.listitem = listitem
         self.currentlyvalidating = False
         self.validatethread = None
@@ -220,11 +223,11 @@ class QpalsModuleBase():
         args.remove(args[0])
         for i in range(len(args)):  # Values with a space in between are supported by opals w/out quotes
             curarg = args[i]
-            nextarg = args[i+1] if len(args) > i+1 else "-"
+            nextarg = args[i + 1] if len(args) > i + 1 else "-"
             if not curarg.startswith("-") and not nextarg.startswith("-"):
                 args[i] = curarg + " " + nextarg
                 args.remove(nextarg)
-            if len(args) <= i+1:
+            if len(args) <= i + 1:
                 break
         args.append("--options")
         # call
@@ -255,7 +258,7 @@ class QpalsModuleBase():
         scroll.setWidgetResizable(True)
         status = QtGui.QListWidgetItem("hidden status")
         mod = cls(execName=os.path.join(project.opalspath, module_name + ".exe"),
-                                              QpalsProject=project)
+                  QpalsProject=project)
         mod.listitem = status
         mod.load()
         for p in mod.params:
@@ -272,11 +275,9 @@ class QpalsModuleBase():
         advancedBox.setLayout(advancedLa)
         box.setLayout(ui)
         height = box.minimumSizeHint().height()
-        scroll.setFixedHeight(height+10)
+        scroll.setFixedHeight(height + 10)
 
         return mod, scroll
-
-
 
     def getParam(self, paramname):
         for param in self.params:
@@ -288,9 +289,10 @@ class QpalsModuleBase():
         info = subprocess.STARTUPINFO()
         info.dwFlags = subprocess.STARTF_USESHOWWINDOW
         info.wShowWindow = show  # 0=HIDE
-        #print " ".join([self.execName] + list(args))
+        # print " ".join([self.execName] + list(args))
         my_env = os.environ.copy()
-        my_env["GDAL_DRIVER_PATH"] = "" # clear gdal driver paths, since this messes with some opals modules
+        my_env["GDAL_DRIVER_PATH"] = ""  # clear gdal driver paths, since this messes with some opals modules
+        # print [self.execName] + list(args)
         proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 stdin=subprocess.PIPE, cwd=self.project.workdir, startupinfo=info, env=my_env)
         proc.stdin.close()
@@ -331,8 +333,8 @@ class QpalsModuleBase():
 
     def makefilebrowser(self, param):
         def showpathbrowser():
-            filename = QtGui.QFileDialog.getSaveFileName(None, caption='Select file for %s'%param,
-                                                          directory=self.lastpath,
+            filename = QtGui.QFileDialog.getSaveFileName(None, caption='Select file for %s' % param,
+                                                         directory=self.lastpath,
                                                          options=QtGui.QFileDialog.DontConfirmOverwrite)
             if filename:
                 for par in self.params:
@@ -341,6 +343,7 @@ class QpalsModuleBase():
                 self.lastpath = os.path.dirname(filename)
                 self.updateVals(filename)
                 self.validate()
+
         return showpathbrowser
 
     def getGlobalCommonParamsWindow(self, parent=None):
@@ -430,7 +433,6 @@ class QpalsModuleBase():
             else:
                 param.field.activated['QString'].connect(self.updateVals)
 
-
         param.icon = QpalsParamMsgBtn.QpalsParamMsgBtn(param, parent)
         param.icon.setToolTip(param.opt)
         param.icon.setIcon(WaitIcon)
@@ -474,11 +476,11 @@ class QpalsModuleBase():
                         attrp.field.addItem(attr[0])
                 attrp.field.setCurrentIndex(2)
             except Exception as e:
-                self.project.iface.messageBar().pushMessage('Something went wrong! See the message log for more information.',
-                                                    duration=3)
+                self.project.iface.messageBar().pushMessage(
+                    'Something went wrong! See the message log for more information.',
+                    duration=3)
                 import traceback
                 traceback.print_exc()
-
 
     def getParamUi(self, parent=None):
         if not self.loaded:
@@ -494,8 +496,8 @@ class QpalsModuleBase():
             self.load()
         form = QtGui.QFormLayout()
         for param in self.params:
-            if (len(filter) > 0 and re.match(r"(?=("+'|'.join(filter)+'))', param.name)) or \
-               (len(notfilter) > 0 and not re.match(r"(?=("+'|'.join(notfilter)+'))', param.name)):
+            if (len(filter) > 0 and re.match(r"(?=(" + '|'.join(filter) + '))', param.name)) or \
+                    (len(notfilter) > 0 and not re.match(r"(?=(" + '|'.join(notfilter) + '))', param.name)):
                 (l1, l2) = self.getUIOneliner(param, parent=parent)
                 form.addRow(l1, l2)
         return form
@@ -524,18 +526,18 @@ class QpalsModuleBase():
                     self.revalidate = True
                     if os.path.isabs(param.field.text()):
                         try:  # check if path is in working dir - use relative paths
-                            relpath = os.path.relpath(os.path.normpath(param.field.text()), os.path.normpath(self.project.workdir))
+                            relpath = os.path.relpath(os.path.normpath(param.field.text()),
+                                                      os.path.normpath(self.project.workdir))
                             if not relpath.startswith(".."):
                                 param.field.setText(relpath)
                         except:  # file on different drive or other problem - use full path
                             pass
                     param.val = param.field.text()
 
-
     def validate_async(self):
-        #print "val_async> ",
+        # print "val_async> ",
         if not self.currentlyvalidating and self.revalidate:
-            #print "ok >",
+            # print "ok >",
             self.currentlyvalidating = True
             worker = ModuleValidateWorker(self)
             # start the worker in a new thread
@@ -550,17 +552,16 @@ class QpalsModuleBase():
 
     def validateError(self, e, exception_string, module):
         print('Worker thread raised an exception: {}\n'.format(exception_string))
-        #module.setIcon(self.errorIcon)
+        # module.setIcon(self.errorIcon)
 
     def validateFinished(self, module):
-        #print "validate finished> ",
+        # print "validate finished> ",
         self.validateworker.deleteLater()
         self.validatethread.quit()
         self.validatethread.wait()
         self.validatethread.deleteLater()
         self.currentlyvalidating = False
-        #print "validate done"
-
+        # print "validate done"
 
     def validate(self):
         if not self.revalidate:
@@ -596,7 +597,7 @@ class QpalsModuleBase():
                     errortext = calld['stdout'].split("Error in parameter ")[1].split("\n")[0]
                     errormodule = errortext.split(":")[0]
                     errortext = ":".join(errortext.split(":")[1:])
-                    #print errormodule, errortext
+                    # print errormodule, errortext
 
                 elif "Ambiguities while matching value" in calld['stdout']:
                     errortext = calld['stdout'].split("ERROR 0001: std::exception: ")[1].split("\n")[0]
@@ -693,9 +694,11 @@ class QpalsModuleBase():
         thread.start()
         return thread, worker
 
+
 class QpalsRunBatch():
     revalidate = False
     visualize = False
+
     def __init__(self, t1="", t2=""):
         self.command = ""
         self.loaded = True  # Always loaded
@@ -743,6 +746,6 @@ class QpalsRunBatch():
 
     def __str__(self):
         if os.path.isdir(self.t2):
-            return "cd %s /D\r\n%s"%(self.t2, self.t1)
+            return "cd %s /D\r\n%s" % (self.t2, self.t1)
         else:
             return self.t1

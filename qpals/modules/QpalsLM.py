@@ -26,9 +26,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import ogr
 from PyQt4 import QtGui
+from PyQt4.QtGui import QMouseEvent, QDockWidget, QSpinBox
+from PyQt4.QtCore import Qt, QEvent
 from qgis.core import *
-from qgis.core import QgsMapLayerRegistry
+from qgis.core import QgsMapLayerRegistry, QgsPoint, QgsCoordinateTransform, QgsGeometry, QgsFeatureRequest
 from qgis.gui import *
+from qgis.gui import QgsMapTool, QgsMapLayerComboBox, QgsMapLayerProxyModel
 
 from ..qt_extensions import QpalsDropTextbox
 from .. import QpalsModuleBase
@@ -37,47 +40,104 @@ from ..qt_extensions.QCollapsibleGroupBox import QCollapsibleGroupBox
 
 def switchToNextTab(tabWidget):
     curridx = tabWidget.currentIndex()
-    tabWidget.setCurrentIndex(curridx+1)
+    tabWidget.setCurrentIndex(curridx + 1)
+
+
 def switchToPrevTab(tabWidget):
     curridx = tabWidget.currentIndex()
-    tabWidget.setCurrentIndex(curridx-1)
+    tabWidget.setCurrentIndex(curridx - 1)
+
+def closestpoint(layer, layerPoint):
+    # get closest feature
+    shortestDistance = float("inf")
+    closestFeature = None
+    for f in layer.getFeatures():
+        if f.geometry():
+            dist = f.geometry().distance(layerPoint)
+            if dist < shortestDistance:
+                shortestDistance = dist
+                closestFeature = f
+
+    if closestFeature and closestFeature.geometry():
+        # get closest segment
+        shortestDistance = float("inf")
+        closestPointID = None
+        polyline = closestFeature.geometry().asPolyline()
+        for i in range(len(polyline)):
+            point = polyline[i]
+            dist = QgsGeometry.fromPoint(point).distance(layerPoint)
+            if dist < shortestDistance:
+                shortestDistance = dist
+                closestPointID = i
+
+        return (closestPointID, closestFeature)
+    else:
+        return (None, None)
+
 
 class QpalsLM:
-
     def __init__(self, project, layerlist, iface):
         self.tabs = None
         self.project = project
         self.layerlist = layerlist
         self.iface = iface
 
-    def demoMouseClick(self):
-        from PyQt4.QtGui import QMouseEvent, QDockWidget
-        from PyQt4.QtCore import Qt
-        from qgis.gui import QgsMapTool
-        from qgis.core import QgsPoint, QgsCoordinateTransform, QgsGeometry
-        from PyQt4.QtCore import QEvent, QPoint
+    def snapToDtm(self):
+        pass
+
+    def removeNode(self):
+        player = self.edit3d_pointlayerbox.currentLayer()
+        llayer = self.edit3d_linelayerbox.currentLayer()
+        llayer.startEditing()
+        points = list(player.getFeatures())
+        pointid = self.edit3d_currPointId.value()
+        if points:
+            point = points[pointid]
+            pointGeom = point.geometry()
+            pid, feat = closestpoint(llayer, pointGeom)
+            player.deleteVertex(feat.id(), pid)
+
+
+    def nextProblemPoint(self):
+        pointid = self.edit3d_currPointId.value()
+        self.edit3d_currPointId.setValue(pointid+1)
+
+    def showProblemPoint(self):
+        player = self.edit3d_pointlayerbox.currentLayer()
+        llayer = self.edit3d_linelayerbox.currentLayer()
+        self.iface.setActiveLayer(llayer)
+
         mc = self.iface.mapCanvas()
         # get first layer
-        lay = mc.layers()[0]
-        lay.startEditing()
-        prevTool = mc.mapTool()
+        llayer.startEditing()
         self.iface.actionNodeTool().trigger()
-        # get first line
-        line = list(lay.getFeatures())[0]
-        lineGeom = line.geometry()
-        # get second node
-        node = lineGeom.asPolyline()[1]
-        pos = QgsMapTool(self.iface.mapCanvas()).toCanvasCoordinates(node)
-        click = QMouseEvent(QEvent.MouseButtonPress, pos, Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
-        mc.mousePressEvent(click)
-        mc.mousePressEvent(click)
-        vertexDock = [ch for ch in self.iface.mainWindow().findChildren(QDockWidget, "") if ch.windowTitle() == 'Vertex Editor'][0]
-        self.editingls.addWidget(vertexDock)
-        t = QgsCoordinateTransform(lay.crs(), mc.mapSettings().destinationCrs())
-        tCenter = t.transform(node)
-        mc.setCenter(tCenter)
-        mc.refresh()
 
+        # get point position
+        points = list(player.getFeatures())
+        pointid = self.edit3d_currPointId.value()
+        if points:
+            point = points[pointid]
+            pointGeom = point.geometry()
+            pos = QgsMapTool(self.iface.mapCanvas()).toCanvasCoordinates(pointGeom.asPoint())
+            click = QMouseEvent(QEvent.MouseButtonPress, pos, Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
+            mc.mousePressEvent(click)
+            mc.mousePressEvent(click)
+            vertexDock = \
+                [ch for ch in self.iface.mainWindow().findChildren(QDockWidget, "") if
+                 ch.windowTitle() == 'Vertex Editor'][0]
+            self.editingls.addWidget(vertexDock)
+            t = QgsCoordinateTransform(llayer.crs(), mc.mapSettings().destinationCrs())
+            tCenter = t.transform(pointGeom.asPoint())
+            mc.setCenter(tCenter)
+            mc.refresh()
+
+    def nodeLayerChanged(self):
+        if self.edit3d_pointlayerbox.currentLayer():
+            self.selectNodeBtn.setText("Next node")
+            self.selectNodeBtn.setEnabled(True)
+            cnt = self.edit3d_pointlayerbox.currentLayer().featureCount() - 1
+            self.edit3d_countLabel.setText(str(cnt))
+            self.edit3d_currPointId.setMaximum(cnt)
 
     def createWidget(self):
         self.tabs = QtGui.QTabWidget()
@@ -138,10 +198,12 @@ class QpalsLM:
                 ls.addRow(QtGui.QLabel("Input file (TIFF/LAS/ODM)"), hbox_wrap)
                 hbox_wrap = QtGui.QHBoxLayout()
                 hbox_wrap.addWidget(self.settings['settings']['tempFolder'], stretch=1)
-                self.settings['settings']['tempFolder'].setPlaceholderText("drop folder here (will be created if not exists)")
+                self.settings['settings']['tempFolder'].setPlaceholderText(
+                    "drop folder here (will be created if not exists)")
                 ls.addRow(QtGui.QLabel("Folder for temporary files"), hbox_wrap)
                 hbox_wrap = QtGui.QHBoxLayout()
-                self.settings['settings']['outFolder'].setPlaceholderText("drop folder here (will be created if not exists)")
+                self.settings['settings']['outFolder'].setPlaceholderText(
+                    "drop folder here (will be created if not exists)")
                 hbox_wrap.addWidget(self.settings['settings']['outFolder'], stretch=1)
                 ls.addRow(QtGui.QLabel("Folder for output files"), hbox_wrap)
                 ls.addRow(QtGui.QLabel(""))
@@ -152,9 +214,10 @@ class QpalsLM:
                 ls.addRow(boxRun)
 
             if name == "DTM":
-                desc = QtGui.QLabel("This first step will create a digital terrain model (DTM) from your point cloud data. "
-                                    "If you have a DTM to begin with, you can skip this step. Also, a shading of your DTM "
-                                    "will be created for visualisation purposes.")
+                desc = QtGui.QLabel(
+                    "This first step will create a digital terrain model (DTM) from your point cloud data. "
+                    "If you have a DTM to begin with, you can skip this step. Also, a shading of your DTM "
+                    "will be created for visualisation purposes.")
                 desc.setWordWrap(True)
                 ls.addRow(desc)
 
@@ -176,7 +239,7 @@ class QpalsLM:
                                                                                    self.project,
                                                                                    {},
                                                                                    ["inFile",
-                                                                                    "outFile",])
+                                                                                    "outFile", ])
                 self.modules['dtmShade'] = shdmod
                 ls.addRow(shdscroll)
 
@@ -189,12 +252,12 @@ class QpalsLM:
                 ls.addRow(desc)
 
                 gfmod, gfscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsGridFeature",
-                                                                                   "opalsGridFeature",
-                                                                                   self.project,
-                                                                                   {'feature': 'slpDeg'},
-                                                                                   ["inFile",
-                                                                                    "outFile",
-                                                                                    "feature"])
+                                                                                 "opalsGridFeature",
+                                                                                 self.project,
+                                                                                 {'feature': 'slpDeg'},
+                                                                                 ["inFile",
+                                                                                  "outFile",
+                                                                                  "feature"])
                 self.modules['slope'] = gfmod
                 ls.addRow(gfscroll)
 
@@ -208,22 +271,20 @@ class QpalsLM:
                 desc.setWordWrap(True)
                 ls.addRow(desc)
 
-
                 edgeDmod, edgeDscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsEdgeDetect",
-                                                                                   "opalsEdgeDetect",
-                                                                                   self.project,
-                                                                                   {'threshold': '1 5'},
-                                                                                   ["inFile",
-                                                                                    "outFile",
-                                                                                    "threshold",
-                                                                                    "sigmaSmooth"])
+                                                                                       "opalsEdgeDetect",
+                                                                                       self.project,
+                                                                                       {'threshold': '1 5'},
+                                                                                       ["inFile",
+                                                                                        "outFile",
+                                                                                        "threshold",
+                                                                                        "sigmaSmooth"])
                 self.modules['edgeDetect'] = edgeDmod
                 ls.addRow(edgeDscroll)
 
                 desc = QtGui.QLabel("Since the output of opalsEdgeDetect is still a raster, we need to vectorize it:")
                 desc.setWordWrap(True)
                 ls.addRow(desc)
-
 
                 vecmod, vecscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsVectorize",
                                                                                    "opalsVectorize",
@@ -244,16 +305,15 @@ class QpalsLM:
                 desc.setWordWrap(True)
                 ls.addRow(desc)
 
-
                 lt1mod, lt1scroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsLineTopology",
                                                                                    "opalsLineTopology (1)",
                                                                                    self.project,
                                                                                    {'method': 'longest',
-                                                                                   'minLength': '10',
-                                                                                   'snapRadius': '0',
-                                                                                   'maxTol': '0.5',
-                                                                                   'maxAngleDev': '75 15',
-                                                                                   'avgDist': '3'},
+                                                                                    'minLength': '10',
+                                                                                    'snapRadius': '0',
+                                                                                    'maxTol': '0.5',
+                                                                                    'maxAngleDev': '75 15',
+                                                                                    'avgDist': '3'},
                                                                                    ["inFile",
                                                                                     "outFile",
                                                                                     "method",
@@ -266,11 +326,11 @@ class QpalsLM:
                                                                                    "opalsLineTopology (2)",
                                                                                    self.project,
                                                                                    {'method': 'merge',
-                                                                                   'minLength': '10',
-                                                                                   'snapRadius': '3',
-                                                                                   'maxTol': '0',
-                                                                                   'maxAngleDev': '150 15',
-                                                                                   'avgDist': '3',
+                                                                                    'minLength': '10',
+                                                                                    'snapRadius': '3',
+                                                                                    'maxTol': '0',
+                                                                                    'maxAngleDev': '150 15',
+                                                                                    'avgDist': '3',
                                                                                     'merge.minWeight': '0.75',
                                                                                     'merge.relWeightLead': '0',
                                                                                     'merge.maxIter': '10',
@@ -279,11 +339,11 @@ class QpalsLM:
                                                                                     'merge.searchGeneration': '4',
                                                                                     'merge.preventIntersection': '1'},
                                                                                    ["inFile",
-                                                                                     "outFile",
-                                                                                     "method",
-                                                                                     "maxAngleDev",
-                                                                                     "merge\..*"])
-                lt2scroll.setFixedHeight(lt2scroll.height()-200)
+                                                                                    "outFile",
+                                                                                    "method",
+                                                                                    "maxAngleDev",
+                                                                                    "merge\..*"])
+                lt2scroll.setFixedHeight(lt2scroll.height() - 200)
                 self.modules['lt2'] = lt2mod
                 ls.addRow(lt2scroll)
 
@@ -291,11 +351,11 @@ class QpalsLM:
                                                                                    "opalsLineTopology (3)",
                                                                                    self.project,
                                                                                    {'method': 'longest',
-                                                                                   'minLength': '25',
-                                                                                   'snapRadius': '0',
-                                                                                   'maxTol': '0',
-                                                                                   'maxAngleDev': '90 15',
-                                                                                   'avgDist': '3'},
+                                                                                    'minLength': '25',
+                                                                                    'snapRadius': '0',
+                                                                                    'maxTol': '0',
+                                                                                    'maxAngleDev': '90 15',
+                                                                                    'avgDist': '3'},
                                                                                    ["inFile",
                                                                                     "outFile",
                                                                                     "method",
@@ -311,12 +371,14 @@ class QpalsLM:
                 ls.addRow(desc)
                 box1 = QtGui.QGroupBox("QuickLineModeller")
                 import QpalsQuickLM
-                self.quicklm = QpalsQuickLM.QpalsQuickLM(project=self.project, layerlist=self.layerlist, iface=self.iface)
+                self.quicklm = QpalsQuickLM.QpalsQuickLM(project=self.project, layerlist=self.layerlist,
+                                                         iface=self.iface)
                 box1.setLayout(self.quicklm.fl)
                 ls.addRow(box1)
                 box2 = QtGui.QGroupBox("QpalsSection")
                 import QpalsSection
-                self.section = QpalsSection.QpalsSection(project=self.project, layerlist=self.layerlist, iface=self.iface)
+                self.section = QpalsSection.QpalsSection(project=self.project, layerlist=self.layerlist,
+                                                         iface=self.iface)
                 self.section.createWidget()
                 box1.setLayout(self.section.ls)
                 ls.addRow(box2)
@@ -327,44 +389,83 @@ class QpalsLM:
                 desc.setWordWrap(True)
                 ls.addRow(desc)
 
-
-                # lmmod, lmscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsLineModeler",
-                #                                                                    "opalsLineModeler",
-                #                                                                    self.project,
-                #                                                                    {"filter": "Class[Ground]"},
-                #                                                                    ["inFile",
-                #                                                                     "approxFile",
-                #                                                                     "outFile",
-                #                                                                     "filter",
-                #                                                                     "patchLength",
-                #                                                                     "patchWidth",
-                #                                                                     "overlap",
-                #                                                                     "angle",
-                #                                                                     "minLength",
-                #                                                                     "pointCount",
-                #                                                                     "sigmaApriori"])
-                # self.modules['lm'] = lmmod
-                # ls.addRow(lmscroll)
+                lmmod, lmscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsLineModeler",
+                                                                                 "opalsLineModeler",
+                                                                                 self.project,
+                                                                                 {"filter": "Class[Ground]"},
+                                                                                 ["inFile",
+                                                                                  "approxFile",
+                                                                                  "outFile",
+                                                                                  "filter",
+                                                                                  "patchLength",
+                                                                                  "patchWidth",
+                                                                                  "overlap",
+                                                                                  "angle",
+                                                                                  "minLength",
+                                                                                  "pointCount",
+                                                                                  "sigmaApriori"])
+                self.modules['lm'] = lmmod
+                ls.addRow(lmscroll)
 
             if name == "Editing (3D)":
-                desc = QtGui.QLabel("Is this necessary??")
+                desc = QtGui.QLabel("TODO: Problematic junctions")
                 desc.setWordWrap(True)
                 ls.addRow(desc)
+                desc2 = QtGui.QLabel("TODO: Points with deviation > 0.5 from DTM")
+                desc2.setWordWrap(True)
+                ls.addRow(desc2)
+                desc3 = QtGui.QLabel("TODO: Topology (double lines, double points, intersections)")
+                desc3.setWordWrap(True)
+                ls.addRow(desc3)
                 self.editingls = ls
 
-                selectNodeBtn = QtGui.QPushButton("Select Node")
-                selectNodeBtn.clicked.connect(self.demoMouseClick)
+                self.edit3d_linelayerbox = QgsMapLayerComboBox()
+                self.edit3d_linelayerbox.setFilters(QgsMapLayerProxyModel.LineLayer)
+                self.edit3d_pointlayerbox = QgsMapLayerComboBox()
+                self.edit3d_pointlayerbox.setFilters(QgsMapLayerProxyModel.PointLayer)
+                self.edit3d_dtmlayerbox = QgsMapLayerComboBox()
+                self.edit3d_dtmlayerbox.setFilters(QgsMapLayerProxyModel.RasterLayer)
+                self.edit3d_pointlayerbox.currentIndexChanged.connect(self.nodeLayerChanged)
 
+
+                self.edit3d_currPointId = QSpinBox()
+                self.edit3d_currPointId.setMinimum(0)
+                self.edit3d_currPointId.valueChanged.connect(self.showProblemPoint)
+
+                ls.addRow("Select Line Layer:", self.edit3d_linelayerbox)
+                ls.addRow("Select Problem Point layer:", self.edit3d_pointlayerbox)
+
+                self.selectNodeBtn = QtGui.QPushButton("Next point")
+                self.selectNodeBtn.clicked.connect(lambda: self.edit3d_currPointId.setValue(
+                    self.edit3d_currPointId.value()+1))
+                self.edit3d_countLabel = QtGui.QLabel()
+
+                self.snapToDtmBtn = QtGui.QPushButton("Snap to:")
+                self.snapToDtmBtn.clicked.connect(self.snapToDtm)
+                self.remonveNodeBtn = QtGui.QPushButton("Remove")
+                self.remonveNodeBtn.clicked.connect(self.removeNode)
+
+                nextBox = QtGui.QHBoxLayout()
+                nextBox.addWidget(QtGui.QLabel("Current point:"))
+                nextBox.addWidget(self.edit3d_currPointId)
+                nextBox.addWidget(QtGui.QLabel("/"))
+                nextBox.addWidget(self.edit3d_countLabel)
+                nextBox.addStretch()
+
+                nextBox.addWidget(self.snapToDtmBtn)
+                nextBox.addWidget(self.edit3d_dtmlayerbox)
+                nextBox.addWidget(self.remonveNodeBtn)
+                nextBox.addWidget(self.selectNodeBtn)
 
                 lt4mod, lt4scroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsLineTopology",
                                                                                    "opalsLineTopology (1)",
                                                                                    self.project,
                                                                                    {'method': 'longest',
-                                                                                   'minLength': '10',
-                                                                                   'snapRadius': '0',
-                                                                                   'maxTol': '0.5',
-                                                                                   'maxAngleDev': '75 15',
-                                                                                   'avgDist': '3'},
+                                                                                    'minLength': '10',
+                                                                                    'snapRadius': '0',
+                                                                                    'maxTol': '0.5',
+                                                                                    'maxAngleDev': '75 15',
+                                                                                    'avgDist': '3'},
                                                                                    ["inFile",
                                                                                     "outFile",
                                                                                     "method",
@@ -372,7 +473,8 @@ class QpalsLM:
                                                                                     "maxTol"])
                 self.modules['lt4'] = lt4mod
                 ls.addRow(lt4scroll)
-                ls.addRow(selectNodeBtn)
+                ls.addRow(nextBox)
+                self.nodeLayerChanged()
 
             if name == "Quality check":
                 desc = QtGui.QLabel("Difference Pointcloud/DTM - lines")
@@ -388,32 +490,31 @@ class QpalsLM:
                 ls.addRow(imp2scroll)
 
                 normod, norscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsNormals",
-                                                                                     "opalsImport",
-                                                                                     self.project,
-                                                                                     {'neighbours': '8',
-                                                                                      'searchRadius': '2',
-                                                                                      'storeMetaInfo': 'medium',
-                                                                                      'filter': 'Generic[FileID==1] Generic[FileID==2]'},
-                                                                                     ["inFile",
-                                                                                      "filter",
-                                                                                      "neighbours",
-                                                                                      "searchRadius",
-                                                                                      "storeMetaInfo"])
+                                                                                   "opalsImport",
+                                                                                   self.project,
+                                                                                   {'neighbours': '8',
+                                                                                    'searchRadius': '2',
+                                                                                    'storeMetaInfo': 'medium',
+                                                                                    'filter': 'Generic[FileID==1] Generic[FileID==2]'},
+                                                                                   ["inFile",
+                                                                                    "filter",
+                                                                                    "neighbours",
+                                                                                    "searchRadius",
+                                                                                    "storeMetaInfo"])
                 self.modules['nor'] = normod
                 ls.addRow(norscroll)
 
                 expmod, expscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsExport",
-                                                                                     "opalsExport",
-                                                                                     self.project,
-                                                                                     {'oformat': 'shp'},
-                                                                                     ["inFile",
-                                                                                      "outFile"])
+                                                                                   "opalsExport",
+                                                                                   self.project,
+                                                                                   {'oformat': 'shp'},
+                                                                                   ["inFile",
+                                                                                    "outFile"])
 
                 self.modules['exp_debug'] = expmod
                 ls.addRow(expscroll)
 
             if name == "Export":
-
                 exp2mod, exp2scroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsExport",
                                                                                      "opalsExport",
                                                                                      self.project,
@@ -423,8 +524,6 @@ class QpalsLM:
 
                 self.modules['exp'] = exp2mod
                 ls.addRow(exp2scroll)
-
-
 
             vl = QtGui.QVBoxLayout()
             vl.addLayout(ls, 1)
