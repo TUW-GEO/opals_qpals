@@ -25,11 +25,13 @@ from xml.dom import minidom
 import matplotlib.pyplot as plt
 import numpy as np
 import ogr
+import time
 from PyQt4 import QtGui
 from PyQt4.QtGui import QMouseEvent, QDockWidget, QSpinBox
 from PyQt4.QtCore import Qt, QEvent
 from qgis.core import *
-from qgis.core import QgsMapLayerRegistry, QgsPoint, QgsCoordinateTransform, QgsGeometry, QgsFeatureRequest
+from qgis.core import QgsMapLayerRegistry, QgsPoint, QgsCoordinateTransform, \
+    QgsGeometry, QgsFeatureRequest, QgsRectangle, QgsRaster
 from qgis.gui import *
 from qgis.gui import QgsMapTool, QgsMapLayerComboBox, QgsMapLayerProxyModel
 
@@ -83,7 +85,50 @@ class QpalsLM:
         self.iface = iface
 
     def snapToDtm(self):
-        pass
+        player = self.edit3d_pointlayerbox.currentLayer()
+        llayer = self.edit3d_linelayerbox.currentLayer()
+        rlayer = self.edit3d_dtmlayerbox.currentLayer()
+        llayer.startEditing()
+        points = list(player.getFeatures())
+        pointid = self.edit3d_currPointId.value()
+        if points:
+            point = points[pointid]
+            pointGeom = point.geometry()
+            if pointGeom.asMultiPoint():
+                pointGeom = pointGeom.asMultiPoint()[0]
+            else:
+                pointGeom = pointGeom.asPoint()
+            pid, feat = closestpoint(llayer, QgsGeometry.fromPoint(pointGeom))
+            linegeom = feat.geometry().asWkb()
+            olinegeom = ogr.CreateGeometryFromWkb(linegeom)
+            dx = rlayer.rasterUnitsPerPixelX()
+            dy = rlayer.rasterUnitsPerPixelY()
+            xpos = pointGeom.x()
+            ypos = pointGeom.y()
+            # assume pixel = center
+            xll = rlayer.extent().xMinimum() + 0.5*dx
+            yll = rlayer.extent().yMinimum() + 0.5*dy
+            xoffs = (pointGeom.x()-xll) % dx
+            yoffs = (pointGeom.y()-yll) % dy
+            dtm_val_ll = rlayer.dataProvider().identify(QgsPoint(xpos-dx/2, ypos-dy/2), QgsRaster.IdentifyFormatValue).results()[1]
+            dtm_val_ur = rlayer.dataProvider().identify(QgsPoint(xpos+dx/2, ypos+dy/2), QgsRaster.IdentifyFormatValue).results()[1]
+            dtm_val_lr = rlayer.dataProvider().identify(QgsPoint(xpos+dx/2, ypos-dy/2), QgsRaster.IdentifyFormatValue).results()[1]
+            dtm_val_ul = rlayer.dataProvider().identify(QgsPoint(xpos-dx/2, ypos+dy/2), QgsRaster.IdentifyFormatValue).results()[1]
+            a00 = dtm_val_ll
+            a10 = dtm_val_lr - dtm_val_ll
+            a01 = dtm_val_ul - dtm_val_ll
+            a11 = dtm_val_ur + dtm_val_ll - (dtm_val_lr+dtm_val_ul)
+            dtm_bilinear = a00 + a10*xoffs + a01*yoffs + a11*xoffs*yoffs
+            x, y = olinegeom.GetPoint_2D(pid)
+            olinegeom.SetPoint(pid, x,y,dtm_bilinear)
+            llayer.beginEditCommand("Snap point height to DTM")
+            updatedGeom = QgsGeometry()
+            updatedGeom.fromWkb(olinegeom.ExportToWkb())
+            llayer.dataProvider().changeGeometryValues({feat.id(): updatedGeom})
+            llayer.endEditCommand()
+            # refresh vertex editor
+            self.showProblemPoint()
+
 
     def removeNode(self):
         player = self.edit3d_pointlayerbox.currentLayer()
@@ -95,7 +140,9 @@ class QpalsLM:
             point = points[pointid]
             pointGeom = point.geometry()
             pid, feat = closestpoint(llayer, pointGeom)
-            player.deleteVertex(feat.id(), pid)
+            llayer.beginEditCommand("Vertex removed")
+            llayer.deleteVertex(feat.id(), pid)
+            llayer.endEditCommand()
 
 
     def nextProblemPoint(self):
@@ -117,18 +164,23 @@ class QpalsLM:
         pointid = self.edit3d_currPointId.value()
         if points:
             point = points[pointid]
-            pointGeom = point.geometry()
-            pos = QgsMapTool(self.iface.mapCanvas()).toCanvasCoordinates(pointGeom.asPoint())
+            pointGeom = point.geometry().asMultiPoint()[0] if point.geometry().asMultiPoint() else point.geometry().asPoint()
+
+            t = QgsCoordinateTransform(llayer.crs(), mc.mapSettings().destinationCrs())
+            tCenter = t.transform(pointGeom)
+            rect = QgsRectangle(tCenter, tCenter)
+            mc.setExtent(rect)
+            pos = QgsMapTool(self.iface.mapCanvas()).toCanvasCoordinates(tCenter)
             click = QMouseEvent(QEvent.MouseButtonPress, pos, Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
             mc.mousePressEvent(click)
             mc.mousePressEvent(click)
+            mc.refresh()
             vertexDock = \
                 [ch for ch in self.iface.mainWindow().findChildren(QDockWidget, "") if
-                 ch.windowTitle() == 'Vertex Editor'][0]
-            self.editingls.addWidget(vertexDock)
-            t = QgsCoordinateTransform(llayer.crs(), mc.mapSettings().destinationCrs())
-            tCenter = t.transform(pointGeom.asPoint())
-            mc.setCenter(tCenter)
+                 ch.windowTitle() == u'Vertex Editor']
+            if vertexDock:
+                vertexDock = vertexDock[0]
+                self.editingls.addWidget(vertexDock)
             mc.refresh()
 
     def nodeLayerChanged(self):

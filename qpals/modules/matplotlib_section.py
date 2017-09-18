@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 import matplotlib.lines as lines
 from matplotlib.pyplot import cm
 from mpl_toolkits.mplot3d import Axes3D
+from qgis.core import QgsFeatureRequest, QgsGeometry
 
 class HighlightSelected(lines.VertexSelector):
     def __init__(self, line, lineId, fmt='bo', **kwargs):
@@ -60,7 +61,11 @@ class plotwindow():
             x2 = trafo[1].GetPoint(0)[0]
             y2 = trafo[1].GetPoint(0)[1]
             self.lines = []
-            for feat in linelayer.getFeatures():
+            aoirect = QgsGeometry()
+            aoirect.fromWkb(aoi.ExportToWkb())
+            aoirect = aoirect.boundingBox()
+            req = QgsFeatureRequest(aoirect)
+            for feat in linelayer.getFeatures(req):
                 geom = feat.geometry()
                 wkb = geom.asWkb()
                 ogeom = ogr.CreateGeometryFromWkb(wkb)
