@@ -72,6 +72,7 @@ class QpalsDropTextbox(QtGui.QComboBox):
         return self.lineEdit().text()
 
     def reloadLayers(self):
+        text = self.text()
         if self.showLayers:
             while self.count() > 0:
                 self.removeItem(0)
@@ -86,6 +87,7 @@ class QpalsDropTextbox(QtGui.QComboBox):
                 elif os.path.exists(layer.source()):
                     if re.search(self.filterrex, layer.source()):
                         self.addItem(layer.source())
+        self.setText(text)
 
     def setPlaceholderText(self, text):
         self.lineEdit().setPlaceholderText(text)

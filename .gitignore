@@ -3,4 +3,4 @@
 # pycharm folder
 /.idea/*
 # on startup generated files
-/resources/attribute_types.py
+/qpals/resources/attribute_types.py

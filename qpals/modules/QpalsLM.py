@@ -25,6 +25,7 @@ from xml.dom import minidom
 import matplotlib.pyplot as plt
 import numpy as np
 import ogr
+import re
 import time
 from PyQt4 import QtGui
 from PyQt4.QtGui import QMouseEvent, QDockWidget, QSpinBox
@@ -40,14 +41,7 @@ from .. import QpalsModuleBase
 from ..qt_extensions.QCollapsibleGroupBox import QCollapsibleGroupBox
 
 
-def switchToNextTab(tabWidget):
-    curridx = tabWidget.currentIndex()
-    tabWidget.setCurrentIndex(curridx + 1)
 
-
-def switchToPrevTab(tabWidget):
-    curridx = tabWidget.currentIndex()
-    tabWidget.setCurrentIndex(curridx - 1)
 
 def closestpoint(layer, layerPoint):
     # get closest feature
@@ -83,6 +77,37 @@ class QpalsLM:
         self.project = project
         self.layerlist = layerlist
         self.iface = iface
+
+    def switchToNextTab(self):
+        curridx = self.tabs.currentIndex()
+        self.tabs.setCurrentIndex(curridx + 1)
+        self.updateTabs()
+
+    def updateTabs(self):
+        curridx = self.tabs.currentIndex()
+        # update tabs
+        if self.names[curridx] == "DTM":
+            if self.settings['settings']['inFile'].currentText().endswith(".tif"):
+                self.widgets['dtmGrid'].setEnabled(False)
+            else:
+                self.widgets['dtmGrid'].setEnabled(True)
+                self.modules['dtmGrid'].setParam('inFile', self.settings['settings']['inFile'].currentText())
+            tempf = self.settings['settings']['tempFolder'].currentText()
+            if not os.path.isdir(tempf):
+                try:
+                    os.makedirs(tempf)
+                except:
+                    tempf = self.project.tempdir
+                    self.settings['settings']['tempFolder'].setText(tempf)
+
+            self.project.tempdir = tempf
+            self.project.workdir = tempf
+
+
+
+    def switchToPrevTab(self):
+        curridx = self.tabs.currentIndex()
+        self.tabs.setCurrentIndex(curridx - 1)
 
     def snapToDtm(self):
         player = self.edit3d_pointlayerbox.currentLayer()
@@ -193,7 +218,7 @@ class QpalsLM:
 
     def createWidget(self):
         self.tabs = QtGui.QTabWidget()
-        names = ['Settings',
+        self.names = ['Settings',
                  'DTM',
                  'Slope',
                  '2D-Approximation',
@@ -207,7 +232,7 @@ class QpalsLM:
         self.settings = {}
         self.modules = {}
 
-        for idx, name in enumerate(names):
+        for idx, name in enumerate(self.names):
             self.widgets[name] = QtGui.QDialog()
             ls = QtGui.QFormLayout()
             # Tab-specific options
@@ -277,22 +302,27 @@ class QpalsLM:
                                                                                    "opalsGrid",
                                                                                    self.project,
                                                                                    {'interpolation': 'movingPlanes',
-                                                                                    'gridSize': '1'},
+                                                                                    'gridSize': '1',
+                                                                                    'outFile': 'DTM_1m.tif'},
                                                                                    ["inFile",
                                                                                     "outFile",
                                                                                     "neighbours",
                                                                                     "searchRadius",
                                                                                     "interpolation"])
                 self.modules['dtmGrid'] = dtmmod
+                self.widgets['dtmGrid'] = dtmscroll
+                dtmmod.afterRun = self.addDtm
                 ls.addRow(dtmscroll)
 
                 shdmod, shdscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsShade",
                                                                                    "opalsShade",
                                                                                    self.project,
-                                                                                   {},
+                                                                                   {'inFile': 'DTM_1m.tif',
+                                                                                    'outFile': 'DTM_1m_shd.tif'},
                                                                                    ["inFile",
                                                                                     "outFile", ])
                 self.modules['dtmShade'] = shdmod
+                shdmod.afterRun = self.addShd
                 ls.addRow(shdscroll)
 
             if name == "Slope":
@@ -306,7 +336,9 @@ class QpalsLM:
                 gfmod, gfscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsGridFeature",
                                                                                  "opalsGridFeature",
                                                                                  self.project,
-                                                                                 {'feature': 'slpDeg'},
+                                                                                 {'feature': 'slpDeg',
+                                                                                  'inFile': 'DTM_1m.tif',
+                                                                                  'outFile': 'DTM_1m_slope.tif'},
                                                                                  ["inFile",
                                                                                   "outFile",
                                                                                   "feature"])
@@ -326,7 +358,9 @@ class QpalsLM:
                 edgeDmod, edgeDscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsEdgeDetect",
                                                                                        "opalsEdgeDetect",
                                                                                        self.project,
-                                                                                       {'threshold': '1 5'},
+                                                                                       {'threshold': '1;5',
+                                                                                        'inFile': 'DTM_1m_slope_slpDeg.tif',
+                                                                                        'outFile': 'detected_edges.tif'},
                                                                                        ["inFile",
                                                                                         "outFile",
                                                                                         "threshold",
@@ -341,7 +375,8 @@ class QpalsLM:
                 vecmod, vecscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsVectorize",
                                                                                    "opalsVectorize",
                                                                                    self.project,
-                                                                                   {},
+                                                                                   {'inFile': 'detected_edges.tif',
+                                                                                    'outFile': 'detected_edges.shp'},
                                                                                    ["inFile",
                                                                                     "outFile"
                                                                                     ])
@@ -365,7 +400,9 @@ class QpalsLM:
                                                                                     'snapRadius': '0',
                                                                                     'maxTol': '0.5',
                                                                                     'maxAngleDev': '75 15',
-                                                                                    'avgDist': '3'},
+                                                                                    'avgDist': '3',
+                                                                                    'inFile': 'detected_edges.shp',
+                                                                                    'outFile': 'edges1.shp'},
                                                                                    ["inFile",
                                                                                     "outFile",
                                                                                     "method",
@@ -389,7 +426,9 @@ class QpalsLM:
                                                                                     'merge.revertDist': '5',
                                                                                     'merge.revertInterval': '1',
                                                                                     'merge.searchGeneration': '4',
-                                                                                    'merge.preventIntersection': '1'},
+                                                                                    'merge.preventIntersection': '1',
+                                                                                    'inFile': 'edges1.shp',
+                                                                                    'outFile': 'edges2.shp'},
                                                                                    ["inFile",
                                                                                     "outFile",
                                                                                     "method",
@@ -407,7 +446,10 @@ class QpalsLM:
                                                                                     'snapRadius': '0',
                                                                                     'maxTol': '0',
                                                                                     'maxAngleDev': '90 15',
-                                                                                    'avgDist': '3'},
+                                                                                    'avgDist': '3',
+                                                                                    'inFile': 'edges2.shp',
+                                                                                    'outFile': 'edges3.shp'
+                                                                                    },
                                                                                    ["inFile",
                                                                                     "outFile",
                                                                                     "method",
@@ -421,6 +463,7 @@ class QpalsLM:
                     "that might help:")
                 desc.setWordWrap(True)
                 ls.addRow(desc)
+
                 box1 = QtGui.QGroupBox("QuickLineModeller")
                 import QpalsQuickLM
                 self.quicklm = QpalsQuickLM.QpalsQuickLM(project=self.project, layerlist=self.layerlist,
@@ -432,7 +475,7 @@ class QpalsLM:
                 self.section = QpalsSection.QpalsSection(project=self.project, layerlist=self.layerlist,
                                                          iface=self.iface)
                 self.section.createWidget()
-                box1.setLayout(self.section.ls)
+                box2.setLayout(self.section.ls)
                 ls.addRow(box2)
 
             if name == "3D-Modelling":
@@ -509,22 +552,6 @@ class QpalsLM:
                 nextBox.addWidget(self.remonveNodeBtn)
                 nextBox.addWidget(self.selectNodeBtn)
 
-                lt4mod, lt4scroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsLineTopology",
-                                                                                   "opalsLineTopology (1)",
-                                                                                   self.project,
-                                                                                   {'method': 'longest',
-                                                                                    'minLength': '10',
-                                                                                    'snapRadius': '0',
-                                                                                    'maxTol': '0.5',
-                                                                                    'maxAngleDev': '75 15',
-                                                                                    'avgDist': '3'},
-                                                                                   ["inFile",
-                                                                                    "outFile",
-                                                                                    "method",
-                                                                                    "minLength",
-                                                                                    "maxTol"])
-                self.modules['lt4'] = lt4mod
-                ls.addRow(lt4scroll)
                 ls.addRow(nextBox)
                 self.nodeLayerChanged()
 
@@ -542,7 +569,7 @@ class QpalsLM:
                 ls.addRow(imp2scroll)
 
                 normod, norscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsNormals",
-                                                                                   "opalsImport",
+                                                                                   "opalsNormals",
                                                                                    self.project,
                                                                                    {'neighbours': '8',
                                                                                     'searchRadius': '2',
@@ -581,16 +608,57 @@ class QpalsLM:
             vl.addLayout(ls, 1)
             navbar = QtGui.QHBoxLayout()
             next = QtGui.QPushButton("Next step >")
-            next.clicked.connect(lambda: switchToNextTab(self.tabs))
+            next.clicked.connect(self.switchToNextTab)
             prev = QtGui.QPushButton("< Previous step")
-            prev.clicked.connect(lambda: switchToPrevTab(self.tabs))
+            prev.clicked.connect(self.switchToPrevTab)
+            runcurr = QtGui.QPushButton("Run this step (all modules above)")
+            runcurr.clicked.connect(self.run_step)
             if idx > 0:
                 navbar.addWidget(prev)
             navbar.addStretch()
-            if idx < len(names):
+            if name in ["DTM",
+                        "Slope",
+                        "2D-Approximation",
+                        "Topologic correction",
+                        "3D-Modelling",
+                        "Quality check",
+                        "Export"]:
+                navbar.addWidget(runcurr)
+            navbar.addStretch()
+            if idx < len(self.names):
                 navbar.addWidget(next)
             vl.addLayout(navbar)
             self.widgets[name].setLayout(vl)
             self.tabs.addTab(self.widgets[name], name)
 
+        # set up connections
+
+        self.tabs.currentChanged.connect(self.updateTabs)
         return self.tabs
+
+    def run_step(self):
+        curridx = self.tabs.currentIndex()
+        step_name = self.names[curridx]
+        if step_name == "DTM":
+            thread, worker = self.modules['dtmGrid'].run_async(status=self.updateBar, on_finish=self.run_step)
+
+
+    def updateBar(self, message):
+        out_lines = [item for item in re.split("[\n\r\b]", message) if item]
+        percentage = out_lines[-1]
+        # print percentage
+        if r"%" in percentage:
+            perc = QpalsModuleBase.get_percentage(percentage)
+            self.secInst.progress.setValue(int(perc))
+
+    def addDtm(self):
+        file = self.modules['dtmGrid'].getParam('outFile').val
+        if not os.path.isabs(file):
+            file = os.path.join(self.project.workdir, file)
+            self.iface.addRasterLayer(file, "DTM")
+
+    def addShd(self):
+        file = self.modules['dtmShade'].getParam('outFile').val
+        if not os.path.isabs(file):
+            file = os.path.join(self.project.workdir, file)
+            self.iface.addRasterLayer(file, "DTM-Shading")

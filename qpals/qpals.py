@@ -224,10 +224,11 @@ class qpals:
             QObject.connect(self.mnulm, SIGNAL("triggered()"), self.showLMGUI)
             self.menu.addAction(self.mnulm)
 
-            self.mnulm = QAction(opalsIcon, "quick LineModeller", self.iface.mainWindow())
-            self.mnulm.setStatusTip("Start the quick LineModeller GUI")
-            QObject.connect(self.mnulm, SIGNAL("triggered()"), self.showQuickLMGUI)
-            self.menu.addAction(self.mnulm)
+            # QuickLM is acessible through LM
+            # self.mnulm = QAction(opalsIcon, "quick LineModeller", self.iface.mainWindow())
+            # self.mnulm.setStatusTip("Start the quick LineModeller GUI")
+            # QObject.connect(self.mnulm, SIGNAL("triggered()"), self.showQuickLMGUI)
+            # self.menu.addAction(self.mnulm)
 
             self.mnuatt = QAction(opalsIcon, "Attribute Manager", self.iface.mainWindow())
             self.mnuatt.setStatusTip("Start the attribute manager")

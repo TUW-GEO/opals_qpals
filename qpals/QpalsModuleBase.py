@@ -197,6 +197,7 @@ class ModuleBaseRunWorker(QtCore.QObject):
     status = QtCore.pyqtSignal(basestring)
 
 
+
 class QpalsModuleBase():
     def __init__(self, execName, QpalsProject, layerlist=None, listitem=None, visualize=False):
         self.params = []
@@ -210,11 +211,23 @@ class QpalsModuleBase():
         self.currentlyvalidating = False
         self.validatethread = None
         self.validateworker = None
+        self.runthread = None
+        self.runworker = None
+        self.afterRun = None
+        self.onErr = None
         self.lastpath = self.project.tempdir
         self.visualize = visualize
         self.outf = None
         self.globals = []
         self.common = []
+        self.progressbar = None
+
+    def updateBar(self, message):
+        out_lines = [item for item in re.split("[\n\r\b]", message) if item]
+        percentage = out_lines[-1]
+        if r"%" in percentage:
+            perc = get_percentage(percentage)
+            self.progressbar.setValue(int(perc))
 
     @staticmethod
     def fromCallString(string, project, layerlist):
@@ -264,15 +277,20 @@ class QpalsModuleBase():
         for p in mod.params:
             if p.name in params:
                 p.val = params[p.name]
-
-        ui = mod.getFilteredParamUi(
-            filter=param_show_list)
+        ui = mod.getFilteredParamUi(filter=param_show_list)
         advancedBox = QCollapsibleGroupBox.QCollapsibleGroupBox("Advanced options")
         advancedBox.setChecked(False)
         ui.addRow(advancedBox)
-        advancedLa = mod.getFilteredParamUi(
-            notfilter=param_show_list)
+        advancedLa = mod.getFilteredParamUi(notfilter=param_show_list)
         advancedBox.setLayout(advancedLa)
+        runbar = QtGui.QHBoxLayout()
+        runprogress = QtGui.QProgressBar()
+        mod.progressbar = runprogress
+        runbtn = QtGui.QPushButton("Run module")
+        runbtn.clicked.connect(mod.run_async_self)
+        runbar.addWidget(runprogress)
+        runbar.addWidget(runbtn)
+        ui.addRow(runbar)
         box.setLayout(ui)
         height = box.minimumSizeHint().height()
         scroll.setFixedHeight(height + 10)
@@ -284,6 +302,13 @@ class QpalsModuleBase():
             if param.name.lower() == paramname.lower():
                 return param
         return None
+
+    def setParam(self, paramname, val):
+        for param in self.params:
+            if param.name.lower() == paramname.lower():
+                param.field.setText(val)
+                self.updateVals(val)
+                break
 
     def call(self, show=0, statusSignal=None, killSignal=None, *args):
         info = subprocess.STARTUPINFO()
@@ -693,6 +718,17 @@ class QpalsModuleBase():
         thread.started.connect(worker.run)
         thread.start()
         return thread, worker
+
+    def run_async_self(self, on_finish=None, on_error=None, abort_signal=None):
+        status = self.updateBar
+        if self.afterRun:
+            on_finish = self.afterRun
+        if self.onErr:
+            on_error = self.onErr
+        self.runthread, self.runworker = self.run_async(status=status,
+                                                        on_finish=on_finish,
+                                                        on_error=on_error,
+                                                        abort_signal=abort_signal)
 
 
 class QpalsRunBatch():
