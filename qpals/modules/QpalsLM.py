@@ -77,6 +77,7 @@ class QpalsLM:
         self.project = project
         self.layerlist = layerlist
         self.iface = iface
+        self.pcfile = None
 
     def switchToNextTab(self):
         curridx = self.tabs.currentIndex()
@@ -86,12 +87,28 @@ class QpalsLM:
     def updateTabs(self):
         curridx = self.tabs.currentIndex()
         # update tabs
+        infile = self.settings['settings']['inFile'].currentText()
+
         if self.names[curridx] == "DTM":
-            if self.settings['settings']['inFile'].currentText().endswith(".tif"):
+            self.pcfile = "pointcloud.odm"
+            if infile.endswith(".tif"):
                 self.widgets['dtmGrid'].setEnabled(False)
-            else:
+                self.widgets['dtmImp'].setEnabled(True)
+                self.modules['dtmImp'].setParam('inFile', infile)
+                self.modules['dtmImp'].setParam('tileSize', '120')
+                self.modules['dtmShade'].setParam('inFile', infile)
+                self.modules['slope'].setParam('inFile', infile)
+            elif infile.endswith(".odm"):
                 self.widgets['dtmGrid'].setEnabled(True)
-                self.modules['dtmGrid'].setParam('inFile', self.settings['settings']['inFile'].currentText())
+                self.widgets['dtmImp'].setEnabled(False)
+                self.modules['dtmGrid'].setParam('inFile', infile)
+                self.pcfile = infile
+            else:
+                self.widgets['dtmImp'].setEnabled(True)
+                self.widgets['dtmGrid'].setEnabled(True)
+                self.modules['dtmImp'].setParam('inFile', infile)
+                self.modules['dtmGrid'].setParam('inFile', "pointcloud.odm")
+
             tempf = self.settings['settings']['tempFolder'].currentText()
             if not os.path.isdir(tempf):
                 try:
@@ -102,6 +119,9 @@ class QpalsLM:
 
             self.project.tempdir = tempf
             self.project.workdir = tempf
+
+        if self.names[curridx] == "3D-Modelling":
+            self.modules['lm'].setParam('inFile', self.pcfile)
 
 
 
@@ -294,9 +314,20 @@ class QpalsLM:
                 desc = QtGui.QLabel(
                     "This first step will create a digital terrain model (DTM) from your point cloud data. "
                     "If you have a DTM to begin with, you can skip this step. Also, a shading of your DTM "
-                    "will be created for visualisation purposes.")
+                    "will be created for visualisation purposes. If the input file is not an ODM, one has to be "
+                    "created for the modelling process later on.")
                 desc.setWordWrap(True)
                 ls.addRow(desc)
+
+                impmod, impscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsImport",
+                                                                                   "opalsImport",
+                                                                                   self.project,
+                                                                                   {'outFile': 'pointcloud.odm'},
+                                                                                   ["inFile",
+                                                                                    "outFile"])
+                self.modules['dtmImp'] = impmod
+                self.widgets['dtmImp'] = impscroll
+                ls.addRow(impscroll)
 
                 dtmmod, dtmscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsGrid",
                                                                                    "opalsGrid",
@@ -487,7 +518,8 @@ class QpalsLM:
                 lmmod, lmscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsLineModeler",
                                                                                  "opalsLineModeler",
                                                                                  self.project,
-                                                                                 {"filter": "Class[Ground]"},
+                                                                                 {"filter": "Class[Ground]",
+                                                                                  "approxFile": "edges3.shp"},
                                                                                  ["inFile",
                                                                                   "approxFile",
                                                                                   "outFile",

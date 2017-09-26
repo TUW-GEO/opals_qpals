@@ -30,6 +30,7 @@ from PyQt4.QtGui import QColor
 from qgis.core import *
 from qgis.core import QgsMapLayerRegistry
 from qgis.gui import *
+from qgis.gui import QgsMapLayerComboBox, QgsMapLayerProxyModel
 
 from ..qt_extensions import QpalsDropTextbox
 from .. import QpalsShowFile, QpalsModuleBase, QpalsParameter
@@ -72,12 +73,10 @@ class QpalsSection:
         self.runSecBtnSimple = QtGui.QPushButton("Create section")
         self.runSecBtnSimple.clicked.connect(self.ltool.runsec)
         self.runSecBtnSimple.setEnabled(False)
-        self.simpleLineLayer = QtGui.QComboBox()
-        self.simpleLineLayer.addItem("None", None)
-        for layer in QgsMapLayerRegistry.instance().mapLayers().values():
-            if isinstance(layer, QgsVectorLayer) and layer.geometryType() == 1:
-                self.simpleLineLayer.addItem(layer.name(), layer)
-        self.ls.addRow(QtGui.QLabel("Visualize (3D) Line Layer:"), self.simpleLineLayer)
+        self.simpleLineLayer = QgsMapLayerComboBox()
+        self.simpleLineLayer.setFilters(QgsMapLayerProxyModel.LineLayer)
+        self.simpleLineLayerChk = QtGui.QCheckBox("Visualize (3D) Line Layer:")
+        self.ls.addRow(self.simpleLineLayerChk, self.simpleLineLayer)
         self.showSection = QtGui.QCheckBox("Show section")
         self.progress = QtGui.QProgressBar()
         self.showSection.stateChanged.connect(self.checkBoxChanged)
@@ -435,8 +434,8 @@ class LineTool(QgsMapTool):
     def show_pltwindow(self):
         self.secInst.progress.setFormat("")
         self.pltwindow = plotwindow(self.secInst.project, self.secInst.iface, self.data, self.mins, self.maxes,
-                                    linelayer=self.secInst.simpleLineLayer.itemData(
-                                        self.secInst.simpleLineLayer.currentIndex()),
+                                    linelayer=None if self.secInst.simpleLineLayerChk.checkState() != 2 else \
+                                    self.secInst.simpleLineLayer.currentLayer(),
                                     aoi=self.aoi,
                                     trafo=self.trafo)
         self.secInst.ls.addRow(self.pltwindow.ui)

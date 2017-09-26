@@ -154,9 +154,8 @@ class ModuleRunWorker(QtCore.QObject):
                 self.progress.emit(100)
         except Exception as e:
             self.error.emit(e, str(e), self.module)
-            print
-            "Error:", str(e)
-        ret = (self.module, "42")
+            print "Error:", str(e)
+        ret = (None, "", self.module)
         self.finished.emit(ret)
 
     @pyqtSlot()
@@ -184,7 +183,7 @@ class ModuleBaseRunWorker(QtCore.QObject):
             self.error.emit(e, str(e), self.module)
             print
             "Error:", str(e)
-        ret = (self.module, "42")
+        ret = (None, "", self.module)
         self.finished.emit(ret)
 
     @pyqtSlot()
@@ -221,13 +220,21 @@ class QpalsModuleBase():
         self.globals = []
         self.common = []
         self.progressbar = None
+        self.runbtn = None
 
     def updateBar(self, message):
-        out_lines = [item for item in re.split("[\n\r\b]", message) if item]
+        out_lines = ["Stage 0: Initializing"] + [item for item in re.split("[\n\r\b]", message) if item]
+        curr_stage = [stage for stage in out_lines if "Stage" in stage][-1]
         percentage = out_lines[-1]
         if r"%" in percentage:
             perc = get_percentage(percentage)
             self.progressbar.setValue(int(perc))
+            self.progressbar.setFormat(curr_stage + " - %p%")
+
+    def errorBar(self, message):
+        self.progressbar.setValue(100)
+        self.progressbar.setFormat("Error: %s" % message)
+        print "error:", message
 
     @staticmethod
     def fromCallString(string, project, layerlist):
@@ -286,10 +293,10 @@ class QpalsModuleBase():
         runbar = QtGui.QHBoxLayout()
         runprogress = QtGui.QProgressBar()
         mod.progressbar = runprogress
-        runbtn = QtGui.QPushButton("Run module")
-        runbtn.clicked.connect(mod.run_async_self)
+        mod.runbtn = QtGui.QPushButton("Run module")
+        mod.runbtn.clicked.connect(mod.run_async_self)
         runbar.addWidget(runprogress)
-        runbar.addWidget(runbtn)
+        runbar.addWidget(mod.runbtn)
         ui.addRow(runbar)
         box.setLayout(ui)
         height = box.minimumSizeHint().height()
@@ -719,16 +726,31 @@ class QpalsModuleBase():
         thread.start()
         return thread, worker
 
-    def run_async_self(self, on_finish=None, on_error=None, abort_signal=None):
+    def run_async_self(self, on_error=None, abort_signal=None):
         status = self.updateBar
-        if self.afterRun:
-            on_finish = self.afterRun
+        on_finish = self.run_async_finished
+        on_error = self.errorBar
         if self.onErr:
             on_error = self.onErr
+        self.runbtn.setText("running")
+        self.runbtn.setEnabled(False)
         self.runthread, self.runworker = self.run_async(status=status,
                                                         on_finish=on_finish,
                                                         on_error=on_error,
                                                         abort_signal=abort_signal)
+
+    def run_async_finished(self, ret):
+        e, msg, mod = ret
+        if not e:
+            if self.runbtn:
+                self.runbtn.setText("done")
+                self.runbtn.setEnabled(True)
+                self.progressbar.setFormat("%p%")
+                self.progressbar.setValue(100)
+            if self.afterRun:
+                self.afterRun()
+        else:
+            self.progressbar.setFormat("Error: " + msg)
 
 
 class QpalsRunBatch():

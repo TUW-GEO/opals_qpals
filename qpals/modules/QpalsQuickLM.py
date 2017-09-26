@@ -20,6 +20,7 @@ email                : lukas.winiwarter@tuwien.ac.at
 from PyQt4 import QtGui
 from qgis.core import *
 from qgis.gui import *
+from qgis.gui import QgsMapLayerComboBox, QgsMapLayerProxyModel
 
 import os
 import ogr
@@ -39,10 +40,8 @@ class QpalsQuickLM:
     def createUi(self):
         self.selectedChkBox = QtGui.QCheckBox("Use selected lines only")
         self.selectedChkBox.setCheckState(2)
-        self.cmbLineLayer = QtGui.QComboBox()
-        for layer in QgsMapLayerRegistry.instance().mapLayers().values():
-            if isinstance(layer, QgsVectorLayer) and layer.geometryType() == 1:
-                self.cmbLineLayer.addItem(layer.name(), layer)
+        self.cmbLineLayer = QgsMapLayerComboBox()
+        self.cmbLineLayer.setFilters(QgsMapLayerProxyModel.LineLayer)
         self.cmbOdmPath =QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist, filterrex=".*\.odm$")
         self.runBtn = QtGui.QPushButton("Run")
         self.runBtn.clicked.connect(self.runLM)
@@ -57,7 +56,7 @@ class QpalsQuickLM:
     def runLM(self):
         params = {}
         lt_params = {}
-        layer = self.cmbLineLayer.itemData(self.cmbLineLayer.currentIndex())
+        layer = self.cmbLineLayer.currentLayer()
         if self.selectedChkBox.checkState() == 2:
             infile = tempfile.NamedTemporaryFile(delete=False)
             lt_params["inFile"] = infile.name + ".shp"
