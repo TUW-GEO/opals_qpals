@@ -230,7 +230,7 @@ class QpalsLM:
 
     def nodeLayerChanged(self):
         if self.edit3d_pointlayerbox.currentLayer():
-            self.selectNodeBtn.setText("Next node")
+            self.selectNodeBtn.setText("Next point")
             self.selectNodeBtn.setEnabled(True)
             cnt = self.edit3d_pointlayerbox.currentLayer().featureCount() - 1
             self.edit3d_countLabel.setText(str(cnt))
@@ -245,8 +245,8 @@ class QpalsLM:
                  'Topologic correction',
                  'Editing',
                  '3D-Modelling',
-                 'Editing (3D)',
                  'Quality check',
+                 'Editing (3D)',
                  'Export']
         self.widgets = {}
         self.settings = {}
@@ -430,7 +430,7 @@ class QpalsLM:
                                                                                     'minLength': '10',
                                                                                     'snapRadius': '0',
                                                                                     'maxTol': '0.5',
-                                                                                    'maxAngleDev': '75 15',
+                                                                                    'maxAngleDev': '75;15',
                                                                                     'avgDist': '3',
                                                                                     'inFile': 'detected_edges.shp',
                                                                                     'outFile': 'edges1.shp'},
@@ -449,7 +449,7 @@ class QpalsLM:
                                                                                     'minLength': '10',
                                                                                     'snapRadius': '3',
                                                                                     'maxTol': '0',
-                                                                                    'maxAngleDev': '150 15',
+                                                                                    'maxAngleDev': '150;15',
                                                                                     'avgDist': '3',
                                                                                     'merge.minWeight': '0.75',
                                                                                     'merge.relWeightLead': '0',
@@ -476,7 +476,7 @@ class QpalsLM:
                                                                                     'minLength': '25',
                                                                                     'snapRadius': '0',
                                                                                     'maxTol': '0',
-                                                                                    'maxAngleDev': '90 15',
+                                                                                    'maxAngleDev': '90;15',
                                                                                     'avgDist': '3',
                                                                                     'inFile': 'edges2.shp',
                                                                                     'outFile': 'edges3.shp'
@@ -488,6 +488,8 @@ class QpalsLM:
                                                                                     "maxTol"])
                 self.modules['lt3'] = lt3mod
                 ls.addRow(lt3scroll)
+                lt3mod.afterRun = self.add2DLines
+
             if name == "Editing":
                 desc = QtGui.QLabel(
                     "Please start editing the 2D approximations that have been loaded into qgis. Here are some tools "
@@ -534,6 +536,8 @@ class QpalsLM:
                 self.modules['lm'] = lmmod
                 ls.addRow(lmscroll)
 
+                lmmod.afterRun = self.add3DLines
+
             if name == "Editing (3D)":
                 desc = QtGui.QLabel("TODO: Problematic junctions")
                 desc.setWordWrap(True)
@@ -565,6 +569,10 @@ class QpalsLM:
                 self.selectNodeBtn = QtGui.QPushButton("Next point")
                 self.selectNodeBtn.clicked.connect(lambda: self.edit3d_currPointId.setValue(
                     self.edit3d_currPointId.value()+1))
+
+                self.selectPrevNodeBtn = QtGui.QPushButton("Prev point")
+                self.selectPrevNodeBtn.clicked.connect(lambda: self.edit3d_currPointId.setValue(
+                    self.edit3d_currPointId.value()-1))
                 self.edit3d_countLabel = QtGui.QLabel()
 
                 self.snapToDtmBtn = QtGui.QPushButton("Snap to:")
@@ -582,6 +590,7 @@ class QpalsLM:
                 nextBox.addWidget(self.snapToDtmBtn)
                 nextBox.addWidget(self.edit3d_dtmlayerbox)
                 nextBox.addWidget(self.remonveNodeBtn)
+                nextBox.addWidget(self.selectPrevNodeBtn)
                 nextBox.addWidget(self.selectNodeBtn)
 
                 ls.addRow(nextBox)
@@ -687,10 +696,22 @@ class QpalsLM:
         file = self.modules['dtmGrid'].getParam('outFile').val
         if not os.path.isabs(file):
             file = os.path.join(self.project.workdir, file)
-            self.iface.addRasterLayer(file, "DTM")
+        self.iface.addRasterLayer(file, "DTM")
 
     def addShd(self):
         file = self.modules['dtmShade'].getParam('outFile').val
         if not os.path.isabs(file):
             file = os.path.join(self.project.workdir, file)
-            self.iface.addRasterLayer(file, "DTM-Shading")
+        self.iface.addRasterLayer(file, "DTM-Shading")
+
+    def add2DLines(self):
+        file = self.modules['lt3'].getParam('outFile').val
+        if not os.path.isabs(file):
+            file = os.path.join(self.project.workdir, file)
+        self.iface.addVectorLayer(file, "2D-Approximations", "ogr")
+
+    def add3DLines(self):
+        file = self.modules['lm'].getParam('outFile').val + ".shp"
+        if not os.path.isabs(file):
+            file = os.path.join(self.project.workdir, file)
+        self.iface.addVectorLayer(file, "2D-Approximations", "ogr")

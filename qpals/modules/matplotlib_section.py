@@ -18,6 +18,7 @@ email                : lukas.winiwarter@tuwien.ac.at
  """
 
 from PyQt4 import QtGui, QtCore
+from distutils.version import LooseVersion
 import matplotlib
 import ogr
 import numpy as np
@@ -236,7 +237,8 @@ class plotwindow():
         self.curplot = self.ax.scatter(X, Y, Z,
                         c=self.data[newattr], cmap=colormap,
                         clim=[low, hi], marker=self.marker.currentText(), s=self.markerSize.value(), picker=1)
-        self.colorbar = self.figure.colorbar(self.curplot)
+        if LooseVersion(matplotlib.__version__) >= LooseVersion('1.4.0'):
+            self.colorbar = self.figure.colorbar(self.curplot)
         self.selectors = []
         if self.lines:
             for (i, line) in enumerate(self.lines):

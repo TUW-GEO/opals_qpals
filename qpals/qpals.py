@@ -26,11 +26,11 @@ from PyQt4.QtGui import *
 from qgis.core import *
 from qgis.gui import *
 
-import QpalsLog
 import QpalsProject
 import QpalsShowFile
 import moduleSelector
 from modules import QpalsSection, QpalsLM, QpalsAttributeMan, QpalsQuickLM
+
 
 
 class qpals:

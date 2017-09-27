@@ -27,6 +27,7 @@ import ogr
 import re
 from PyQt4 import QtGui
 from PyQt4.QtGui import QColor
+from PyQt4.QtGui import QCursor, QBitmap
 from qgis.core import *
 from qgis.core import QgsMapLayerRegistry
 from qgis.gui import *
@@ -51,8 +52,7 @@ class QpalsSection:
         self.visLayer = None
         self.ltool = LineTool(self.iface.mapCanvas(), self.visLayer, secInst=self)
         self.sections = dict()
-
-
+        self.bm = QBitmap(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'media', 'cursor-cross.png'))
 
     def createWidget(self):
         self.advanced_widget = QtGui.QDialog()
@@ -73,6 +73,7 @@ class QpalsSection:
         self.runSecBtnSimple = QtGui.QPushButton("Create section")
         self.runSecBtnSimple.clicked.connect(self.ltool.runsec)
         self.runSecBtnSimple.setEnabled(False)
+        self.runSecBtnSimple.setStyleSheet("background-color: rgb(50,240,50)")
         self.simpleLineLayer = QgsMapLayerComboBox()
         self.simpleLineLayer.setFilters(QgsMapLayerProxyModel.LineLayer)
         self.simpleLineLayerChk = QtGui.QCheckBox("Visualize (3D) Line Layer:")
@@ -226,6 +227,8 @@ class QpalsSection:
         self.iface.mapCanvas().setMapTool(tool)
 
     def activateLineTool(self):
+        c = QCursor(self.bm, self.bm)
+        self.iface.mapCanvas().setCursor(c)
         self.iface.mapCanvas().setMapTool(self.ltool)
 
 class LineTool(QgsMapTool):
