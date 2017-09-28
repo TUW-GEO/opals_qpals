@@ -55,38 +55,19 @@ class QpalsQuickLM:
 
     def runLM(self):
         params = {}
-        lt_params = {}
         layer = self.cmbLineLayer.currentLayer()
         if self.selectedChkBox.checkState() == 2:
             infile = tempfile.NamedTemporaryFile(delete=False)
-            lt_params["inFile"] = infile.name + ".shp"
+            params["approxFile"] = infile.name + ".shp"
             infile.close()
-            QgsVectorFileWriter.writeAsVectorFormat(layer, lt_params["inFile"],
+            QgsVectorFileWriter.writeAsVectorFormat(layer, params["approxFile"],
                                                     "utf-8", layer.crs(), "ESRI Shapefile", 1)  # 1 for selected only
         else:
-            lt_params["inFile"] = layer.source()
-
-        cleanedfile = tempfile.NamedTemporaryFile(delete=False)
-        params["approxFile"] = cleanedfile.name + ".shp"
-        lt_params["outFile"] = params["approxFile"]
-        lt_params["method"] = "clean"
-        cleanedfile.close()
-
-        lineTopology = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsLineTopology.exe"),
-                                                 QpalsProject=self.project)
-
-        lt_paramlist = []
-        for param in lt_params.iterkeys():
-            lt_paramlist.append(QpalsParameter.QpalsParameter(param, lt_params[param], None, None, None, None, None))
-        lineTopology.params = lt_paramlist
-        moduleOut = lineTopology.run(show=0)
-        print moduleOut
+            params["approxFile"] = layer.source()
 
         outfile = tempfile.NamedTemporaryFile(delete=False)
         params["outFile"] = outfile.name + ".shp"
         outfile.close()
-
-
 
         params["inFile"] = self.cmbOdmPath.text()
 

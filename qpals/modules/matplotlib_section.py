@@ -236,7 +236,7 @@ class plotwindow():
         Z = self.data['Z'] * self.zex.value()
         self.curplot = self.ax.scatter(X, Y, Z,
                         c=self.data[newattr], cmap=colormap,
-                        clim=[low, hi], marker=self.marker.currentText(), s=self.markerSize.value(), picker=1)
+                        clim=[low, hi], marker=self.marker.currentText(), s=self.markerSize.value(), picker=0)
         if LooseVersion(matplotlib.__version__) >= LooseVersion('1.4.0'):
             self.colorbar = self.figure.colorbar(self.curplot)
         self.selectors = []
@@ -244,7 +244,7 @@ class plotwindow():
             for (i, line) in enumerate(self.lines):
                 curl, = self.ax.plot(line[0], line[1], [z*self.zex.value() for z in line[2]],
                              color=self.linecolor.text(),
-                             linewidth=self.lineSize.value(), picker=1)
+                             linewidth=self.lineSize.value(), picker=0)
                 selector = HighlightSelected(curl, i)
                 self.selectors.append(selector)
 

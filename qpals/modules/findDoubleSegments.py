@@ -1,9 +1,31 @@
 import ogr
 import os, sys, glob
 import numpy as np
+from PyQt4 import QtCore
+
+class RunWorker(QtCore.QObject):
+    def __init__(self, SOURCE_LINES, tempf, dtm, dtm_thres, split_size, max_elements):
+        QtCore.QObject.__init__(self)
+        self.SOURCE_LINES = SOURCE_LINES
+        self.tempf = tempf
+        self.split_size = split_size
+        self.max_elements = max_elements
+        self.dtm = dtm
+        self.dtm_thres = dtm_thres
+
+    def run(self):
+        try:
+            main(self.SOURCE_LINES, self.tempf, self.split_size, self.max_elements, self.progress)
+        except Exception as e:
+            print "Error:", str(e)
+        ret = 1
+        self.finished.emit(ret)
+
+    finished = QtCore.pyqtSignal(int)
+    progress = QtCore.pyqtSignal(float)
 
 
-def main(SOURCE_LINES, tempf, split_size, max_elements, progressbar=None):
+def main(SOURCE_LINES, tempf, split_size, max_elements, progressslot=None):
     driver = ogr.GetDriverByName("ESRI Shapefile")
     if not os.path.exists(tempf):
         os.mkdir(tempf)
@@ -86,22 +108,21 @@ def main(SOURCE_LINES, tempf, split_size, max_elements, progressbar=None):
 
     # open input file
     dsIn = driver.Open(SOURCE_LINES, 0) # 0 means read-only
-    print "Creating spatial index..."
-    dsIn.ExecuteSQL("CREATE SPATIAL INDEX ON %s"%os.path.basename(SOURCE_LINES[:-4]))
+    try:
+        dsIn.ExecuteSQL("CREATE SPATIAL INDEX ON %s"%os.path.basename(SOURCE_LINES[:-4]))
+    except:
+        pass
     layerIn = dsIn.GetLayer()
 
     areas = []
     if split_size > 0:
-        print "Creating area polygons..."
         (xmin, xmax, ymin, ymax) = layerIn.GetExtent()
-        print "Total count: %s" % (int((ymax-ymin)/split_size + 1) * int((xmax-xmin)/split_size)+1)
         xcurr = xmin
         i = 0
         while xcurr < xmax:
             ycurr = ymin
             while ycurr < ymax:
                 i += 1
-                print "\rCurrent area: %s" % i,
                 rect = ogr.Geometry(ogr.wkbPolygon)
                 ring = ogr.Geometry(ogr.wkbLinearRing)
                 ring.AddPoint(xcurr, ycurr)
@@ -117,7 +138,6 @@ def main(SOURCE_LINES, tempf, split_size, max_elements, progressbar=None):
         areas.append(None)
 
 
-    print "\nAdding points with big angles..."
     for (pt, val) in ang_list:
         outFeat = ogr.Feature(fDefI)
         outFeat.SetField("TYPE", "angle")
@@ -130,7 +150,6 @@ def main(SOURCE_LINES, tempf, split_size, max_elements, progressbar=None):
         outLayerI.CreateFeature(outFeat)
         outFeat = None
 
-    print "Adding double points..."
     for pt in doublenode_list:
         outFeat = ogr.Feature(fDefI)
         outFeat.SetField("TYPE", "double node")
@@ -142,7 +161,6 @@ def main(SOURCE_LINES, tempf, split_size, max_elements, progressbar=None):
         outLayerI.CreateFeature(outFeat)
         outFeat = None
 
-    print "\nProcessing geometries..."
     k = len(areas)
     counts = {
         'intersection': 0,
@@ -156,14 +174,8 @@ def main(SOURCE_LINES, tempf, split_size, max_elements, progressbar=None):
         layerIn.SetSpatialFilter(area)
 
         geometries = []
-        print "\rCloning geometries              Area %8s/%8s -- so far: %s int, %s dbl, %s overl, %s close, %s err" % (j, k,
-                                                                                        counts['intersection'],
-                                                                                        counts['double lines'],
-                                                                                        counts['overlap'],
-                                                                                        counts['close'],
-                                                                                        counts['errors']),
-        if progressbar:
-            progressbar.setValue(j*100./k)
+        if progressslot:
+            progressslot.emit(j*100./k)
         for feat in layerIn:
             geomref = feat.GetGeometryRef()
             geometries.append(geomref.Clone())
@@ -178,13 +190,6 @@ def main(SOURCE_LINES, tempf, split_size, max_elements, progressbar=None):
                 geometries = []
                 counts['errors'] += 1
                 continue
-            if i%10 == 0:
-                print "\rWorking on Geometry %8s in Area %8s/%8s -- so far: %s int, %s dbl, %s overl, %s close, %s err" % (i, j, k,
-                                                                                        counts['intersection'],
-                                                                                        counts['double lines'],
-                                                                                        counts['overlap'],
-                                                                                        counts['close'],
-                                                                                        counts['errors']),
             for comparegeom in geometries:
                 if currgeom.Intersects(comparegeom):
                     if currgeom.Crosses(comparegeom):
@@ -218,17 +223,6 @@ def main(SOURCE_LINES, tempf, split_size, max_elements, progressbar=None):
                     outFeat = None
                     counts['close'] += 1
 
-
-    print "[done]"
-    print "Processed dataset %s:" % SOURCE_LINES
-    print "-----------  RESULTS  -------------"
-    print "Found %s intersecting segments" % counts['intersection']
-    print "Found %s double/containing segments" % counts['double lines']
-    print "Found %s overlapping segments" % counts['overlap']
-    print "Found %s segments close to one another" % counts['close']
-    print "Found %s nodes with acute angles" % (len(ang_list))
-    print "Found %s nodes that are double" % (len(doublenode_list))
-    print "Found %s areas with more than %s segments" % (counts['errors'], max_elements)
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:

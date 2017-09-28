@@ -27,7 +27,7 @@ import numpy as np
 import ogr
 import re
 import time
-from PyQt4 import QtGui
+from PyQt4 import QtGui, QtCore
 from PyQt4.QtGui import QMouseEvent, QDockWidget, QSpinBox
 from PyQt4.QtCore import Qt, QEvent
 from qgis.core import *
@@ -39,7 +39,7 @@ from qgis.gui import QgsMapTool, QgsMapLayerComboBox, QgsMapLayerProxyModel
 from ..qt_extensions import QpalsDropTextbox
 from .. import QpalsModuleBase
 from ..qt_extensions.QCollapsibleGroupBox import QCollapsibleGroupBox
-
+import findDoubleSegments
 
 
 
@@ -98,6 +98,8 @@ class QpalsLM:
                 self.modules['dtmImp'].setParam('tileSize', '120')
                 self.modules['dtmShade'].setParam('inFile', infile)
                 self.modules['slope'].setParam('inFile', infile)
+                self.modules['dtmGrid'].setParam('outFile', infile)
+                self.addDtm()
             elif infile.endswith(".odm"):
                 self.widgets['dtmGrid'].setEnabled(True)
                 self.widgets['dtmImp'].setEnabled(False)
@@ -123,7 +125,15 @@ class QpalsLM:
         if self.names[curridx] == "3D-Modelling":
             self.modules['lm'].setParam('inFile', self.pcfile)
 
+        if self.names[curridx] != "Editing" or "Editing (3D)":
+            if self.section.ltool.rb:
+                self.section.ltool.canvas.scene().removeItem(self.section.ltool.rb)
+            self.iface.actionPan().trigger()
 
+    def close(self):
+        if self.section.ltool.rb:
+            self.section.ltool.canvas.scene().removeItem(self.section.ltool.rb)
+        self.iface.actionPan().trigger()
 
     def switchToPrevTab(self):
         curridx = self.tabs.currentIndex()
@@ -245,7 +255,6 @@ class QpalsLM:
                  'Topologic correction',
                  'Editing',
                  '3D-Modelling',
-                 'Quality check',
                  'Editing (3D)',
                  'Export']
         self.widgets = {}
@@ -276,9 +285,9 @@ class QpalsLM:
                     ('chkSlope', QtGui.QCheckBox("Slope")),
                     ('chk2D', QtGui.QCheckBox("2D-Approximation")),
                     ('chktopo2D', QtGui.QCheckBox("Topological correction")),
-                    ('chkEditing', QtGui.QLabel("--- Manual editing of 2D-Approximations ---")),
+                    ('chkEditing2d', QtGui.QLabel("--- Manual editing of 2D-Approximations ---")),
                     ('chk3Dmodel', QtGui.QCheckBox("3D-Modelling")),
-                    ('chk3Dquality', QtGui.QCheckBox("Quality check")),
+                    ('chkEditing3d', QtGui.QLabel("--- Manual editing of 3D-Lines ---")),
                     ('chkExport', QtGui.QCheckBox("Export")),
                 ]
                 )
@@ -313,7 +322,7 @@ class QpalsLM:
             if name == "DTM":
                 desc = QtGui.QLabel(
                     "This first step will create a digital terrain model (DTM) from your point cloud data. "
-                    "If you have a DTM to begin with, you can skip this step. Also, a shading of your DTM "
+                    "Also, a shading of your DTM "
                     "will be created for visualisation purposes. If the input file is not an ODM, one has to be "
                     "created for the modelling process later on.")
                 desc.setWordWrap(True)
@@ -389,7 +398,8 @@ class QpalsLM:
                 edgeDmod, edgeDscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsEdgeDetect",
                                                                                        "opalsEdgeDetect",
                                                                                        self.project,
-                                                                                       {'threshold': '1;5',
+                                                                                       {'threshold': '2;4',
+                                                                                        'sigmaSmooth': '1.8',
                                                                                         'inFile': 'DTM_1m_slope_slpDeg.tif',
                                                                                         'outFile': 'detected_edges.tif'},
                                                                                        ["inFile",
@@ -520,8 +530,9 @@ class QpalsLM:
                 lmmod, lmscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsLineModeler",
                                                                                  "opalsLineModeler",
                                                                                  self.project,
-                                                                                 {"filter": "Class[Ground]",
-                                                                                  "approxFile": "edges3.shp"},
+                                                                                 {#"filter": "Class[Ground]",
+                                                                                  "approxFile": "edges3.shp",
+                                                                                  "outFile": "modelled_lines.shp"},
                                                                                  ["inFile",
                                                                                   "approxFile",
                                                                                   "outFile",
@@ -539,15 +550,30 @@ class QpalsLM:
                 lmmod.afterRun = self.add3DLines
 
             if name == "Editing (3D)":
-                desc = QtGui.QLabel("TODO: Problematic junctions")
+                desc = QtGui.QLabel("Before exporting the final product, there are a few tools to check the "
+                                    "quality of the result. This includes a topological check as well as a search"
+                                    "for points that have a big height difference to the DTM - and might be erraneous.")
+
                 desc.setWordWrap(True)
                 ls.addRow(desc)
-                desc2 = QtGui.QLabel("TODO: Points with deviation > 0.5 from DTM")
-                desc2.setWordWrap(True)
-                ls.addRow(desc2)
-                desc3 = QtGui.QLabel("TODO: Topology (double lines, double points, intersections)")
-                desc3.setWordWrap(True)
-                ls.addRow(desc3)
+
+                self.startQualityCheckBtn = QtGui.QPushButton("Start calculation")
+                self.startQualityCheckBtn.clicked.connect(self.runProblemSearchAsync)
+                self.QualityCheckbar = QtGui.QProgressBar()
+                self.QualityCheckDtm = QgsMapLayerComboBox()
+                self.QualityCheckDtm.setFilters(QgsMapLayerProxyModel.RasterLayer)
+                self.QualityCheckThreshold = QtGui.QLineEdit("0.5")
+                ls.addRow(QtGui.QLabel("DTM Layer to compare heights with"), self.QualityCheckDtm)
+                ls.addRow(QtGui.QLabel("Set height difference threshold [m]"), self.QualityCheckThreshold)
+                hb = QtGui.QHBoxLayout()
+                hb.addWidget(self.QualityCheckbar)
+                hb.addWidget(self.startQualityCheckBtn)
+                ls.addRow(hb)
+                line = QtGui.QFrame()
+                line.setFrameShape(QtGui.QFrame.HLine)
+                line.setFrameShadow(QtGui.QFrame.Sunken)
+                ls.addRow(line)
+
                 self.editingls = ls
 
                 self.edit3d_linelayerbox = QgsMapLayerComboBox()
@@ -596,49 +622,14 @@ class QpalsLM:
                 ls.addRow(nextBox)
                 self.nodeLayerChanged()
 
-            if name == "Quality check":
-                desc = QtGui.QLabel("Difference Pointcloud/DTM - lines")
-                desc.setWordWrap(True)
-                ls.addRow(desc)
-                imp2mod, imp2scroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsImport",
-                                                                                     "opalsImport",
-                                                                                     self.project,
-                                                                                     {},
-                                                                                     ["inFile",
-                                                                                      "outFile"])
-                self.modules['imp2'] = imp2mod
-                ls.addRow(imp2scroll)
-
-                normod, norscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsNormals",
-                                                                                   "opalsNormals",
-                                                                                   self.project,
-                                                                                   {'neighbours': '8',
-                                                                                    'searchRadius': '2',
-                                                                                    'storeMetaInfo': 'medium',
-                                                                                    'filter': 'Generic[FileID==1] Generic[FileID==2]'},
-                                                                                   ["inFile",
-                                                                                    "filter",
-                                                                                    "neighbours",
-                                                                                    "searchRadius",
-                                                                                    "storeMetaInfo"])
-                self.modules['nor'] = normod
-                ls.addRow(norscroll)
-
-                expmod, expscroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsExport",
-                                                                                   "opalsExport",
-                                                                                   self.project,
-                                                                                   {'oformat': 'shp'},
-                                                                                   ["inFile",
-                                                                                    "outFile"])
-
-                self.modules['exp_debug'] = expmod
-                ls.addRow(expscroll)
-
             if name == "Export":
-                exp2mod, exp2scroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsExport",
-                                                                                     "opalsExport",
+                exp2mod, exp2scroll = QpalsModuleBase.QpalsModuleBase.createGroupBox("opalsTranslate",
+                                                                                     "opalsTranslate",
                                                                                      self.project,
-                                                                                     {'oformat': 'shp'},
+                                                                                     {'oformat': 'shp',
+                                                                                      'inFile': 'modelled_lines.shp',
+                                                                                     'outFile': 'STRULI3D.shp',
+                                                                                      },
                                                                                      ["inFile",
                                                                                       "outFile"])
 
@@ -711,7 +702,35 @@ class QpalsLM:
         self.iface.addVectorLayer(file, "2D-Approximations", "ogr")
 
     def add3DLines(self):
-        file = self.modules['lm'].getParam('outFile').val + ".shp"
+        file = self.modules['lm'].getParam('outFile').val
         if not os.path.isabs(file):
             file = os.path.join(self.project.workdir, file)
-        self.iface.addVectorLayer(file, "2D-Approximations", "ogr")
+        self.iface.addVectorLayer(file, "3D Modelled Lines", "ogr")
+
+    def runProblemSearchAsync(self):
+        linefile = self.modules['lm'].getParam('outFile').val
+        if not os.path.isabs(linefile):
+            linefile = os.path.join(self.project.workdir, linefile)
+        dtm = self.QualityCheckDtm
+        dtm_thres = self.QualityCheckThreshold
+        self.QualityWorker = findDoubleSegments.RunWorker(linefile, os.path.join(self.project.workdir, "quality"),
+                                                          dtm, dtm_thres,
+                                                          50, 1000)
+        self.QualityWorker.progress.connect(self.updateQualityBar)
+        self.QualityWorker.finished.connect(self.QualityFinished)
+
+        self.QualityThread = QtCore.QThread()
+        #self.QualityWorker.moveToThread(self.QualityThread)
+        self.QualityThread.started.connect(self.QualityWorker.run)
+        self.QualityThread.start()
+        self.startQualityCheckBtn.setEnabled(False)
+        self.startQualityCheckBtn.setText("processing...")
+
+    def updateQualityBar(self, fl):
+        self.QualityCheckbar.setValue(fl)
+
+    def QualityFinished(self):
+        self.startQualityCheckBtn.setEnabled(True)
+        self.startQualityCheckBtn.setText("Start calculation")
+        file = os.path.join(self.project.workdir, "quality", "problems.shp")
+        self.iface.addVectorLayer(file, "Problems", "ogr")
