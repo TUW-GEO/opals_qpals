@@ -2,6 +2,7 @@ import ogr
 import os, sys, glob
 import numpy as np
 from PyQt4 import QtCore
+from qgis.core import QgsPoint, QgsRaster
 
 class RunWorker(QtCore.QObject):
     def __init__(self, SOURCE_LINES, tempf, dtm, dtm_thres, split_size, max_elements):
@@ -15,9 +16,11 @@ class RunWorker(QtCore.QObject):
 
     def run(self):
         try:
-            main(self.SOURCE_LINES, self.tempf, self.split_size, self.max_elements, self.progress)
+            main(self.SOURCE_LINES, self.tempf, self.split_size, self.max_elements, self.progress, self.dtm, self.dtm_thres)
         except Exception as e:
-            print "Error:", str(e)
+            import traceback
+            traceback.print_exc()
+            #print "Error:", str(e)
         ret = 1
         self.finished.emit(ret)
 
@@ -25,7 +28,7 @@ class RunWorker(QtCore.QObject):
     progress = QtCore.pyqtSignal(float)
 
 
-def main(SOURCE_LINES, tempf, split_size, max_elements, progressslot=None):
+def main(SOURCE_LINES, tempf, split_size, max_elements, progressslot=None, dtm=None, dtmThres=0):
     driver = ogr.GetDriverByName("ESRI Shapefile")
     if not os.path.exists(tempf):
         os.mkdir(tempf)
@@ -39,6 +42,7 @@ def main(SOURCE_LINES, tempf, split_size, max_elements, progressslot=None):
 
     ang_list = []
     doublenode_list = []
+    dtm_list = []
 
     # if source.shp is not a file, use it as regexp pattern
     for input_file in glob.glob(SOURCE_LINES):
@@ -47,34 +51,70 @@ def main(SOURCE_LINES, tempf, split_size, max_elements, progressslot=None):
         for feat in layerIn:
             geom_ref = feat.GetGeometryRef()
             if geom_ref is not None:
-                for i in range(0, geom_ref.GetPointCount()-1):
-                    pt1 = list(geom_ref.GetPoint(i))
-                    pt2 = list(geom_ref.GetPoint(i+1))
-                    del pt1[2]
-                    del pt2[2]
-                    outGeom = ogr.Geometry(ogr.wkbLineString)
-                    outGeom.AddPoint(*pt1)
-                    outGeom.AddPoint(*pt2)
-                    outFeat = ogr.Feature(fDefC)
-                    outFeat.SetGeometry(outGeom)
-                    outLayerC.CreateFeature(outFeat)
-                    outFeat = None
-                    if (pt1 == pt2):
-                        doublenode_list.append(pt1)
-                    if i > 0:
-                        pt0 = list(geom_ref.GetPoint(i-1))
-                        del pt0[2]
-                        v10 = np.array([pt0[i]-pt1[i] for i in range(len(pt1))])
-                        v12 = np.array([pt2[i]-pt1[i] for i in range(len(pt1))])
-                        v10n = np.linalg.norm(v10)
-                        v12n = np.linalg.norm(v12)
-                        if v10n == 0 or v12n == 0:
-                            continue
-                        v10u = v10/v10n
-                        v12u = v12/v12n
-                        ang = np.arccos(np.clip(np.dot(v10u, v12u), -1.0, 1.0)) * 180/np.pi
-                        if ang <= 90:  # spitze winkel
-                            ang_list.append([pt1, ang])
+                for i in range(0, geom_ref.GetPointCount()):
+                    if i < geom_ref.GetPointCount()-1:
+                        pt1 = list(geom_ref.GetPoint(i))
+                        pt2 = list(geom_ref.GetPoint(i+1))
+                        del pt1[2]
+                        del pt2[2]
+                        outGeom = ogr.Geometry(ogr.wkbLineString)
+                        outGeom.AddPoint(*pt1)
+                        outGeom.AddPoint(*pt2)
+                        outFeat = ogr.Feature(fDefC)
+                        outFeat.SetGeometry(outGeom)
+                        outLayerC.CreateFeature(outFeat)
+                        outFeat = None
+                        if (pt1 == pt2):
+                            doublenode_list.append(pt1)
+                        if i > 0:
+                            pt0 = list(geom_ref.GetPoint(i-1))
+                            del pt0[2]
+                            v10 = np.array([pt0[i]-pt1[i] for i in range(len(pt1))])
+                            v12 = np.array([pt2[i]-pt1[i] for i in range(len(pt1))])
+                            v10n = np.linalg.norm(v10)
+                            v12n = np.linalg.norm(v12)
+                            if v10n == 0 or v12n == 0:
+                                continue
+                            v10u = v10/v10n
+                            v12u = v12/v12n
+                            ang = np.arccos(np.clip(np.dot(v10u, v12u), -1.0, 1.0)) * 180/np.pi
+                            if ang <= 90:  # spitze winkel
+                                ang_list.append([pt1, ang])
+                    if dtm:
+                        pt = list(geom_ref.GetPoint(i))
+                        rlayer = dtm
+                        dx = rlayer.rasterUnitsPerPixelX()
+                        dy = rlayer.rasterUnitsPerPixelY()
+                        xpos = pt[0]
+                        ypos = pt[1]
+                        # assume pixel = center
+                        xll = rlayer.extent().xMinimum() + 0.5 * dx
+                        yll = rlayer.extent().yMinimum() + 0.5 * dy
+                        xoffs = (pt[0] - xll) % dx
+                        yoffs = (pt[1] - yll) % dy
+                        dtm_val_ll = rlayer.dataProvider().identify(QgsPoint(xpos - dx / 2, ypos - dy / 2),
+                                                                    QgsRaster.IdentifyFormatValue).results()[1]
+                        dtm_val_ur = rlayer.dataProvider().identify(QgsPoint(xpos + dx / 2, ypos + dy / 2),
+                                                                    QgsRaster.IdentifyFormatValue).results()[1]
+                        dtm_val_lr = rlayer.dataProvider().identify(QgsPoint(xpos + dx / 2, ypos - dy / 2),
+                                                                    QgsRaster.IdentifyFormatValue).results()[1]
+                        dtm_val_ul = rlayer.dataProvider().identify(QgsPoint(xpos - dx / 2, ypos + dy / 2),
+                                                                    QgsRaster.IdentifyFormatValue).results()[1]
+                        if all([dtm_val_ll, dtm_val_lr, dtm_val_ul, dtm_val_ur]):
+                            a00 = dtm_val_ll
+                            a10 = dtm_val_lr - dtm_val_ll
+                            a01 = dtm_val_ul - dtm_val_ll
+                            a11 = dtm_val_ur + dtm_val_ll - (dtm_val_lr + dtm_val_ul)
+                            dtm_bilinear = a00 + a10 * xoffs + a01 * yoffs + a11 * xoffs * yoffs
+                            if abs(pt[2] - dtm_bilinear) > dtmThres:
+                                addPoint = True
+                                for (p, v) in dtm_list:
+                                    if p[0] == pt[0] and p[1] == pt[1]:
+                                        addPoint=False
+                                        break
+                                if addPoint:
+                                    dtm_list.append([pt, (dtm_bilinear-pt[2])])
+
 
     SOURCE_LINES = collected_file
     outLayerC = None
@@ -141,6 +181,18 @@ def main(SOURCE_LINES, tempf, split_size, max_elements, progressslot=None):
     for (pt, val) in ang_list:
         outFeat = ogr.Feature(fDefI)
         outFeat.SetField("TYPE", "angle")
+        outFeat.SetField("VAL", val)
+        geom = ogr.Geometry(ogr.wkbMultiPoint)
+        pgeom = ogr.Geometry(ogr.wkbPoint)
+        pgeom.AddPoint(*pt)
+        geom.AddGeometry(pgeom)
+        outFeat.SetGeometryDirectly(geom)
+        outLayerI.CreateFeature(outFeat)
+        outFeat = None
+
+    for (pt, val) in dtm_list:
+        outFeat = ogr.Feature(fDefI)
+        outFeat.SetField("TYPE", "distance")
         outFeat.SetField("VAL", val)
         geom = ogr.Geometry(ogr.wkbMultiPoint)
         pgeom = ogr.Geometry(ogr.wkbPoint)

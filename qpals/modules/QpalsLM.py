@@ -130,6 +130,13 @@ class QpalsLM:
                 self.section.ltool.canvas.scene().removeItem(self.section.ltool.rb)
             self.iface.actionPan().trigger()
 
+        if self.names[curridx] == "Export":
+            outdir = self.settings['settings']['outFolder'].currentText()
+            self.modules['exp'].setParam('outFile', os.path.join(outdir,
+                                                                 '3DSTRULI.shp'))
+            if not os.path.isdir(outdir) and outdir:
+                os.makedirs(outdir)
+
     def close(self):
         if self.section.ltool.rb:
             self.section.ltool.canvas.scene().removeItem(self.section.ltool.rb)
@@ -711,10 +718,14 @@ class QpalsLM:
         linefile = self.modules['lm'].getParam('outFile').val
         if not os.path.isabs(linefile):
             linefile = os.path.join(self.project.workdir, linefile)
-        dtm = self.QualityCheckDtm
-        dtm_thres = self.QualityCheckThreshold
+        dtm = self.QualityCheckDtm.currentLayer()
+        dtm_thres = self.QualityCheckThreshold.text()
+        try:
+            dtm_thres = float(dtm_thres)
+        except:
+            dtm_thres = 0
         self.QualityWorker = findDoubleSegments.RunWorker(linefile, os.path.join(self.project.workdir, "quality"),
-                                                          dtm, dtm_thres,
+                                                          dtm,dtm_thres,
                                                           50, 1000)
         self.QualityWorker.progress.connect(self.updateQualityBar)
         self.QualityWorker.finished.connect(self.QualityFinished)
@@ -732,5 +743,6 @@ class QpalsLM:
     def QualityFinished(self):
         self.startQualityCheckBtn.setEnabled(True)
         self.startQualityCheckBtn.setText("Start calculation")
+        self.updateQualityBar(100)
         file = os.path.join(self.project.workdir, "quality", "problems.shp")
         self.iface.addVectorLayer(file, "Problems", "ogr")
