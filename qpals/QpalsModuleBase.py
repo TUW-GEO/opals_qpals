@@ -27,7 +27,7 @@ from qt_extensions import QTextComboBox
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import pyqtSlot
 
-import QpalsParamMsgBtn
+import QpalsParamBtns
 import QpalsParameter
 from qt_extensions import QpalsDropTextbox, QCollapsibleGroupBox
 from modules.QpalsAttributeMan import getAttributeInformation
@@ -175,6 +175,7 @@ class ModuleBaseRunWorker(QtCore.QObject):
         self.killed = [False]
 
     def run(self):
+        print "worker run"
         try:
             self.module.run(statusSignal=self.status, killSignal=self.killed)
             if not self.killed[0]:
@@ -465,13 +466,15 @@ class QpalsModuleBase():
             else:
                 param.field.activated['QString'].connect(self.updateVals)
 
-        param.icon = QpalsParamMsgBtn.QpalsParamMsgBtn(param, parent)
+        param.icon = QpalsParamBtns.QpalsParamMsgBtn(param, parent)
         param.icon.setToolTip(param.opt)
         param.icon.setIcon(WaitIcon)
         param.icon.setStyleSheet("border-style: none;")
         if param.opt == 'mandatory':
             param.icon.setIcon(WaitIconMandatory)
         l2 = QtGui.QHBoxLayout()
+        param.changedIcon = QpalsParamBtns.QpalsLockIconBtn(param)
+        l2.addWidget(param.changedIcon)
         l2.addWidget(param.field, stretch=1)
         if param.browse is not None:
             l2.addWidget(param.browse)
@@ -541,6 +544,7 @@ class QpalsModuleBase():
                     self.revalidate = True
                     param.val = param.field.text()
                     param.changed = True
+                    param.changedIcon.setIcon(QpalsParamBtns.lockedIcon)
                     param.field.setStyleSheet('background-color: rgb(200,255,200);')
 
         for param in self.globals:
@@ -549,6 +553,7 @@ class QpalsModuleBase():
                     self.revalidate = True
                     param.val = param.field.text()
                     param.changed = True
+                    param.changedIcon.setIcon(QpalsParamBtns.lockedIcon)
                     param.field.setStyleSheet('background-color: rgb(200,255,200);')
 
     def updateVals(self, string):
@@ -556,6 +561,8 @@ class QpalsModuleBase():
             if string == param.field.text():
                 if param.val != param.field.text():
                     self.revalidate = True
+                    param.changed = True
+                    param.changedIcon.setIcon(QpalsParamBtns.lockedIcon)
                     if os.path.isabs(param.field.text()):
                         try:  # check if path is in working dir - use relative paths
                             relpath = os.path.relpath(os.path.normpath(param.field.text()),
@@ -661,7 +668,7 @@ class QpalsModuleBase():
                 parsedXML = parseXML(calld['stderr'])['Specific']
                 for param in self.params:
                     for parsedParam in parsedXML:
-                        if param.name == parsedParam.name:
+                        if param.name == parsedParam.name and not param.changed:
                             param.field.setText(parsedParam.val)
                             break
             return valid
@@ -709,7 +716,7 @@ class QpalsModuleBase():
     def __str__(self):
         return self.run(onlytext=True)
 
-    def run_async(self, on_finish=None, on_error=None, status=None, abort_signal=None):
+    def run_async(self, on_finish=None, on_error=None, status=None, abort_signal=None, run_now=True):
         worker = ModuleBaseRunWorker(self)
         thread = QtCore.QThread()
         worker.moveToThread(thread)
@@ -723,7 +730,8 @@ class QpalsModuleBase():
             abort_signal.connect(worker.stop)
         worker.finished.connect(thread.quit)
         thread.started.connect(worker.run)
-        thread.start()
+        if run_now:
+            thread.start()
         return thread, worker
 
     def run_async_self(self, on_error=None, abort_signal=None):

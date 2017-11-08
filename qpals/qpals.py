@@ -120,16 +120,9 @@ class qpals:
         self.prjUI = self.prjSet.getUI()
         self.prjUI.show()
 
-    def showdd(self):
-        import qpals.qt_extensions.QpalsDropTextbox
-        self.drop = qpals.QpalsDropTextbox.droptester()
-        self.drop.show()
-
     def showlog(self):
         import webbrowser
         webbrowser.open('file:///' + os.path.join(self.prjSet.tempdir, "opalsLog.xml"))
-        #self.log = QpalsLog.QpalsLog(iface=self.iface)
-        #self.log.ui.show()
 
     def clearlog(self):
         try:

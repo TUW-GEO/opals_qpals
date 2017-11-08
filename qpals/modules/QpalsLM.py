@@ -39,6 +39,7 @@ from qgis.gui import QgsMapTool, QgsMapLayerComboBox, QgsMapLayerProxyModel
 from ..qt_extensions import QpalsDropTextbox
 from .. import QpalsModuleBase
 from ..qt_extensions.QCollapsibleGroupBox import QCollapsibleGroupBox
+from ..QpalsMultiModuleRunner import qpalsMultiModuleRunner as qMMR
 import findDoubleSegments
 
 
@@ -78,6 +79,7 @@ class QpalsLM:
         self.layerlist = layerlist
         self.iface = iface
         self.pcfile = None
+        self.multirunner = None
 
     def switchToNextTab(self):
         curridx = self.tabs.currentIndex()
@@ -321,6 +323,7 @@ class QpalsLM:
                 ls.addRow(QtGui.QLabel("Folder for output files"), hbox_wrap)
                 ls.addRow(QtGui.QLabel(""))
                 boxBtnRun = QtGui.QPushButton("Run selected steps now")
+                boxBtnRun.clicked.connect(lambda: self.run_step("all"))
                 boxBtnExp = QtGui.QPushButton("Export selected steps to .bat")
                 boxVL.addWidget(boxBtnRun)
                 boxVL.addWidget(boxBtnExp)
@@ -481,6 +484,7 @@ class QpalsLM:
                                                                                     "outFile",
                                                                                     "method",
                                                                                     "maxAngleDev",
+                                                                                    "snapRadius",
                                                                                     "merge\..*"])
                 lt2scroll.setFixedHeight(lt2scroll.height() - 200)
                 self.modules['lt2'] = lt2mod
@@ -660,7 +664,6 @@ class QpalsLM:
                         "2D-Approximation",
                         "Topologic correction",
                         "3D-Modelling",
-                        "Quality check",
                         "Export"]:
                 navbar.addWidget(runcurr)
             navbar.addStretch()
@@ -675,12 +678,56 @@ class QpalsLM:
         self.tabs.currentChanged.connect(self.updateTabs)
         return self.tabs
 
-    def run_step(self):
+    def run_step(self, step_name=None):
         curridx = self.tabs.currentIndex()
-        step_name = self.names[curridx]
-        if step_name == "DTM":
-            thread, worker = self.modules['dtmGrid'].run_async(status=self.updateBar, on_finish=self.run_step)
+        if step_name is None:
+            step_name = self.names[curridx]
 
+        modules = self.get_step_modules(step_name=step_name)
+
+        self.multirunner = qMMR()
+        for mod in modules:
+            self.multirunner.add_module(mod, mod.updateBar, mod.run_async_finished, mod.errorBar)
+        self.multirunner.start()
+
+    def get_step_modules(self, step_name=None):
+        steps_modules = {
+            "DTM": [self.modules['dtmImp'], self.modules['dtmGrid'], self.modules['dtmShade']],
+            "Slope": [self.modules['slope']],
+            "2D-Approximation": [self.modules['edgeDetect'], self.modules['vectorize']],
+            "Topologic correction": [self.modules['lt1'], self.modules['lt2'], self.modules['lt3']],
+            "3D-Modelling": [self.modules['lm']],
+            "Export": [self.modules['exp']]
+        }
+        if step_name == "all":
+            modules = []
+            if self.settings['chkDTM'].value():
+                modules += steps_modules["DTM"]
+            if self.settings['chkSlope'].value():
+                modules += steps_modules["Slope"]
+            if self.settings['chk2D'].value():
+                modules += steps_modules["2D-Approximation"]
+            if self.settings['chktopo2D'].value():
+                modules += steps_modules["Topologic correction"]
+            if self.settings['chk3Dmodel'].value():
+                modules += steps_modules["3D-Modelling"]
+            if self.settings['chkExport'].value():
+                modules += steps_modules["Export"]
+        else:
+            modules = steps_modules[step_name]
+        return modules
+
+    def createBatFile(self):
+        saveTo = QtGui.QFileDialog.getSaveFileName(None, caption='Save to file')
+        try:
+            f = open(saveTo, 'w')
+            f.write("rem BATCH FILE CREATED WITH QPALS\r\n")
+            modules = self.get_step_modules("all")
+            for module in modules:
+                f.write(str(module) + "\r\n")
+            f.close()
+        except Exception as e:
+            raise Exception("Saving to batch failed.")
 
     def updateBar(self, message):
         out_lines = [item for item in re.split("[\n\r\b]", message) if item]
@@ -731,7 +778,6 @@ class QpalsLM:
         self.QualityWorker.finished.connect(self.QualityFinished)
 
         self.QualityThread = QtCore.QThread()
-        #self.QualityWorker.moveToThread(self.QualityThread)
         self.QualityThread.started.connect(self.QualityWorker.run)
         self.QualityThread.start()
         self.startQualityCheckBtn.setEnabled(False)

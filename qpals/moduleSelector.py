@@ -390,7 +390,7 @@ class moduleSelector(QtGui.QDialog):
 
 
     def runModuleWorkerFinished(self, ret):
-        module, code = ret
+        err, errmsg, module = ret
         moduleClass = module.paramClass
         if moduleClass.visualize and moduleClass.outf:
             if not os.path.isabs(moduleClass.outf):

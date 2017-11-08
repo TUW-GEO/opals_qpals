@@ -266,7 +266,7 @@ def main(SOURCE_LINES, tempf, split_size, max_elements, progressslot=None, dtm=N
                         outFeat = None
                         counts['overlap'] += 1
                 dist = currgeom.Distance(comparegeom)
-                if dist > 0 and dist < 0.05:
+                if 0 < dist < 0.05:
                     outFeat = ogr.Feature(fDefI)
                     outFeat.SetField("TYPE", "close")
                     outFeat.SetField("VAL", dist)
