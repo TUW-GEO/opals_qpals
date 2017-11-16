@@ -1,9 +1,9 @@
 from PyQt4 import QtCore, QtGui
 from qgis.core import QgsMapLayerRegistry
-import os
+import os, re
 
 class QpalsDropTextbox(QtGui.QComboBox):
-    def __init__(self, layerlist=None, text=None, show_layers=True, *args, **kwargs):
+    def __init__(self, layerlist=None, text=None, show_layers=True, filterrex='.*', *args, **kwargs):
         super(QpalsDropTextbox, self).__init__(*args, **kwargs)
         self.setAcceptDrops(True)
         #self.setSizePolicy(QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Preferred))
@@ -14,7 +14,12 @@ class QpalsDropTextbox(QtGui.QComboBox):
         self.layerlist = layerlist
         self.editingFinished = self.lineEdit().editingFinished
         self.showLayers = show_layers
+        self.filterrex = filterrex
         self.reloadLayers()
+
+    def showPopup(self):
+        self.reloadLayers()
+        super(QpalsDropTextbox, self).showPopup()
 
 
     def dragEnterEvent(self, e):
@@ -67,6 +72,7 @@ class QpalsDropTextbox(QtGui.QComboBox):
         return self.lineEdit().text()
 
     def reloadLayers(self):
+        text = self.text()
         if self.showLayers:
             while self.count() > 0:
                 self.removeItem(0)
@@ -76,9 +82,12 @@ class QpalsDropTextbox(QtGui.QComboBox):
             for layer in layers:
                 odmpath = layer.customProperty("qpals-odmpath", "")
                 if odmpath:
-                    self.addItem(odmpath)
+                    if re.search(self.filterrex, odmpath):
+                        self.addItem(odmpath)
                 elif os.path.exists(layer.source()):
-                    self.addItem(layer.source())
+                    if re.search(self.filterrex, layer.source()):
+                        self.addItem(layer.source())
+        self.setText(text)
 
     def setPlaceholderText(self, text):
         self.lineEdit().setPlaceholderText(text)

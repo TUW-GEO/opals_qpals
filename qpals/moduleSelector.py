@@ -17,12 +17,15 @@ email                : lukas.winiwarter@tuwien.ac.at
  ***************************************************************************/
  """
 
-from PyQt4 import QtCore, QtGui
-from QpalsListWidgetItem import QpalsListWidgetItem
-from QpalsModuleBase import QpalsModuleBase, QpalsRunBatch, ModuleLoadWorker, ModuleRunWorker
-import QpalsShowFile
-import glob, os
+import glob
+import os
 import re
+
+from PyQt4 import QtCore, QtGui
+
+import QpalsShowFile
+from QpalsModuleBase import QpalsModuleBase, QpalsRunBatch, ModuleLoadWorker, ModuleRunWorker
+from qt_extensions.QpalsListWidgetItem import QpalsListWidgetItem
 
 qtwhite = QtGui.QColor(255, 255, 255)
 qtsoftred = QtGui.QColor(255, 140, 140)
@@ -271,10 +274,20 @@ class moduleSelector(QtGui.QDialog):
         else:
             self.loadModule(module)  # display "select a module"
 
+    def showHelp(self):
+        if self.curmodule:
+            import webbrowser
+            webbrowser.open('file:///' + os.path.join(self.project.opalspath, "..", "doc", "html",
+                                                      "Module" + self.curmodule.text()[5:] + ".html"))
+
     def loadModule(self, module):
         if module:  # can happen if it gets filtered away
             form = QtGui.QVBoxLayout()
             self.moduleparamBox.setTitle("Parameters for " + module.text())
+
+            helpBtn = QtGui.QPushButton("Module help")
+            helpBtn.clicked.connect(self.showHelp)
+
             parameterform = module.paramClass.getParamUi(parent=self)
             form.addLayout(parameterform, stretch=1)
             # reset / run / add to list / add to view
@@ -294,9 +307,11 @@ class moduleSelector(QtGui.QDialog):
                 form.addWidget(self.commonbtn)
             #viewbox.stateChanged.connect(module.paramClass.view = viewbox.isChecked())
             resetbar.addStretch(1)
+            resetbar.addWidget(helpBtn)
             resetbar.addWidget(resetbtn)
             resetbar.addWidget(runbtn)
             resetbar.addWidget(addbtn)
+
             if "opals" in module.text():
                 resetbar.addWidget(self.viewbox)
             #resetbar.addWidget(commonbtn)
@@ -305,6 +320,7 @@ class moduleSelector(QtGui.QDialog):
             module.paramClass.revalidate = True
             module.paramClass.validate()
             self.curmodule = module
+
         else:
             form = QtGui.QHBoxLayout()
             l1 = QtGui.QLabel("No module selected...")
@@ -387,7 +403,7 @@ class moduleSelector(QtGui.QDialog):
 
 
     def runModuleWorkerFinished(self, ret):
-        module, code = ret
+        err, errmsg, module = ret
         moduleClass = module.paramClass
         if moduleClass.visualize and moduleClass.outf:
             if not os.path.isabs(moduleClass.outf):

@@ -17,28 +17,34 @@ email                : lukas.winiwarter@tuwien.ac.at
  ***************************************************************************/
  """
 
-from PyQt4 import QtCore, QtGui
-
-from qgis.core import *
-from qgis.gui import *
-
-from qgis.core import QgsMapLayerRegistry
-
-
-import os, tempfile, time
+import os
+import tempfile
 from xml.dom import minidom
+
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import ogr
+import re
+from PyQt4 import QtGui
+from PyQt4.QtGui import QColor
+from PyQt4.QtGui import QCursor, QBitmap
+from qgis.core import *
+from qgis.core import QgsMapLayerRegistry
+from qgis.gui import *
+from qgis.gui import QgsMapLayerComboBox, QgsMapLayerProxyModel
 
-from .. import QpalsShowFile, QpalsModuleBase, QpalsDropTextbox, QpalsParameter
+from ..qt_extensions import QpalsDropTextbox
+from .. import QpalsShowFile, QpalsModuleBase, QpalsParameter
+from QpalsAttributeMan import getAttributeInformation
+from matplotlib_section import plotwindow
+
 
 class QpalsSection:
 
     def __init__(self, project, layerlist, iface):
         self.advanced_widget = None
         self.simple_widget = None
+        self.ls = None
         self.tabs = None
         self.project = project
         self.layerlist = layerlist
@@ -46,39 +52,41 @@ class QpalsSection:
         self.visLayer = None
         self.ltool = LineTool(self.iface.mapCanvas(), self.visLayer, secInst=self)
         self.sections = dict()
-
-
+        self.bm = QBitmap(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'media', 'cursor-cross.png'))
 
     def createWidget(self):
         self.advanced_widget = QtGui.QDialog()
         self.simple_widget = QtGui.QDialog()
         self.tabs = QtGui.QTabWidget()
         ### SIMPLE ###
-        ls = QtGui.QFormLayout()
-        ls.addRow(QtGui.QLabel("Choose input file:"))
-        self.txtinfileSimple = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)
+        self.ls = QtGui.QFormLayout()
+        self.ls.addRow(QtGui.QLabel("Choose input file:"))
+        self.txtinfileSimple = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist, filterrex=".*\.odm$")
         hboxsimple1 = QtGui.QHBoxLayout()
         hboxsimple1.addWidget(self.txtinfileSimple, 1)
-        self.txtinfileSimple.editingFinished.connect(self.simpleIsLoaded)
-        ls.addRow(QtGui.QLabel("Input file (odm)"), hboxsimple1)
-        self.runShdBtnSimple = QtGui.QPushButton("Load File")
-        self.runShdBtnSimple.clicked.connect(self.loadShading)
-        ls.addRow(self.runShdBtnSimple)
-        self.txtthickness = QtGui.QLineEdit("5")
-        ls.addRow(QtGui.QLabel("Section thickness [m]"), self.txtthickness)
-        self.linetoolBtn = QtGui.QPushButton("Pick section (two clicks)")
+        self.txtinfileSimple.textChanged.connect(self.simpleIsLoaded)
+        self.ls.addRow(QtGui.QLabel("Input file (odm)"), hboxsimple1)
+        self.linetoolBtn = QtGui.QPushButton("Pick section")
         self.linetoolBtn.clicked.connect(self.activateLineTool)
         self.linetoolBtn.setEnabled(False)
-        ls.addRow(self.linetoolBtn)
-        self.p1label = QtGui.QLabel("")
-        self.p2label = QtGui.QLabel("")
-        ls.addRow(QtGui.QLabel("Point 1:"), self.p1label)
-        ls.addRow(QtGui.QLabel("Point 2:"), self.p2label)
+        self.ls.addRow(self.linetoolBtn)
         self.runSecBtnSimple = QtGui.QPushButton("Create section")
         self.runSecBtnSimple.clicked.connect(self.ltool.runsec)
         self.runSecBtnSimple.setEnabled(False)
-        ls.addRow(self.runSecBtnSimple)
-        self.simple_widget.setLayout(ls)
+        self.runSecBtnSimple.setStyleSheet("background-color: rgb(50,240,50)")
+        self.simpleLineLayer = QgsMapLayerComboBox()
+        self.simpleLineLayer.setFilters(QgsMapLayerProxyModel.LineLayer)
+        self.simpleLineLayerChk = QtGui.QCheckBox("Visualize (3D) Line Layer:")
+        self.ls.addRow(self.simpleLineLayerChk, self.simpleLineLayer)
+        self.showSection = QtGui.QCheckBox("Show section")
+        self.progress = QtGui.QProgressBar()
+        self.showSection.stateChanged.connect(self.checkBoxChanged)
+        self.showSection.setCheckState(2)
+        self.showSection.setTristate(False)
+        self.ls.addRow(self.showSection)
+        self.ls.addRow(self.runSecBtnSimple)
+        self.ls.addRow(self.progress)
+        self.simple_widget.setLayout(self.ls)
         ### ADVANCED ###
         lo = QtGui.QFormLayout()
         ######
@@ -111,7 +119,24 @@ class QpalsSection:
         self.advanced_widget.setLayout(lo)
         self.tabs.addTab(self.simple_widget, "Simple")
         self.tabs.addTab(self.advanced_widget, "Advanced")
+
         return self.tabs
+
+    def close(self):
+        if self.ltool.rb:
+            self.ltool.canvas.scene().removeItem(self.ltool.rb)
+        self.iface.actionPan().trigger()
+
+    def checkBoxChanged(self):
+        if self.showSection.checkState() == 2:
+            # on
+            if self.ltool.rb:
+                self.ltool.canvas.scene().addItem(self.ltool.rb)
+        else:
+            #off
+            if self.ltool.rb:
+                self.ltool.canvas.scene().removeItem(self.ltool.rb)
+
 
     def simpleIsLoaded(self):
         layers = QgsMapLayerRegistry.instance().mapLayers().values()
@@ -202,6 +227,8 @@ class QpalsSection:
         self.iface.mapCanvas().setMapTool(tool)
 
     def activateLineTool(self):
+        c = QCursor(self.bm, self.bm)
+        self.iface.mapCanvas().setCursor(c)
         self.iface.mapCanvas().setMapTool(self.ltool)
 
 class LineTool(QgsMapTool):
@@ -209,98 +236,167 @@ class LineTool(QgsMapTool):
         QgsMapTool.__init__(self, canvas)
         self.canvas = canvas
         self.layer = layer
-        self.visLayer = None
         self.secInst = secInst
         self.p1 = None
         self.p2 = None
+        self.p3 = None
         self.seclength = 0
+        self.width = 0
         self.midpoint = None
         self.ab0N = None
-
-    def __del__(self):
-        if self.visLayer:
-            QgsMapLayerRegistry.instance().removeMapLayer(self.visLayer.id())
+        self.rb = None
+        self.pltwindow = None
+        self.thread = None
+        self.worker = None
+        self.outParamFile = None
+        self.currattr = None
+        self.aoi = None
+        self.trafo = None
+        self.data = {}
+        self.mins = {}
+        self.maxes = {}
+        self.attrs_left = []
+        self.count = 0
+        self.total = 0
 
     def canvasPressEvent(self, event):
         pass
 
     def canvasMoveEvent(self, event):
-        pass
-
-    def canvasReleaseEvent(self, event):
-
-        print self.layer
-        layerPoint = self.toLayerCoordinates(self.layer, event.pos())
+        if self.rb and not all([self.p1, self.p2, self.p3]):
+            self.canvas.scene().removeItem(self.rb)
         if self.p1 and not self.p2:
-            self.p2 = layerPoint
-            self.secInst.p2label.setText(str(layerPoint))
-            self.secInst.runSecBtnSimple.setEnabled(True)
+            self.rb = QgsRubberBand(self.canvas, False)
+            points = [self.p1, self.toLayerCoordinates(self.layer,event.pos())]
+            self.rb.setToGeometry(QgsGeometry.fromPolyline(points), None)
+            self.rb.setColor(QColor(0, 128, 255))
+            self.rb.setWidth(1)
+        elif self.p1 and self.p2 and not self.p3:
+            self.rb = QgsRubberBand(self.canvas, False)
+            p0 = self.toLayerCoordinates(self.layer,event.pos())
+            x0 = p0.x()
+            x1 = self.p1.x()
+            x2 = self.p2.x()
+            y0 = p0.y()
+            y1 = self.p1.y()
+            y2 = self.p2.y()
+            dist = (abs((y2-y1)*x0 - (x2-x1)*y0 + x2*y1-y2*x1) / np.sqrt((y2-y1)**2 + (x2-x1)**2))
 
-            self.visLayer = self.secInst.iface.addVectorLayer("Polygon?crs=" + self.layer.crs().toWkt(), "Sections", "memory")
-            pr = self.visLayer.dataProvider()
-            feat = QgsFeature()
+
             a = np.array([self.p1.x(), self.p1.y()])
             b = np.array([self.p2.x(), self.p2.y()])
             ab = b-a
             self.seclength = np.linalg.norm(ab)
             self.midpoint = a + ab/2
+            self.width = dist / 2
             ab0 = ab/self.seclength
             self.ab0N = np.array([-ab0[1], ab0[0]])
 
-            c1 = a + float(self.secInst.txtthickness.text())/2*self.ab0N
-            c2 = b + float(self.secInst.txtthickness.text())/2*self.ab0N
-            c3 = b - float(self.secInst.txtthickness.text())/2*self.ab0N
-            c4 = a - float(self.secInst.txtthickness.text())/2*self.ab0N
-            points = [QgsPoint(c1[0], c1[1]),
+            c1 = a + dist*self.ab0N
+            c2 = b + dist*self.ab0N
+            c3 = b - dist*self.ab0N
+            c4 = a - dist*self.ab0N
+            points = [[QgsPoint(c1[0], c1[1]),
                       QgsPoint(c2[0], c2[1]),
                       QgsPoint(c3[0], c3[1]),
                       QgsPoint(c4[0], c4[1])
-                      ]
+                      ]]
+            self.rb.setToGeometry(QgsGeometry.fromPolygon(points), None)
+            self.rb.setColor(QColor(0, 128, 255))
+            fc = QColor(0, 128, 255)
+            fc.setAlpha(128)
+            self.rb.setFillColor(fc)
+            self.rb.setWidth(1)
+        else:
+            pass
 
-            feat.setGeometry(QgsGeometry.fromPolygon([points]))
-            pr.addFeatures([feat])
 
-            self.visLayer.setLayerTransparency(50)
-            #QgsMapLayerRegistry.instance().addMapLayer(self.visLayer)
-            self.secInst.iface.mapCanvas().refresh()
+    def canvasReleaseEvent(self, event):
+        print self.layer
+        layerPoint = self.toLayerCoordinates(self.layer, event.pos())
+        if self.p1 and not self.p2:
+            self.p2 = layerPoint
+        elif self.p1 and self.p2 and not self.p3:
+            self.p3 = layerPoint
+            self.secInst.runSecBtnSimple.setEnabled(True)
         else:
             self.p1 = layerPoint
-            self.secInst.p1label.setText(str(layerPoint))
             self.p2 = None
-            self.secInst.p2label.setText("")
+            self.p3 = None
             self.secInst.runSecBtnSimple.setEnabled(False)
-            if self.visLayer:
-                QgsMapLayerRegistry.instance().removeMapLayer(self.visLayer.id())
+            self.canvas.scene().removeItem(self.rb)
+
+    def update_status(self, message):
+        out_lines = [item for item in re.split("[\n\r\b]", message) if item]
+        percentage = out_lines[-1]
+        # print percentage
+        if r"%" in percentage:
+            perc = QpalsModuleBase.get_percentage(percentage)
+            self.secInst.progress.setValue(int(perc))
+
 
     def runsec(self):
-        #write polyline shp to file
+        self.currattr = None
+        self.aoi = None
+        self.trafo = None
+        self.data = {}
+        self.mins = {}
+        self.maxes = {}
+        self.attrs_left = []
+        self.count = 0
+        self.total = 0
+
+        # grab availiable attributes
+        attrs, _ = getAttributeInformation(self.secInst.txtinfileSimple.text(), self.secInst.project)
+        self.mins = {attr[0]: attr[3] for attr in attrs}
+        self.maxes = {attr[0]: attr[4] for attr in attrs}
+        self.attrs_left = [attr[0] for attr in attrs]
+        #self.attrs_left = [self.attrs_left[0]]
+        self.total = len(self.attrs_left)
+        if self.pltwindow:
+            self.pltwindow.ui.deleteLater()
+
+        self.run_next()
+
+    def run_next(self):
+        self.count += 1
         outShapeFileH = tempfile.NamedTemporaryFile(suffix=".shp", delete=True)
         outShapeFile = outShapeFileH.name
         outShapeFileH.close()
 
         self.write_axis_shape(outShapeFile)
 
-        #run section
-        Module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.secInst.project.opalspath, "opalsSection.exe"), QpalsProject=self.secInst.project)
-        infile = QpalsParameter.QpalsParameter('inFile', self.secInst.txtinfileSimple.text(), None, None, None, None, None)
+        self.currattr = self.attrs_left.pop()
+        self.secInst.progress.setFormat("Running opalsSection for attribute %s (%s/%s)..." % (self.currattr,
+                                                                                              self.count,
+                                                                                              self.total))
+        Module = QpalsModuleBase.QpalsModuleBase(
+            execName=os.path.join(self.secInst.project.opalspath, "opalsSection.exe"),
+            QpalsProject=self.secInst.project)
+        infile = QpalsParameter.QpalsParameter('inFile', self.secInst.txtinfileSimple.text(), None, None, None,
+                                               None, None)
         axisfile = QpalsParameter.QpalsParameter('axisFile', outShapeFile, None, None, None, None, None)
-        thickness = QpalsParameter.QpalsParameter('patchSize', '%s;%s' % (self.seclength, self.secInst.txtthickness.text()),
-                                                        None, None, None, None, None
-                                                        )
+        attribute = QpalsParameter.QpalsParameter('attribute', self.currattr, None, None, None, None, None)
+        thickness = QpalsParameter.QpalsParameter('patchSize', '%s;%s' % (self.seclength, self.width * 4),
+                                                  None, None, None, None, None
+                                                  )
 
         outParamFileH = tempfile.NamedTemporaryFile(delete=False)
-        outParamFile = outParamFileH.name + "x.xml"
+        self.outParamFile = outParamFileH.name + "x.xml"
         outParamFileH.close()
-        outParamFileParam = QpalsParameter.QpalsParameter('outParamFile', outParamFile, None, None, None, None, None)
+        outParamFileParam = QpalsParameter.QpalsParameter('outParamFile', self.outParamFile, None, None, None, None,
+                                                          None)
         Module.params.append(infile)
         Module.params.append(axisfile)
         Module.params.append(thickness)
+        Module.params.append(attribute)
         Module.params.append(outParamFileParam)
 
-        Module.run()
+        self.thread, self.worker = Module.run_async(status=self.update_status, on_finish=self.parse_output)
 
+    def parse_output(self):
         #read from file and display
-        dom = minidom.parse(outParamFile)
+        dom = minidom.parse(self.outParamFile)
         parameters = dom.getElementsByTagName("Parameter")
         outGeoms = []
         for param in parameters:
@@ -309,26 +405,47 @@ class LineTool(QgsMapTool):
                     outGeoms.append(val.firstChild.nodeValue)  # contains WKT for one section
         dom.unlink()
 
-        geoms = ogr.CreateGeometryFromWkt(outGeoms[0])
-        pointcloud = geoms.GetGeometryRef(3)
-        xvec = []
-        yvec = []
-        zvec = []
-        for i in range(pointcloud.GetGeometryCount()):
-            pt = pointcloud.GetGeometryRef(i)
-            xvec.append(pt.GetX())
-            yvec.append(pt.GetY())
-            zvec.append(pt.GetZ())
+        if len(outGeoms) > 0:
+            geoms = ogr.CreateGeometryFromWkt(outGeoms[0])
+            self.trafo = [geoms.GetGeometryRef(0), geoms.GetGeometryRef(2)]
+            self.aoi = geoms.GetGeometryRef(1)
+            pointcloud = geoms.GetGeometryRef(3)
+            xvec = []
+            yvec = []
+            zvec = []
+            cvec = []
+            attrcloud = None
+            if geoms.GetGeometryCount() > 4:
+                attrcloud = geoms.GetGeometryRef(4)
+            for i in range(pointcloud.GetGeometryCount()):
+                pt = pointcloud.GetGeometryRef(i)
+                xvec.append(pt.GetX())
+                yvec.append(pt.GetY())
+                zvec.append(pt.GetZ())
+                if attrcloud:
+                    at = attrcloud.GetGeometryRef(i)
+                    cvec.append(at.GetZ())
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(xvec, yvec, zvec, c=zvec)
-        plt.title("Section")
-        ax.view_init(0, 90)
-        ax.set_xlabel("Distance along section")
-        ax.set_ylabel("Distance across section")
-        ax.set_zlabel("Height")
-        plt.show()
+            self.data.update({'X': np.array(xvec),
+                              'Y': np.array(yvec),
+                              'Z': np.array(zvec),
+                              self.currattr: np.array(cvec)})
+        if self.attrs_left:
+            self.run_next()
+        else:
+            self.show_pltwindow()
+
+    def show_pltwindow(self):
+        self.secInst.progress.setFormat("")
+        self.pltwindow = plotwindow(self.secInst.project, self.secInst.iface, self.data, self.mins, self.maxes,
+                                    linelayer=None if self.secInst.simpleLineLayerChk.checkState() != 2 else \
+                                    self.secInst.simpleLineLayer.currentLayer(),
+                                    aoi=self.aoi,
+                                    trafo=self.trafo)
+        self.secInst.ls.addRow(self.pltwindow.ui)
+
+
+
 
     def write_axis_shape(self, outShapeFile):
         driver = ogr.GetDriverByName("ESRI Shapefile")
@@ -338,9 +455,9 @@ class LineTool(QgsMapTool):
         feature = ogr.Feature(layer.GetLayerDefn())
         feature.SetField("ID", 1)
         line = ogr.Geometry(ogr.wkbLineString)
-        prevpoint = self.midpoint - self.ab0N * float(self.secInst.txtthickness.text()) / 2
+        prevpoint = self.midpoint - self.ab0N * self.width * 2
         line.AddPoint(prevpoint[0], prevpoint[1])
-        nextpoint = self.midpoint + self.ab0N * float(self.secInst.txtthickness.text()) / 2
+        nextpoint = self.midpoint + self.ab0N * self.width * 2
         line.AddPoint(nextpoint[0], nextpoint[1])
         feature.SetGeometry(line)
         layer.CreateFeature(feature)

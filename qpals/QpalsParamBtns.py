@@ -1,4 +1,11 @@
 from PyQt4 import QtGui, QtCore
+import os
+
+
+IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
+
+lockedIcon = QtGui.QIcon(os.path.join(IconPath, "lockIcon_locked.png"))
+unlockedIcon = QtGui.QIcon(os.path.join(IconPath, "lockIcon_open.png"))
 
 class QpalsParamMsgBtn(QtGui.QToolButton):
 
@@ -23,3 +30,17 @@ class QpalsParamMsgBtn(QtGui.QToolButton):
         # Return shallow copy instead
         return self
 
+class QpalsLockIconBtn(QtGui.QToolButton):
+    def __init__(self, param, *args, **kwargs):
+        super(QpalsLockIconBtn, self).__init__(*args, **kwargs)
+        self.setIcon(unlockedIcon)
+        self.setStyleSheet("border-style: none;opacity:0.5;")
+        self.param = param
+        self.clicked.connect(self.changeLockStatus)
+
+    def changeLockStatus(self):
+        self.param.changed = not self.param.changed
+        if self.param.changed:
+            self.setIcon(lockedIcon)
+        else:
+            self.setIcon(unlockedIcon)

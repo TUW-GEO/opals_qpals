@@ -18,6 +18,8 @@ email                : lukas.winiwarter@tuwien.ac.at
 """
 import os
 import tempfile
+import subprocess
+import cPickle
 
 # Import the PyQt and QGIS libraries
 from PyQt4.QtCore import *
@@ -25,11 +27,11 @@ from PyQt4.QtGui import *
 from qgis.core import *
 from qgis.gui import *
 
-import QpalsLog
 import QpalsProject
 import QpalsShowFile
 import moduleSelector
-from modules import QpalsSection
+
+from modules import QpalsSection, QpalsLM, QpalsAttributeMan, QpalsQuickLM
 
 
 class qpals:
@@ -38,32 +40,56 @@ class qpals:
         self.iface = iface
         self.active = True
         self.layerlist = dict()
+        self.linemodeler = None
         QgsProject.instance().readProject.connect(self.projectloaded)
         s = QSettings()
         proj = QgsProject.instance()
         opalspath = s.value("qpals/opalspath", "")
         tempdir = proj.readEntry("qpals","tempdir", tempfile.gettempdir())[0]
         workdir = proj.readEntry("qpals","workdir", tempfile.gettempdir())[0]
-        vismethod = proj.readNumEntry("qpals", "vismethod", QpalsShowFile.QpalsShowFile.METHOD_BOX)[0]
+
         firstrun = False
-        if opalspath == "":
+        while opalspath == "":
             msg = QMessageBox()
             msg.setText("The path to the opals binaries has not been set.")
             msg.setInformativeText("Please set it now, or press cancel to unload the qpals plugin.")
-            msg.setWindowTitle("Qpals opals path")
+            msg.setWindowTitle("qpals opals path")
             msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
             ret = msg.exec_()
             if ret == QMessageBox.Ok:
                 opalspath = QFileDialog.getExistingDirectory(None, caption='Select path containing opals*.exe binaries')
                 if opalspath:
-                    s.setValue("qpals/opalspath", opalspath)
-                    firstrun = True
+                    if os.path.exists(os.path.join(opalspath, "opalsCell.exe")):
+                        s.setValue("qpals/opalspath", opalspath)
+                        firstrun = True
+                    else:
+                        opalspath = ""
+                        msg = QMessageBox()
+                        msg.setText("Ooops..")
+                        msg.setInformativeText("Could not validate opals path. Please make sure to select the folder "
+                                               "containing the opals binaries, i.e. opalsCell.exe, opalsInfo.exe, etc.")
+                        msg.setWindowTitle("qpals opals path")
+                        msg.setStandardButtons(QMessageBox.Ok)
+                        ret = msg.exec_()
+
             else:
                 self.active = False
 
         if self.active:
             self.prjSet = QpalsProject.QpalsProject(name="", opalspath=opalspath,
-                                                    tempdir=tempdir, workdir=workdir, iface=self.iface, vismethod=vismethod)
+                                                    tempdir=tempdir, workdir=workdir, iface=self.iface)
+            try:
+                resource_dir = os.path.join(os.path.dirname(__file__), "resources")
+                info = subprocess.STARTUPINFO()
+                info.dwFlags = subprocess.STARTF_USESHOWWINDOW
+                info.wShowWindow = 0
+                proc = subprocess.Popen([os.path.join(opalspath, "python.exe"),
+                                         os.path.join(resource_dir, "get_attribute_types.py"),
+                                         os.path.join(resource_dir, "attribute_types.py")],
+                                        startupinfo=info)
+                proc.communicate()
+            except:
+                print "Failed to update attribute types..."
 
         if firstrun:
             self.showproject()
@@ -84,10 +110,18 @@ class qpals:
             self.prjSet.vismethod = vismethod
             self.dropobject.visMethod.setCurrentIndex(vismethod)
 
+        # tabs_p = proj.readEntry("qpals", "linemodeler", None)[0]
+        # if tabs_p:
+        #     tabs = cPickle.loads(tabs_p)
+        #     self.linemodeler = self.linemodeler = QpalsLM.QpalsLM(project=self.prjSet, layerlist=self.layerlist,
+        #                                                           iface=self.iface)
+        #     self.linemodeler.tabs = tabs
+        #     self.linemodelerUI = self.linemodeler.tabs
+
 
     def showModuleSelector(self):
         self.modSel = moduleSelector.moduleSelector(self.iface, self.layerlist, self.prjSet)
-        self.modSelWindow = QDockWidget("Qpals Module Selector", self.iface.mainWindow(), Qt.WindowMinimizeButtonHint)
+        self.modSelWindow = QDockWidget("qpals ModuleSelector", self.iface.mainWindow(), Qt.WindowMinimizeButtonHint)
         self.modSelWindow.setWidget(self.modSel)
         self.modSelWindow.setAllowedAreas(Qt.NoDockWidgetArea)  # don't let it dock
         self.modSelWindow.setMinimumSize(800, 400)
@@ -98,23 +132,33 @@ class qpals:
         self.prjUI = self.prjSet.getUI()
         self.prjUI.show()
 
-    def showdd(self):
-        import qpals.QpalsDropTextbox
-        self.drop = qpals.QpalsDropTextbox.droptester()
-        self.drop.show()
-
     def showlog(self):
-        self.log = QpalsLog.QpalsLog(iface=self.iface)
-        self.log.ui.show()
+        import webbrowser
+        webbrowser.open('file:///' + os.path.join(self.prjSet.tempdir, "opalsLog.xml"))
+
+    def clearlog(self):
+        try:
+            os.remove(os.path.join(self.prjSet.tempdir, "opalsLog.xml"))
+        except Exception as e:
+            self.iface.messageBar().pushMessage('Something went wrong! See the message log for more information.',
+                                                duration=3)
+            print e
+
+    def showAttrMan(self):
+        self.attrman = QpalsAttributeMan.QpalsAttributeMan(project=self.prjSet,
+                                                           layerlist=self.layerlist,
+                                                           iface=self.iface)
+        self.attrman.ui.show()
 
     def showSecGUI(self):
         self.sec = QpalsSection.QpalsSection(project=self.prjSet, layerlist=self.layerlist, iface=self.iface)
         self.secUI = self.sec.createWidget()
-        self.secUIDock = QDockWidget("Qpals Section GUI", self.iface.mainWindow())
+        self.secUIDock = QDockWidget("qpals Section", self.iface.mainWindow())
         self.secUIDock.setWidget(self.secUI)
         self.secUIDock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self.secUIDock.setFloating(True)
         self.secUIDock.show()
+        self.secUIDock.visibilityChanged.connect(self.sec.close)
 
     def initGui(self):
         if self.active:
@@ -124,32 +168,67 @@ class qpals:
 
             IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
             opalsIcon = QIcon(os.path.join(IconPath, "opalsIcon.png"))
+            settingsIcon = QIcon(os.path.join(IconPath, "opalsSettings.png"))
+            specialIcon = QIcon(os.path.join(IconPath, "opalsSpecial.png"))
 
-            self.menuItemModuleSelector = QAction(opalsIcon, "Module Selector", self.iface.mainWindow())
+            self.menuItemModuleSelector = QAction(opalsIcon, "&ModuleSelector", self.iface.mainWindow())
             self.menuItemModuleSelector.setWhatsThis("Select a module from a list")
             self.menuItemModuleSelector.setStatusTip("Select module from list")
             QObject.connect(self.menuItemModuleSelector, SIGNAL("triggered()"), self.showModuleSelector)
-            self.menu.addAction(self.menuItemModuleSelector)
 
-            self.mnulog = QAction(opalsIcon, "Opals log", self.iface.mainWindow())
+            self.logmnu = QMenu(self.menu)
+            self.logmnu.setIcon(settingsIcon)
+            self.logmnu.setObjectName("qpalsLogMenu")
+            self.logmnu.setTitle("Log")
+
+            self.mnulog = QAction("show opalsLog", self.iface.mainWindow())
             self.mnulog.setStatusTip("Show log information")
             QObject.connect(self.mnulog, SIGNAL("triggered()"), self.showlog)
-            self.menu.addAction(self.mnulog)
+            self.logmnu.addAction(self.mnulog)
 
-            self.mnuproject = QAction(opalsIcon, "Project settings", self.iface.mainWindow())
-            self.mnuproject.setStatusTip("Project settings")
+            self.mnuclearlog = QAction("clear opalsLog", self.iface.mainWindow())
+            self.mnuclearlog.setStatusTip("Delete log file")
+            self.mnuclearlog.triggered.connect(self.clearlog)
+            self.logmnu.addAction(self.mnuclearlog)
+
+
+
+            self.mnuproject = QAction(settingsIcon, "&ProjectSettings", self.iface.mainWindow())
+            self.mnuproject.setStatusTip("ProjectSettings")
             QObject.connect(self.mnuproject, SIGNAL("triggered()"), self.showproject)
-            self.menu.addAction(self.mnuproject)
 
-            self.mnusec = QAction(opalsIcon, "qpals Section GUI", self.iface.mainWindow())
-            self.mnusec.setStatusTip("Project settings")
+            self.mnusec = QAction(specialIcon, "&Section", self.iface.mainWindow())
+            self.mnusec.setStatusTip("Section")
             QObject.connect(self.mnusec, SIGNAL("triggered()"), self.showSecGUI)
+
+            self.mnulm = QAction(specialIcon, "&LineModeler", self.iface.mainWindow())
+            self.mnulm.setStatusTip("LineModeler")
+            QObject.connect(self.mnulm, SIGNAL("triggered()"), self.showLMGUI)
+
+
+            # QuickLM is acessible through LM
+            # self.mnulm = QAction(opalsIcon, "quick LineModeller", self.iface.mainWindow())
+            # self.mnulm.setStatusTip("Start the quick LineModeller GUI")
+            # QObject.connect(self.mnulm, SIGNAL("triggered()"), self.showQuickLMGUI)
+            # self.menu.addAction(self.mnulm)
+
+            self.mnuatt = QAction(opalsIcon, "&AttributeManager", self.iface.mainWindow())
+            self.mnuatt.setStatusTip("AttributeManager")
+            QObject.connect(self.mnuatt, SIGNAL("triggered()"), self.showAttrMan)
+
+            self.menu.addAction(self.menuItemModuleSelector)
+            self.menu.addAction(self.mnuatt)
+            self.menu.addSeparator()
             self.menu.addAction(self.mnusec)
+            self.menu.addAction(self.mnulm)
+            self.menu.addSeparator()
+            self.menu.addMenu(self.logmnu)
+            self.menu.addAction(self.mnuproject)
 
             menuBar = self.iface.mainWindow().menuBar()
             menuBar.insertMenu(self.iface.firstRightStandardMenu().menuAction(), self.menu)
 
-            self.dropspace = QDockWidget("Qpals Visualizer", self.iface.mainWindow())
+            self.dropspace = QDockWidget("qpals Visualizer", self.iface.mainWindow())
             self.dropspace.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
             self.dropobject = QpalsShowFile.QpalsShowFile(self.iface, self.layerlist, self.prjSet)
             self.dropobject.initUI()

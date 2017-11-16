@@ -17,17 +17,20 @@ email                : lukas.winiwarter@geo.tuwien.ac.at
  ***************************************************************************/
  """
 
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import pyqtSlot
+import os
+import shlex
 import subprocess
-import os, shlex
-import copy, time
+import re
 from xml.dom import minidom
 
-import QpalsParamMsgBtn
-import QTextComboBox
-import QpalsDropTextbox
+from qt_extensions import QTextComboBox
+from PyQt4 import QtCore, QtGui
+from PyQt4.QtCore import pyqtSlot
+
+import QpalsParamBtns
 import QpalsParameter
+from qt_extensions import QpalsDropTextbox, QCollapsibleGroupBox
+from modules.QpalsAttributeMan import getAttributeInformation
 
 IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
 
@@ -35,12 +38,20 @@ WaitIcon = QtGui.QIcon(os.path.join(IconPath, "wait_icon.png"))
 WaitIconMandatory = QtGui.QIcon(os.path.join(IconPath, "wait_icon_mandatory.png"))
 ErrorIcon = QtGui.QIcon(os.path.join(IconPath, "error_icon.png"))
 
-qtwhite = QtGui.QColor(255,255,255)
-qtsoftred = QtGui.QColor(255,140,140)
-qtsoftgreen = QtGui.QColor(140,255,140)
+qtwhite = QtGui.QColor(255, 255, 255)
+qtsoftred = QtGui.QColor(255, 140, 140)
+qtsoftgreen = QtGui.QColor(140, 255, 140)
+
+
+def get_percentage(s):
+    t = re.compile(r"(\d+)%")
+    match = t.search(s)
+    return match.group(1)
+
 
 def getTagContent(xml_tag):
     return xml_tag.firstChild.nodeValue
+
 
 def parseXML(xml):
     xml = xml.decode('utf-8').encode('ascii', errors='ignore')
@@ -78,6 +89,7 @@ def parseXML(xml):
                                                           opt.attributes['LongDesc'].value))
         outd[type] = elements
     return outd
+
 
 class ModuleLoadWorker(QtCore.QObject):
     def __init__(self, module):
@@ -129,7 +141,6 @@ class ModuleValidateWorker(QtCore.QObject):
     progress = QtCore.pyqtSignal(float)
 
 
-
 class ModuleRunWorker(QtCore.QObject):
     def __init__(self, module):
         QtCore.QObject.__init__(self)
@@ -144,7 +155,7 @@ class ModuleRunWorker(QtCore.QObject):
         except Exception as e:
             self.error.emit(e, str(e), self.module)
             print "Error:", str(e)
-        ret = (self.module, "42")
+        ret = (None, "", self.module)
         self.finished.emit(ret)
 
     @pyqtSlot()
@@ -157,6 +168,36 @@ class ModuleRunWorker(QtCore.QObject):
     status = QtCore.pyqtSignal(basestring)
 
 
+class ModuleBaseRunWorker(QtCore.QObject):
+    def __init__(self, module):
+        QtCore.QObject.__init__(self)
+        self.module = module
+        self.killed = [False]
+
+    def run(self):
+        print "worker run"
+        try:
+            self.module.run(statusSignal=self.status, killSignal=self.killed)
+            if not self.killed[0]:
+                self.progress.emit(100)
+        except Exception as e:
+            self.error.emit(e, str(e), self.module)
+            print
+            "Error:", str(e)
+        ret = (None, "", self.module)
+        self.finished.emit(ret)
+
+    @pyqtSlot()
+    def stop(self):
+        self.killed[0] = True
+
+    finished = QtCore.pyqtSignal(object)
+    error = QtCore.pyqtSignal(Exception, basestring, object)
+    progress = QtCore.pyqtSignal(float)
+    status = QtCore.pyqtSignal(basestring)
+
+
+
 class QpalsModuleBase():
     def __init__(self, execName, QpalsProject, layerlist=None, listitem=None, visualize=False):
         self.params = []
@@ -165,29 +206,49 @@ class QpalsModuleBase():
         self.execName = execName
         self.loaded = False
         self.view = False
-        self.revalidate=False
+        self.revalidate = False
         self.listitem = listitem
         self.currentlyvalidating = False
         self.validatethread = None
         self.validateworker = None
+        self.runthread = None
+        self.runworker = None
+        self.afterRun = None
+        self.onErr = None
         self.lastpath = self.project.tempdir
         self.visualize = visualize
         self.outf = None
         self.globals = []
         self.common = []
+        self.progressbar = None
+        self.runbtn = None
 
-    @staticmethod
-    def fromCallString(string, project, layerlist):
+    def updateBar(self, message):
+        out_lines = ["Stage 0: Initializing"] + [item for item in re.split("[\n\r\b]", message) if item]
+        curr_stage = [stage for stage in out_lines if "Stage" in stage][-1]
+        percentage = out_lines[-1]
+        if r"%" in percentage:
+            perc = get_percentage(percentage)
+            self.progressbar.setValue(int(perc))
+            self.progressbar.setFormat(curr_stage + " - %p%")
+
+    def errorBar(self, message):
+        self.progressbar.setValue(100)
+        self.progressbar.setFormat("Error: %s" % message)
+        print "error:", message
+
+    @classmethod
+    def fromCallString(cls, string, project, layerlist):
         args = shlex.split(string)
         execName = os.path.join(project.opalspath, args[0])
         args.remove(args[0])
         for i in range(len(args)):  # Values with a space in between are supported by opals w/out quotes
             curarg = args[i]
-            nextarg = args[i+1] if len(args) > i+1 else "-"
+            nextarg = args[i + 1] if len(args) > i + 1 else "-"
             if not curarg.startswith("-") and not nextarg.startswith("-"):
                 args[i] = curarg + " " + nextarg
                 args.remove(nextarg)
-            if len(args) <= i+1:
+            if len(args) <= i + 1:
                 break
         args.append("--options")
         # call
@@ -201,7 +262,7 @@ class QpalsModuleBase():
         if proc.returncode != 0:
             raise Exception('Call failed:\n %s' % stdout)
         xml_parsed = parseXML(stderr)
-        newModuleBase = QpalsModuleBase(execName, project, layerlist)
+        newModuleBase = cls(execName, project, layerlist)
         newModuleBase.load()
         newModuleBase.getParamUi()
         newModuleBase.params = QpalsParameter.mergeParamLists(newModuleBase.params, xml_parsed['Specific'])
@@ -209,6 +270,40 @@ class QpalsModuleBase():
         newModuleBase.common = QpalsParameter.mergeParamLists(newModuleBase.common, xml_parsed['Common'])
         return newModuleBase
 
+    @classmethod
+    def createGroupBox(cls, module_name, box_header, project, params, param_show_list):
+        box = QtGui.QGroupBox(box_header)
+        scroll = QtGui.QScrollArea()
+        scroll.setWidget(box)
+        scroll.setFrameShape(QtGui.QFrame.NoFrame)
+        scroll.setWidgetResizable(True)
+        status = QtGui.QListWidgetItem("hidden status")
+        mod = cls(execName=os.path.join(project.opalspath, module_name + ".exe"),
+                  QpalsProject=project)
+        mod.listitem = status
+        mod.load()
+        for p in mod.params:
+            if p.name in params:
+                p.val = params[p.name]
+        ui = mod.getFilteredParamUi(filter=param_show_list)
+        advancedBox = QCollapsibleGroupBox.QCollapsibleGroupBox("Advanced options")
+        advancedBox.setChecked(False)
+        ui.addRow(advancedBox)
+        advancedLa = mod.getFilteredParamUi(notfilter=param_show_list)
+        advancedBox.setLayout(advancedLa)
+        runbar = QtGui.QHBoxLayout()
+        runprogress = QtGui.QProgressBar()
+        mod.progressbar = runprogress
+        mod.runbtn = QtGui.QPushButton("Run module")
+        mod.runbtn.clicked.connect(mod.run_async_self)
+        runbar.addWidget(runprogress)
+        runbar.addWidget(mod.runbtn)
+        ui.addRow(runbar)
+        box.setLayout(ui)
+        height = box.minimumSizeHint().height()
+        scroll.setFixedHeight(height + 10)
+
+        return mod, scroll
 
     def getParam(self, paramname):
         for param in self.params:
@@ -216,13 +311,23 @@ class QpalsModuleBase():
                 return param
         return None
 
+    def setParam(self, paramname, val):
+        for param in self.params:
+            if param.name.lower() == paramname.lower():
+                param.field.setText(val)
+                self.updateVals(val)
+                break
+
     def call(self, show=0, statusSignal=None, killSignal=None, *args):
         info = subprocess.STARTUPINFO()
         info.dwFlags = subprocess.STARTF_USESHOWWINDOW
         info.wShowWindow = show  # 0=HIDE
-        #print " ".join([self.execName] + list(args))
+        # print " ".join([self.execName] + list(args))
+        my_env = os.environ.copy()
+        my_env["GDAL_DRIVER_PATH"] = ""  # clear gdal driver paths, since this messes with some opals modules
+        # print [self.execName] + list(args)
         proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                stdin=subprocess.PIPE, cwd=self.project.workdir, startupinfo=info)
+                                stdin=subprocess.PIPE, cwd=self.project.workdir, startupinfo=info, env=my_env)
         proc.stdin.close()
         if statusSignal is None:
             stdout, stderr = proc.communicate()
@@ -261,8 +366,8 @@ class QpalsModuleBase():
 
     def makefilebrowser(self, param):
         def showpathbrowser():
-            filename = QtGui.QFileDialog.getSaveFileName(None, caption='Select file for %s'%param,
-                                                          directory=self.lastpath,
+            filename = QtGui.QFileDialog.getSaveFileName(None, caption='Select file for %s' % param,
+                                                         directory=self.lastpath,
                                                          options=QtGui.QFileDialog.DontConfirmOverwrite)
             if filename:
                 for par in self.params:
@@ -271,6 +376,7 @@ class QpalsModuleBase():
                 self.lastpath = os.path.dirname(filename)
                 self.updateVals(filename)
                 self.validate()
+
         return showpathbrowser
 
     def getGlobalCommonParamsWindow(self, parent=None):
@@ -330,6 +436,18 @@ class QpalsModuleBase():
                 param.browse = QtGui.QToolButton()
                 param.browse.setText("...")
                 param.browse.clicked.connect(self.makefilebrowser(param.name))
+                if "infile" in param.name.lower():
+                    param.field.editingFinished.connect(self.inFileUpdated)
+
+            elif "attribute" in param.name.lower():
+                param.field = QTextComboBox.QTextComboBox()
+                param.field.setEditable(True)
+                param.field.setText(param.val)
+                if global_common:
+                    param.field.editTextChanged.connect(self.updateCommonGlobals)
+                else:
+                    param.field.editTextChanged.connect(self.updateVals)
+
             else:
                 param.field = QtGui.QLineEdit(param.val)
                 if global_common:
@@ -337,7 +455,6 @@ class QpalsModuleBase():
                 else:
                     param.field.textChanged.connect(self.updateVals)
                 param.field.editingFinished.connect(self.validate)
-
         else:
             param.field = QTextComboBox.QTextComboBox()
             for choice in param.choices:
@@ -349,14 +466,15 @@ class QpalsModuleBase():
             else:
                 param.field.activated['QString'].connect(self.updateVals)
 
-
-        param.icon = QpalsParamMsgBtn.QpalsParamMsgBtn(param, parent)
+        param.icon = QpalsParamBtns.QpalsParamMsgBtn(param, parent)
         param.icon.setToolTip(param.opt)
         param.icon.setIcon(WaitIcon)
         param.icon.setStyleSheet("border-style: none;")
         if param.opt == 'mandatory':
             param.icon.setIcon(WaitIconMandatory)
         l2 = QtGui.QHBoxLayout()
+        param.changedIcon = QpalsParamBtns.QpalsLockIconBtn(param)
+        l2.addWidget(param.changedIcon)
         l2.addWidget(param.field, stretch=1)
         if param.browse is not None:
             l2.addWidget(param.browse)
@@ -375,6 +493,29 @@ class QpalsModuleBase():
 
         return (l1, l2)
 
+    def inFileUpdated(self):
+        attrp = None
+        attri = None
+        for param in self.params:
+            if param.name.lower() == "attribute":
+                attrp = param
+            if param.name.lower() == "infile":
+                attri = param
+        if attrp and attri:
+            attrp.field.clear()
+            attrp.field.addItems(["X", "Y", "Z"])
+            try:
+                attrs, entries = getAttributeInformation(attri.val, self.project)
+                if attrs:
+                    for attr in attrs:
+                        attrp.field.addItem(attr[0])
+                attrp.field.setCurrentIndex(2)
+            except Exception as e:
+                self.project.iface.messageBar().pushMessage(
+                    'Something went wrong! See the message log for more information.',
+                    duration=3)
+                import traceback
+                traceback.print_exc()
 
     def getParamUi(self, parent=None):
         if not self.loaded:
@@ -385,6 +526,17 @@ class QpalsModuleBase():
             form.addRow(l1, l2)
         return form
 
+    def getFilteredParamUi(self, parent=None, filter=[], notfilter=[]):
+        if not self.loaded:
+            self.load()
+        form = QtGui.QFormLayout()
+        for param in self.params:
+            if (len(filter) > 0 and re.match(r"(?=(" + '|'.join(filter) + '))', param.name)) or \
+                    (len(notfilter) > 0 and not re.match(r"(?=(" + '|'.join(notfilter) + '))', param.name)):
+                (l1, l2) = self.getUIOneliner(param, parent=parent)
+                form.addRow(l1, l2)
+        return form
+
     def updateCommonGlobals(self, string):
         for param in self.common:
             if param.field and string == param.field.text():
@@ -392,6 +544,7 @@ class QpalsModuleBase():
                     self.revalidate = True
                     param.val = param.field.text()
                     param.changed = True
+                    param.changedIcon.setIcon(QpalsParamBtns.lockedIcon)
                     param.field.setStyleSheet('background-color: rgb(200,255,200);')
 
         for param in self.globals:
@@ -400,6 +553,7 @@ class QpalsModuleBase():
                     self.revalidate = True
                     param.val = param.field.text()
                     param.changed = True
+                    param.changedIcon.setIcon(QpalsParamBtns.lockedIcon)
                     param.field.setStyleSheet('background-color: rgb(200,255,200);')
 
     def updateVals(self, string):
@@ -407,20 +561,22 @@ class QpalsModuleBase():
             if string == param.field.text():
                 if param.val != param.field.text():
                     self.revalidate = True
+                    param.changed = True
+                    param.changedIcon.setIcon(QpalsParamBtns.lockedIcon)
                     if os.path.isabs(param.field.text()):
                         try:  # check if path is in working dir - use relative paths
-                            relpath = os.path.relpath(os.path.normpath(param.field.text()), os.path.normpath(self.project.workdir))
+                            relpath = os.path.relpath(os.path.normpath(param.field.text()),
+                                                      os.path.normpath(self.project.workdir))
                             if not relpath.startswith(".."):
                                 param.field.setText(relpath)
                         except:  # file on different drive or other problem - use full path
                             pass
                     param.val = param.field.text()
 
-
     def validate_async(self):
-        #print "val_async> ",
+        # print "val_async> ",
         if not self.currentlyvalidating and self.revalidate:
-            #print "ok >",
+            # print "ok >",
             self.currentlyvalidating = True
             worker = ModuleValidateWorker(self)
             # start the worker in a new thread
@@ -435,17 +591,16 @@ class QpalsModuleBase():
 
     def validateError(self, e, exception_string, module):
         print('Worker thread raised an exception: {}\n'.format(exception_string))
-        #module.setIcon(self.errorIcon)
+        # module.setIcon(self.errorIcon)
 
     def validateFinished(self, module):
-        #print "validate finished> ",
+        # print "validate finished> ",
         self.validateworker.deleteLater()
         self.validatethread.quit()
         self.validatethread.wait()
         self.validatethread.deleteLater()
         self.currentlyvalidating = False
-        #print "validate done"
-
+        # print "validate done"
 
     def validate(self):
         if not self.revalidate:
@@ -481,7 +636,7 @@ class QpalsModuleBase():
                     errortext = calld['stdout'].split("Error in parameter ")[1].split("\n")[0]
                     errormodule = errortext.split(":")[0]
                     errortext = ":".join(errortext.split(":")[1:])
-                    #print errormodule, errortext
+                    # print errormodule, errortext
 
                 elif "Ambiguities while matching value" in calld['stdout']:
                     errortext = calld['stdout'].split("ERROR 0001: std::exception: ")[1].split("\n")[0]
@@ -513,7 +668,7 @@ class QpalsModuleBase():
                 parsedXML = parseXML(calld['stderr'])['Specific']
                 for param in self.params:
                     for parsedParam in parsedXML:
-                        if param.name == parsedParam.name:
+                        if param.name == parsedParam.name and not param.changed:
                             param.field.setText(parsedParam.val)
                             break
             return valid
@@ -525,6 +680,8 @@ class QpalsModuleBase():
                 paramlist.append('-' + param.name)
                 for item in param.val.split(";"):
                     paramlist.append(item.strip('"'))
+            elif param.flag_mode:
+                paramlist.append('-' + param.name)
             if param.name == 'outFile':
                 self.outf = param.val
         globcommon_set = []
@@ -559,10 +716,55 @@ class QpalsModuleBase():
     def __str__(self):
         return self.run(onlytext=True)
 
+    def run_async(self, on_finish=None, on_error=None, status=None, abort_signal=None, run_now=True):
+        worker = ModuleBaseRunWorker(self)
+        thread = QtCore.QThread()
+        worker.moveToThread(thread)
+        if on_error:
+            worker.error.connect(on_error)
+        if on_finish:
+            worker.finished.connect(on_finish)
+        if status:
+            worker.status.connect(status)
+        if abort_signal:
+            abort_signal.connect(worker.stop)
+        worker.finished.connect(thread.quit)
+        thread.started.connect(worker.run)
+        if run_now:
+            thread.start()
+        return thread, worker
+
+    def run_async_self(self, on_error=None, abort_signal=None):
+        status = self.updateBar
+        on_finish = self.run_async_finished
+        on_error = self.errorBar
+        if self.onErr:
+            on_error = self.onErr
+        self.runbtn.setText("running")
+        self.runbtn.setEnabled(False)
+        self.runthread, self.runworker = self.run_async(status=status,
+                                                        on_finish=on_finish,
+                                                        on_error=on_error,
+                                                        abort_signal=abort_signal)
+
+    def run_async_finished(self, ret):
+        e, msg, mod = ret
+        if not e:
+            if self.runbtn:
+                self.runbtn.setText("done")
+                self.runbtn.setEnabled(True)
+                self.progressbar.setFormat("%p%")
+                self.progressbar.setValue(100)
+            if self.afterRun:
+                self.afterRun()
+        else:
+            self.progressbar.setFormat("Error: " + msg)
+
 
 class QpalsRunBatch():
     revalidate = False
     visualize = False
+
     def __init__(self, t1="", t2=""):
         self.command = ""
         self.loaded = True  # Always loaded
@@ -610,6 +812,6 @@ class QpalsRunBatch():
 
     def __str__(self):
         if os.path.isdir(self.t2):
-            return "cd %s /D\r\n%s"%(self.t2, self.t1)
+            return "cd %s /D\r\n%s" % (self.t2, self.t1)
         else:
             return self.t1

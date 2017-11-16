@@ -24,8 +24,9 @@ class QpalsParameter:
     field = None
     browse = None
     icon = None
+    changedIcon = None
 
-    def __init__(self, name, val, choices, type, opt, desc, longdesc):
+    def __init__(self, name, val, choices, type, opt, desc, longdesc, flag_mode=False):
         self.name = name
         self.choices = choices
         self.type = type
@@ -36,6 +37,7 @@ class QpalsParameter:
             self.opt = opt
         self.desc = desc
         self.longdesc = longdesc
+        self.flag_mode = flag_mode
 
     def __str__(self):
         return self.name + ": " + self.val

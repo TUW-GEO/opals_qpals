@@ -1,11 +1,27 @@
-import QpalsDropTextbox
-import QpalsModuleBase
-import tempfile
 import os
-import QpalsParameter
-from PyQt4 import QtGui, QtCore
+import tempfile
+
+from PyQt4 import QtGui
 from qgis.core import *
 from qgis.gui import *
+
+import QpalsModuleBase
+import QpalsParameter
+from qt_extensions import QpalsDropTextbox
+from modules.QpalsAttributeMan import getAttributeInformation
+
+VISUALISATION_METHODS = {
+    0: "[fast] Bounding box (vector)",
+    1: "[fast] Z-Overview (raster)",
+    2: "[fast] Point count overview (raster)",
+    3: "Shading (raster)",
+    4: "Z-Color (raster)",
+    5: "Z-Value (raw height values)(raster)",
+    6: "Minimum bounding rectangle (vector)",
+    7: "Convex hull (vector)",
+    8: "Alpha shape (vector)",
+    9: "Isolines (vector, based on Z-Value)",
+}
 
 class QpalsShowFile():
     METHOD_SHADING = 0
@@ -16,12 +32,20 @@ class QpalsShowFile():
     METHOD_CONVEX_HULL = 5
     METHOD_ALPHA_SHAPE = 6
 
+    features = [
+        "min", "max", "diff", "mean", "median", "sum", "variance", "rms", "pdens", "pcount",
+        "minority", "majority", "entropy"
+    ]
+
     def __init__(self, iface, qpalsLayerList, project=None):
         self.dropspace = None
         self.visMethod = None
         self.curVisMethod = -1
         if project:
             self.curVisMethod = project.vismethod
+            self.cellSize = project.viscells
+            self.cellMethod = project.viscellm
+            self.isoInt = project.visisoint
         self.iface = iface
         self.layerlist = qpalsLayerList
         self.ui = None
@@ -46,23 +70,28 @@ class QpalsShowFile():
         self.dropspace = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)
         self.dropspace.setMinimumContentsLength(20)
         self.dropspace.setSizeAdjustPolicy(QtGui.QComboBox.AdjustToMinimumContentsLength)
+        self.dropspace.editingFinished.connect(self.inFileUpdated)
         lo.addRow(self.dropspace)
         self.visMethod = QtGui.QComboBox()
-        self.visMethod.addItem("Shading (raster)")
-        self.visMethod.addItem("Z-Color (raster)")
-        self.visMethod.addItem("Z-Value (raw height values)(raster)")
-        self.visMethod.addItem("Bounding box (vector)")
-        self.visMethod.addItem("Minimum bounding rectangle (vector)")
-        self.visMethod.addItem("Convex hull (vector)")
-        self.visMethod.addItem("Alpha shape (vector)")
-        self.visMethod.addItem("Isolines (vector, based on Z-Value)")
+        self.visMethod.addItem(VISUALISATION_METHODS[0])
+        self.visMethod.addItem(VISUALISATION_METHODS[1])
+        self.visMethod.addItem(VISUALISATION_METHODS[2])
+        self.visMethod.addItem(VISUALISATION_METHODS[3])
+        self.visMethod.addItem(VISUALISATION_METHODS[4])
+        self.visMethod.addItem(VISUALISATION_METHODS[5])
+        self.visMethod.addItem(VISUALISATION_METHODS[6])
+        self.visMethod.addItem(VISUALISATION_METHODS[7])
+        self.visMethod.addItem(VISUALISATION_METHODS[8])
+        self.visMethod.addItem(VISUALISATION_METHODS[9])
         self.visMethod.currentIndexChanged.connect(self.updatevisMethod)
-
-
         self.cellSizeLbl = QtGui.QLabel("Set cell size:")
         self.cellSizeBox = QtGui.QLineEdit()
         self.cellFeatLbl = QtGui.QLabel("Set feature:")
         self.cellFeatCmb = QtGui.QComboBox()
+        self.cellAttrLbl = QtGui.QLabel("Select attribute:")
+        self.cellAttrCmb = QtGui.QComboBox()
+        self.cellAttrCmb.addItem("Z")
+        self.cellAttrCmb.setSizeAdjustPolicy(QtGui.QComboBox.AdjustToContents)
         self.isoInteLbl = QtGui.QLabel("Set isoline interval:")
         self.isoInteBox = QtGui.QLineEdit()
         self.isoInteBox.setText("10")
@@ -72,9 +101,9 @@ class QpalsShowFile():
             if param.name.lower() == "cellsize":
                 self.cellSizeBox.setText(param.val)
                 break
-        self.cellFeatCmb.addItems(["min", "max", "diff", "mean", "median", "sum", "variance", "rms", "pdens", "pcount",
-                                   "minority", "majority", "entropy"])
-        self.cellFeatCmb.setCurrentIndex(3)
+        self.cellFeatCmb.addItems(self.features)
+        self.cellFeatCmb.setCurrentIndex(4)
+        lo.addRow(self.cellAttrLbl, self.cellAttrCmb)
         lo.addRow(self.cellSizeLbl, self.cellSizeBox)
         lo.addRow(self.cellFeatLbl, self.cellFeatCmb)
         lo.addRow(self.isoInteLbl, self.isoInteBox)
@@ -85,22 +114,42 @@ class QpalsShowFile():
         self.ui.setLayout(lo)
         self.ui.setWindowTitle("Open ALS file")
 
-        self.visMethod.setCurrentIndex(3)
+        self.visMethod.setCurrentIndex(1)
+
+    def inFileUpdated(self):
+        newFile = self.dropspace.text()
+        if newFile.endswith(".odm"):
+            try:
+                attrs, _ = getAttributeInformation(newFile, self.project)
+                self.cellAttrCmb.clear()
+                self.cellAttrCmb.addItems(["X", "Y", "Z"])
+                for attr in attrs:
+                    self.cellAttrCmb.addItem(attr[0])
+                self.cellAttrCmb.setCurrentIndex(2)
+            except:
+                self.cellAttrCmb.clear()
+                self.cellAttrCmb.addItems(["X", "Y", "Z"])
+                self.cellAttrCmb.setCurrentIndex(2)
+
 
     def updatevisMethod(self):
         self.curVisMethod = self.visMethod.currentIndex()
-        if self.curVisMethod in [0, 1, 2, 7]:
+        if self.curVisMethod in [3, 4, 5, 9]:
             self.cellSizeLbl.show()
             self.cellSizeBox.show()
             self.cellFeatLbl.show()
             self.cellFeatCmb.show()
+            self.cellAttrCmb.show()
+            self.cellAttrLbl.show()
         else:
             self.cellSizeLbl.hide()
             self.cellSizeBox.hide()
             self.cellFeatLbl.hide()
             self.cellFeatCmb.hide()
+            self.cellAttrCmb.hide()
+            self.cellAttrLbl.hide()
 
-        if self.curVisMethod in [7]:
+        if self.curVisMethod in [9]:
             self.isoInteLbl.show()
             self.isoInteBox.show()
         else:
@@ -126,33 +175,37 @@ class QpalsShowFile():
                     else:
                         if not drop.endswith(".odm"):
                             drop = self.callImport(drop)
-                        if self.curVisMethod == 0:
+                        if self.curVisMethod == 3:
                             cellf = self.callCell(drop)
                             visfile = self.callShade(cellf)
-                        elif self.curVisMethod == 1:
+                        elif self.curVisMethod == 4:
                             cellf = self.callCell(drop)
                             visfile = self.callZColor(cellf)
-                        elif self.curVisMethod == 2:
-                            visfile = self.callCell(drop)
-                        elif self.curVisMethod == 3:
-                            (xmin, ymin, xmax, ymax) = self.callInfo(drop)
-                        elif self.curVisMethod == 4:
-                            visfile = self.callBounds(drop, "minimumRectangle")
                         elif self.curVisMethod == 5:
-                            visfile = self.callBounds(drop, "convexHull")
+                            visfile = self.callCell(drop)
+                        elif self.curVisMethod == 0:
+                            (xmin, ymin, xmax, ymax) = self.callInfo(drop)
                         elif self.curVisMethod == 6:
-                            visfile = self.callBounds(drop, "alphaShape")
+                            visfile = self.callBounds(drop, "minimumRectangle")
                         elif self.curVisMethod == 7:
+                            visfile = self.callBounds(drop, "convexHull")
+                        elif self.curVisMethod == 8:
+                            visfile = self.callBounds(drop, "alphaShape")
+                        elif self.curVisMethod == 9:
                             cellf = self.callCell(drop)
                             visfile = self.callIsolines(cellf)
+                        elif self.curVisMethod == 1:
+                            visfile = self.callInfo(drop, overview='Z')
+                        elif self.curVisMethod == 2:
+                            visfile = self.callInfo(drop, overview='Pcount')
 
                         self.updateText("Loading layer into QGIS...")
                         # load layer
-                        if self.curVisMethod in [4, 5, 6, 7]:  # vector file
+                        if self.curVisMethod in [6, 7, 8, 9]:  # vector file
                             layer = self.iface.addVectorLayer(visfile, os.path.basename(drop), "ogr")
-                        elif self.curVisMethod in [0, 1, 2]:
+                        elif self.curVisMethod in [1, 2, 3, 4, 5]:
                             layer = self.iface.addRasterLayer(visfile, os.path.basename(drop))
-                        elif self.curVisMethod == 3:
+                        elif self.curVisMethod == 0:
                             layer = self.iface.addVectorLayer("Polygon", os.path.basename(drop), "memory")
                             pr = layer.dataProvider()
                             feat = QgsFeature()
@@ -167,7 +220,7 @@ class QpalsShowFile():
                     layer.setCustomProperty("qpals-odmpath", drop)
                     QgsMapLayerRegistry.instance().addMapLayer(layer)
 
-                    if self.curVisMethod in [3, 4, 5, 6]:
+                    if self.curVisMethod in [0, 6, 7, 8]:
                         layer.setCustomProperty("labeling", "pal")
                         layer.setCustomProperty("labeling/enabled", "true")
                         layer.setCustomProperty("labeling/isExpression", "true")
@@ -195,9 +248,14 @@ class QpalsShowFile():
         odmfile = self.call("opalsImport", {"inFile": infile, "outFile": infile + ".odm"})
         return odmfile
 
-    def callInfo(self, infile):
+    def callInfo(self, infile, overview=None):
         self.updateText("Calling module opalsInfo...")
-        outdict = self.call("opalsInfo", {"inFile": infile}, returnstdout=True, nooutfile=True)
+        rundict = {"inFile": infile}
+        if overview:
+            rundict.update({'exportHeader': 'overview%s' % overview})
+        outdict = self.call("opalsInfo", rundict, returnstdout=True, nooutfile=True)
+        if overview:
+            return infile.replace(".odm", "_overview_%s.tif" % overview)
         lines = outdict["stdout"].split("\n")
         for line in lines:
             if line.startswith("Minimum X-Y-Z"):
@@ -218,12 +276,19 @@ class QpalsShowFile():
 
     def callIsolines(self, infile):
         self.updateText("Calling module opalsIsolines...")
-        shapefile = self.call("opalsIsolines", {"inFile": infile, "interval": self.isoInteBox.text()}, ".shp")
+        interval = str(self.isoInt) if not self.isoInteBox is not None else self.isoInteBox.text()
+        shapefile = self.call("opalsIsolines", {"inFile": infile, "interval": interval}, ".shp")
         return shapefile
 
     def callCell(self, infile):
         self.updateText("Calling module opalsCell...")
-        rasfile = self.call("opalsCell", {"inFile": infile, "feature": "mean", "cellSize": self.cellSizeBox.text()}, ".tif")
+        cellsize = str(self.cellSize) if not self.cellSizeBox else self.cellSizeBox.text()
+        feature = self.features[self.cellMethod] if not self.cellFeatCmb else self.cellFeatCmb.currentText()
+        attribute = "Z" if not self.cellAttrCmb else self.cellAttrCmb.currentText()
+        rasfile = self.call("opalsCell", {"inFile": infile,
+                                          "feature": feature,
+                                          "cellSize": cellsize,
+                                          "attribute": attribute}, ".tif")
         return rasfile
 
     def callShade(self, infile):
