@@ -237,8 +237,8 @@ class QpalsModuleBase():
         self.progressbar.setFormat("Error: %s" % message)
         print "error:", message
 
-    @staticmethod
-    def fromCallString(string, project, layerlist):
+    @classmethod
+    def fromCallString(cls, string, project, layerlist):
         args = shlex.split(string)
         execName = os.path.join(project.opalspath, args[0])
         args.remove(args[0])
@@ -262,7 +262,7 @@ class QpalsModuleBase():
         if proc.returncode != 0:
             raise Exception('Call failed:\n %s' % stdout)
         xml_parsed = parseXML(stderr)
-        newModuleBase = QpalsModuleBase(execName, project, layerlist)
+        newModuleBase = cls(execName, project, layerlist)
         newModuleBase.load()
         newModuleBase.getParamUi()
         newModuleBase.params = QpalsParameter.mergeParamLists(newModuleBase.params, xml_parsed['Specific'])

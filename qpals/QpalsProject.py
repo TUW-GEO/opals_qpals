@@ -44,7 +44,7 @@ class QpalsProject:
 
     def getUI(self):
         self.ui = QtGui.QDialog()
-        self.ui.setWindowTitle("Qpals Project Settings")
+        self.ui.setWindowTitle("qpals ProjectSettings")
         lo = QtGui.QFormLayout()
         self.txtOpalspath = QpalsDropTextbox.QpalsDropTextbox(show_layers=False)
         self.txtOpalspath.setText(self.opalspath)

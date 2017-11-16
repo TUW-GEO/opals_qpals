@@ -351,7 +351,7 @@ class LineTool(QgsMapTool):
         self.mins = {attr[0]: attr[3] for attr in attrs}
         self.maxes = {attr[0]: attr[4] for attr in attrs}
         self.attrs_left = [attr[0] for attr in attrs]
-        self.attrs_left = [self.attrs_left[0]]
+        #self.attrs_left = [self.attrs_left[0]]
         self.total = len(self.attrs_left)
         if self.pltwindow:
             self.pltwindow.ui.deleteLater()

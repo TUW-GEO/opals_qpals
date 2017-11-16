@@ -35,7 +35,7 @@ class QpalsAttributeMan:
     def getUI(self):
         self.ui = QtGui.QDialog()
         self.ui.resize(720, 300)
-        self.ui.setWindowTitle("Qpals Attribute Manager")
+        self.ui.setWindowTitle("qpals AttributeManager")
         lo = QtGui.QFormLayout()
         vb = QtGui.QVBoxLayout()
         hb = QtGui.QHBoxLayout()

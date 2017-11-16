@@ -72,7 +72,7 @@ def closestpoint(layer, layerPoint):
         return (None, None)
 
 
-class QpalsLM:
+class QpalsLM(object):
     def __init__(self, project, layerlist, iface):
         self.tabs = None
         self.project = project
@@ -325,8 +325,12 @@ class QpalsLM:
                 boxBtnRun = QtGui.QPushButton("Run selected steps now")
                 boxBtnRun.clicked.connect(lambda: self.run_step("all"))
                 boxBtnExp = QtGui.QPushButton("Export selected steps to .bat")
+                boxBtnExp.clicked.connect(self.createBatFile)
+                # saveBtn = QtGui.QPushButton("Save to project file")
+                # saveBtn.clicked.connect(self.save)
                 boxVL.addWidget(boxBtnRun)
                 boxVL.addWidget(boxBtnExp)
+                # boxVL.addWidget(saveBtn)
                 ls.addRow(boxRun)
 
             if name == "DTM":
@@ -524,7 +528,7 @@ class QpalsLM:
                                                          iface=self.iface)
                 box1.setLayout(self.quicklm.fl)
                 ls.addRow(box1)
-                box2 = QtGui.QGroupBox("QpalsSection")
+                box2 = QtGui.QGroupBox("qpalsSection")
                 import QpalsSection
                 self.section = QpalsSection.QpalsSection(project=self.project, layerlist=self.layerlist,
                                                          iface=self.iface)
@@ -701,17 +705,17 @@ class QpalsLM:
         }
         if step_name == "all":
             modules = []
-            if self.settings['chkDTM'].value():
+            if self.settings['settings']['chkDTM'].isChecked():
                 modules += steps_modules["DTM"]
-            if self.settings['chkSlope'].value():
+            if self.settings['settings']['chkSlope'].isChecked():
                 modules += steps_modules["Slope"]
-            if self.settings['chk2D'].value():
+            if self.settings['settings']['chk2D'].isChecked():
                 modules += steps_modules["2D-Approximation"]
-            if self.settings['chktopo2D'].value():
+            if self.settings['settings']['chktopo2D'].isChecked():
                 modules += steps_modules["Topologic correction"]
-            if self.settings['chk3Dmodel'].value():
+            if self.settings['settings']['chk3Dmodel'].isChecked():
                 modules += steps_modules["3D-Modelling"]
-            if self.settings['chkExport'].value():
+            if self.settings['settings']['chkExport'].isChecked():
                 modules += steps_modules["Export"]
         else:
             modules = steps_modules[step_name]
@@ -727,7 +731,7 @@ class QpalsLM:
                 f.write(str(module) + "\r\n")
             f.close()
         except Exception as e:
-            raise Exception("Saving to batch failed.")
+            raise Exception("Saving to batch failed.", e)
 
     def updateBar(self, message):
         out_lines = [item for item in re.split("[\n\r\b]", message) if item]
@@ -776,8 +780,8 @@ class QpalsLM:
                                                           50, 1000)
         self.QualityWorker.progress.connect(self.updateQualityBar)
         self.QualityWorker.finished.connect(self.QualityFinished)
-
         self.QualityThread = QtCore.QThread()
+        self.QualityWorker.moveToThread(self.QualityThread)
         self.QualityThread.started.connect(self.QualityWorker.run)
         self.QualityThread.start()
         self.startQualityCheckBtn.setEnabled(False)
@@ -792,3 +796,11 @@ class QpalsLM:
         self.updateQualityBar(100)
         file = os.path.join(self.project.workdir, "quality", "problems.shp")
         self.iface.addVectorLayer(file, "Problems", "ogr")
+
+    # def save(self):
+    #     import cPickle
+    #     proj = QgsProject.instance()
+    #     tabs = cPickle.dumps(self.tabs, -1)
+    #     proj.writeEntry("qpals", "linemodelerinst", tabs)
+    #     print tabs
+

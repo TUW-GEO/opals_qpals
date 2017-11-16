@@ -48,6 +48,9 @@ class plotwindow():
         self.data = data
         self.mins = mins
         self.maxes = maxes
+        for coord in ['X', 'Y', 'Z']:
+            self.mins[coord] = np.min(self.data[coord])
+            self.maxes[coord] = np.max(self.data[coord])
         self.lines = None
         if linelayer and trafo:
             avgZ = np.mean(self.data['Z'])
@@ -106,7 +109,7 @@ class plotwindow():
         self.ax.view_init(0, 0)
         self.colorbar = None
         self.ann = None
-        self.currattr = "Z"
+        self.currattr = None
         self.attrsel.setCurrentIndex(self.attrsel.findText('Z'))
         self.draw_new_plot()
 
@@ -120,10 +123,10 @@ class plotwindow():
         self.attrsel.currentIndexChanged.connect(self.draw_new_plot)
         self.scale_min = QtGui.QLineEdit("0")
         self.scale_min.setMinimumWidth(5)
-        self.scale_min.textChanged.connect(self.draw_new_plot)
+        self.scale_min.editingFinished.connect(self.draw_new_plot)
         self.scale_max = QtGui.QLineEdit("10")
         self.scale_max.setMinimumWidth(5)
-        self.scale_max.textChanged.connect(self.draw_new_plot)
+        self.scale_max.editingFinished.connect(self.draw_new_plot)
         self.colormap = QtGui.QComboBox()
         self.colormap.addItems(sorted(m for m in cm.datad))
         self.colormap.setCurrentIndex(self.colormap.findText("gist_earth"))
@@ -217,9 +220,6 @@ class plotwindow():
         if self.currattr == newattr:
             low = float(self.scale_min.text())
             hi = float(self.scale_max.text())
-        elif newattr in ['X', 'Y', 'Z']:
-            low = -10
-            hi = 10
         else:
             low = float(self.mins[newattr])
             hi = float(self.maxes[newattr])
@@ -235,16 +235,16 @@ class plotwindow():
         Y = self.data['Y']
         Z = self.data['Z'] * self.zex.value()
         self.curplot = self.ax.scatter(X, Y, Z,
-                        c=self.data[newattr], cmap=colormap,
-                        clim=[low, hi], marker=self.marker.currentText(), s=self.markerSize.value(), picker=0)
+                                       c=self.data[newattr], cmap=colormap,
+                                       vmin=low, vmax=hi, marker=self.marker.currentText(), s=self.markerSize.value(), picker=0)
         if LooseVersion(matplotlib.__version__) >= LooseVersion('1.4.0'):
             self.colorbar = self.figure.colorbar(self.curplot)
         self.selectors = []
         if self.lines:
             for (i, line) in enumerate(self.lines):
                 curl, = self.ax.plot(line[0], line[1], [z*self.zex.value() for z in line[2]],
-                             color=self.linecolor.text(),
-                             linewidth=self.lineSize.value(), picker=0)
+                                     color=self.linecolor.text(),
+                                     linewidth=self.lineSize.value(), picker=0)
                 selector = HighlightSelected(curl, i)
                 self.selectors.append(selector)
 
