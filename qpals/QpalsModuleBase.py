@@ -46,7 +46,9 @@ qtsoftgreen = QtGui.QColor(140, 255, 140)
 def get_percentage(s):
     t = re.compile(r"(\d+)%")
     match = t.search(s)
-    return match.group(1)
+    if match:
+        return match.group(1)
+    return 100
 
 
 def getTagContent(xml_tag):
@@ -175,15 +177,13 @@ class ModuleBaseRunWorker(QtCore.QObject):
         self.killed = [False]
 
     def run(self):
-        print "worker run"
         try:
             self.module.run(statusSignal=self.status, killSignal=self.killed)
             if not self.killed[0]:
                 self.progress.emit(100)
         except Exception as e:
             self.error.emit(e, str(e), self.module)
-            print
-            "Error:", str(e)
+            print "Error:", str(e)
         ret = (None, "", self.module)
         self.finished.emit(ret)
 
@@ -242,14 +242,14 @@ class QpalsModuleBase():
         args = shlex.split(string)
         execName = os.path.join(project.opalspath, args[0])
         args.remove(args[0])
-        for i in range(len(args)):  # Values with a space in between are supported by opals w/out quotes
-            curarg = args[i]
-            nextarg = args[i + 1] if len(args) > i + 1 else "-"
-            if not curarg.startswith("-") and not nextarg.startswith("-"):
-                args[i] = curarg + " " + nextarg
-                args.remove(nextarg)
-            if len(args) <= i + 1:
-                break
+        # for i in range(len(args)):  # Values with a space in between are supported by opals w/out quotes
+        #     curarg = args[i]
+        #     nextarg = args[i + 1] if len(args) > i + 1 else "-"
+        #     if not curarg.startswith("-") and not nextarg.startswith("-"):
+        #         args[i] = curarg + " " + nextarg
+        #         args.remove(nextarg)
+        #     if len(args) <= i + 1:
+        #         break
         args.append("--options")
         # call
         info = subprocess.STARTUPINFO()
@@ -285,6 +285,7 @@ class QpalsModuleBase():
         for p in mod.params:
             if p.name in params:
                 p.val = params[p.name]
+                p.changed = True
         ui = mod.getFilteredParamUi(filter=param_show_list)
         advancedBox = QCollapsibleGroupBox.QCollapsibleGroupBox("Advanced options")
         advancedBox.setChecked(False)
@@ -380,17 +381,17 @@ class QpalsModuleBase():
         return showpathbrowser
 
     def getGlobalCommonParamsWindow(self, parent=None):
-        window = QtGui.QDialog(parent)
+        window = QtGui.QDialog()
         window.setWindowTitle("Global and common parameters")
         scrollarea = QtGui.QScrollArea()
         form = QtGui.QFormLayout()
         form.addRow(QtGui.QLabel("Common Parameters:"))
         for param in self.common:
-            (l1, l2) = self.getUIOneliner(param, parent=parent, global_common=True)
+            (l1, l2) = self.getUIOneliner(param, global_common=True)
             form.addRow(l1, l2)
         form.addRow(QtGui.QLabel("Global Parameters:"))
         for param in self.globals:
-            (l1, l2) = self.getUIOneliner(param, parent=parent, global_common=True)
+            (l1, l2) = self.getUIOneliner(param, global_common=True)
             form.addRow(l1, l2)
         closebtn = QtGui.QPushButton("Close")
         closebtn.clicked.connect(lambda: self.closeGlobalCommonParamsWindow(window))
@@ -650,7 +651,9 @@ class QpalsModuleBase():
                 elif "ERROR 1000: the argument " in calld['stdout']:
                     errortext = calld['stdout'].split("ERROR 1000:")[1].split("\n")[0]
                     errormodule = errortext.split("for option '")[1].split("' is invalid")[0]
-
+                elif "Applying parsed value to option " in calld['stdout']:
+                    errortext = calld['stdout']
+                    errormodule = errortext.split("Applying parsed value to option")[1].split()[0]
                 else:
                     errortext = "Unknown error."
                     raise Exception('Call failed:\n %s' % calld['stdout'])

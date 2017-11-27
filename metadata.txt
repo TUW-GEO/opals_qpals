@@ -4,7 +4,7 @@
 name=qpals-nightly
 email=lukas.winiwarter@geo.tuwien.ac.at
 author=Lukas Winiwarter
-qgisMinimumVersion=2.14
+qgisMinimumVersion=2.18
 description=OPALS software integrated into QGIS
 about=IMPORTANT: This plugin requires an installation of OPALS developed by GEO at TU Wien.
  You can get an evaluation copy (processing up to 1.000.000 points) at photo.geo.tuwien.ac.at/opals .
@@ -13,13 +13,17 @@ about=IMPORTANT: This plugin requires an installation of OPALS developed by GEO 
  The point cloud processing software OPALS developed by GEO/TU Wien can be easily accessed from within QGIS through
  a custom-made gui. Also, special modules are availiable for specific tasks, i.e. creating sections.
 
-version=1.5.1
+version=1.5.4
 tracker=https://github.com/lwiniwar/qpals/issues
 repository=https://github.com/lwiniwar/qpals
 ; end of mandatory metadata
 
 ; start of optional metadata
 changelog=Prior versions:
+ 1.5.4 LineModeler is now scrollable, icon for finished module added
+ 1.5.3 added filter to Section GUI
+ 1.5.2 behaviour of parameter locking changed
+ 1.5.1 bugfixing
  1.5 multi-module execution in linemodeler, parameter "locking"
  1.4.2 linemodeler improvements
  1.4 linemodeler
@@ -42,12 +46,12 @@ homepage=https://github.com/lwiniwar/qpals
 icon=media/opalsIcon.png
 
 ; experimental flag (applies to the single version)
-experimental=True
+experimental=False
 
 ; deprecated flag (applies to the whole plugin and not only to the uploaded version)
 deprecated=False
 
 ; if empty, it will be automatically set to major version + .99
-;qgisMaximumVersion=2.0
+qgisMaximumVersion=2.98
 
-; hash=65b2e6c4a2f2ffb67d4d5bf0f81b95e989207f9d123787a1d4b2fd1411fe235ff77779986f38600a9d36c2271a00af4062a30c93a7a3e1b9472a0eb4b1463e32
+; hash=7c81de9a36b225bf0dba0828ae19791bcc4a32846a7a9c8b20f06886be56249492d2b1c3c2a11df5ea4242e7b4b9bb2c839f79900e5a7f1ce43c1fc65f1c33c7

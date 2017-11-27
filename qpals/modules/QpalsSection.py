@@ -79,11 +79,13 @@ class QpalsSection:
         self.simpleLineLayerChk = QtGui.QCheckBox("Visualize (3D) Line Layer:")
         self.ls.addRow(self.simpleLineLayerChk, self.simpleLineLayer)
         self.showSection = QtGui.QCheckBox("Show section")
+        self.filterStr = QtGui.QLineEdit("Class[Ground]")
         self.progress = QtGui.QProgressBar()
         self.showSection.stateChanged.connect(self.checkBoxChanged)
         self.showSection.setCheckState(2)
         self.showSection.setTristate(False)
         self.ls.addRow(self.showSection)
+        self.ls.addRow("Filter String:", self.filterStr)
         self.ls.addRow(self.runSecBtnSimple)
         self.ls.addRow(self.progress)
         self.simple_widget.setLayout(self.ls)
@@ -120,7 +122,11 @@ class QpalsSection:
         self.tabs.addTab(self.simple_widget, "Simple")
         self.tabs.addTab(self.advanced_widget, "Advanced")
 
-        return self.tabs
+        self.scrollwidget = QtGui.QScrollArea()
+        self.scrollwidget.setWidgetResizable(True)
+        self.scrollwidget.setWidget(self.tabs)
+
+        return self.scrollwidget
 
     def close(self):
         if self.ltool.rb:
@@ -312,7 +318,6 @@ class LineTool(QgsMapTool):
 
 
     def canvasReleaseEvent(self, event):
-        print self.layer
         layerPoint = self.toLayerCoordinates(self.layer, event.pos())
         if self.p1 and not self.p2:
             self.p2 = layerPoint
@@ -345,6 +350,7 @@ class LineTool(QgsMapTool):
         self.attrs_left = []
         self.count = 0
         self.total = 0
+        self.filter = self.secInst.filterStr
 
         # grab availiable attributes
         attrs, _ = getAttributeInformation(self.secInst.txtinfileSimple.text(), self.secInst.project)
@@ -377,6 +383,8 @@ class LineTool(QgsMapTool):
                                                None, None)
         axisfile = QpalsParameter.QpalsParameter('axisFile', outShapeFile, None, None, None, None, None)
         attribute = QpalsParameter.QpalsParameter('attribute', self.currattr, None, None, None, None, None)
+        if self.filter.text():
+            attribute = QpalsParameter.QpalsParameter('filter', self.filter.text(), None, None, None, None, None)
         thickness = QpalsParameter.QpalsParameter('patchSize', '%s;%s' % (self.seclength, self.width * 4),
                                                   None, None, None, None, None
                                                   )
@@ -430,6 +438,9 @@ class LineTool(QgsMapTool):
                               'Y': np.array(yvec),
                               'Z': np.array(zvec),
                               self.currattr: np.array(cvec)})
+        else:
+            self.secInst.progress.setFormat("No data found in section area.")
+            return False
         if self.attrs_left:
             self.run_next()
         else:

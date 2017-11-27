@@ -256,7 +256,10 @@ class QpalsLM(object):
             self.edit3d_currPointId.setMaximum(cnt)
 
     def createWidget(self):
+        self.scrollwidget = QtGui.QScrollArea()
+        self.scrollwidget.setWidgetResizable(True)
         self.tabs = QtGui.QTabWidget()
+        self.scrollwidget.setWidget(self.tabs)
         self.names = ['Settings',
                  'DTM',
                  'Slope',
@@ -659,7 +662,7 @@ class QpalsLM(object):
             prev = QtGui.QPushButton("< Previous step")
             prev.clicked.connect(self.switchToPrevTab)
             runcurr = QtGui.QPushButton("Run this step (all modules above)")
-            runcurr.clicked.connect(self.run_step)
+            runcurr.clicked.connect(lambda: self.run_step(None))
             if idx > 0:
                 navbar.addWidget(prev)
             navbar.addStretch()
@@ -680,7 +683,7 @@ class QpalsLM(object):
         # set up connections
 
         self.tabs.currentChanged.connect(self.updateTabs)
-        return self.tabs
+        return self.scrollwidget
 
     def run_step(self, step_name=None):
         curridx = self.tabs.currentIndex()

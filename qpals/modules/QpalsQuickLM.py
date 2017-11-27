@@ -62,6 +62,10 @@ class QpalsQuickLM:
             infile.close()
             QgsVectorFileWriter.writeAsVectorFormat(layer, params["approxFile"],
                                                     "utf-8", layer.crs(), "ESRI Shapefile", 1)  # 1 for selected only
+            try:
+                os.remove(infile.name + ".prj")
+            except:
+                pass
         else:
             params["approxFile"] = layer.source()
 
@@ -78,7 +82,7 @@ class QpalsQuickLM:
         for param in params.iterkeys():
             paramlist.append(QpalsParameter.QpalsParameter(param, params[param], None, None, None, None, None))
         Module.params = paramlist
-        print "running module. writing outfile to %s" % params["outFile"]
+        #print "running module. writing outfile to %s" % params["outFile"]
         moduleOut = Module.run(show=0)
-        print moduleOut
+        #print moduleOut
         self.iface.addVectorLayer(params["outFile"], os.path.basename("Modelled Lines"), "ogr")

@@ -216,21 +216,21 @@ class QpalsShowFile():
                             pr.addFeatures([feat])
                             layer.updateExtents()
 
+                    if layer:
+                        layer.setCustomProperty("qpals-odmpath", drop)
+                        QgsMapLayerRegistry.instance().addMapLayer(layer)
 
-                    layer.setCustomProperty("qpals-odmpath", drop)
-                    QgsMapLayerRegistry.instance().addMapLayer(layer)
-
-                    if self.curVisMethod in [0, 6, 7, 8]:
-                        layer.setCustomProperty("labeling", "pal")
-                        layer.setCustomProperty("labeling/enabled", "true")
-                        layer.setCustomProperty("labeling/isExpression", "true")
-                        layer.setCustomProperty("labeling/fontFamily", "Arial")
-                        layer.setCustomProperty("labeling/fontSize", "10")
-                        layer.setCustomProperty("labeling/fieldName", "'%s'" % os.path.splitext(os.path.basename(drop))[0])
-                        layer.setCustomProperty("labeling/placement", "1")
-                        layer.triggerRepaint()
-                        self.iface.mapCanvas().refresh()
-                    self.layerlist[layer.id()] = drop
+                        if self.curVisMethod in [0, 6, 7, 8]:
+                            layer.setCustomProperty("labeling", "pal")
+                            layer.setCustomProperty("labeling/enabled", "true")
+                            layer.setCustomProperty("labeling/isExpression", "true")
+                            layer.setCustomProperty("labeling/fontFamily", "Arial")
+                            layer.setCustomProperty("labeling/fontSize", "10")
+                            layer.setCustomProperty("labeling/fieldName", "'%s'" % os.path.splitext(os.path.basename(drop))[0])
+                            layer.setCustomProperty("labeling/placement", "1")
+                            layer.triggerRepaint()
+                            self.iface.mapCanvas().refresh()
+                        self.layerlist[layer.id()] = drop
         except Exception as e:
             self.iface.messageBar().pushMessage('Something went wrong! See the message log for more information.',
                                                 duration=3)
@@ -257,15 +257,16 @@ class QpalsShowFile():
         if overview:
             return infile.replace(".odm", "_overview_%s.tif" % overview)
         lines = outdict["stdout"].split("\n")
-        for line in lines:
-            if line.startswith("Minimum X-Y-Z"):
+        for i in range(len(lines)):
+            line = lines[i]
+            if line.startswith("Minimum"):
                 linearr = line.split()
-                minX = float(linearr[2])
-                minY = float(linearr[3])
-            if line.startswith("Maximum X-Y-Z"):
+                minX = float(linearr[1])
+                minY = float(linearr[2])
+            if line.startswith("Maximum"):
                 linearr = line.split()
-                maxX = float(linearr[2])
-                maxY = float(linearr[3])
+                maxX = float(linearr[1])
+                maxY = float(linearr[2])
                 break
         return minX, minY, maxX, maxY
 
@@ -276,15 +277,15 @@ class QpalsShowFile():
 
     def callIsolines(self, infile):
         self.updateText("Calling module opalsIsolines...")
-        interval = str(self.isoInt) if not self.isoInteBox is not None else self.isoInteBox.text()
+        interval = str(self.isoInt) if not hasattr(self, 'isoInteBox') else self.isoInteBox.text()
         shapefile = self.call("opalsIsolines", {"inFile": infile, "interval": interval}, ".shp")
         return shapefile
 
     def callCell(self, infile):
         self.updateText("Calling module opalsCell...")
-        cellsize = str(self.cellSize) if not self.cellSizeBox else self.cellSizeBox.text()
-        feature = self.features[self.cellMethod] if not self.cellFeatCmb else self.cellFeatCmb.currentText()
-        attribute = "Z" if not self.cellAttrCmb else self.cellAttrCmb.currentText()
+        cellsize = str(self.cellSize) if not hasattr(self,'cellSizeBox') else self.cellSizeBox.text()
+        feature = self.features[self.cellMethod] if not hasattr(self,'cellFeatCmb') else self.cellFeatCmb.currentText()
+        attribute = "Z" if not hasattr(self,'cellAttrCmb') else self.cellAttrCmb.currentText()
         rasfile = self.call("opalsCell", {"inFile": infile,
                                           "feature": feature,
                                           "cellSize": cellsize,

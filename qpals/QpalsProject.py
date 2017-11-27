@@ -22,7 +22,7 @@ from qgis.core import *
 from qgis.gui import *
 import os
 
-from QpalsShowFile import QpalsShowFile
+from QpalsShowFile import VISUALISATION_METHODS
 from qt_extensions import QpalsDropTextbox
 import QpalsModuleBase
 
@@ -33,7 +33,7 @@ class QpalsProject:
         self.workdir = workdir
         self.name = name
         self.opalspath = opalspath
-        self.vismethod = 3
+        self.vismethod = 1
         self.viscells = 1
         self.viscellm = 3
         self.visisoint = 10
@@ -66,14 +66,18 @@ class QpalsProject:
         self.txtName = QtGui.QLineEdit(self.name)
 
         self.selVisMethod = QtGui.QComboBox()
-        self.selVisMethod.addItem("Shading (raster)")
-        self.selVisMethod.addItem("Z-Color (raster)")
-        self.selVisMethod.addItem("Z-Value (raw height values)(raster)")
-        self.selVisMethod.addItem("Bounding box (vector)")
-        self.selVisMethod.addItem("Minimum bounding rectangle (vector)")
-        self.selVisMethod.addItem("Convex hull (vector)")
-        self.selVisMethod.addItem("Alpha shape (vector)")
-        self.selVisMethod.addItem("Isolines (vector, based on Z-Value)")
+
+        self.selVisMethod.addItem(VISUALISATION_METHODS[0])
+        self.selVisMethod.addItem(VISUALISATION_METHODS[1])
+        self.selVisMethod.addItem(VISUALISATION_METHODS[2])
+        self.selVisMethod.addItem(VISUALISATION_METHODS[3])
+        self.selVisMethod.addItem(VISUALISATION_METHODS[4])
+        self.selVisMethod.addItem(VISUALISATION_METHODS[5])
+        self.selVisMethod.addItem(VISUALISATION_METHODS[6])
+        self.selVisMethod.addItem(VISUALISATION_METHODS[7])
+        self.selVisMethod.addItem(VISUALISATION_METHODS[8])
+        self.selVisMethod.addItem(VISUALISATION_METHODS[9])
+
 
 
         self.cellSizeLbl = QtGui.QLabel("Set cell size:")
@@ -112,18 +116,22 @@ class QpalsProject:
 
     def updatevisMethod(self):
         self.curVisMethod = self.selVisMethod.currentIndex()
-        if self.curVisMethod in [0, 1, 2, 7]:
+        if self.curVisMethod in [3, 4, 5, 9]:
             self.cellSizeLbl.show()
             self.cellSizeBox.show()
             self.cellFeatLbl.show()
             self.cellFeatCmb.show()
+            #self.cellAttrCmb.show()
+            #self.cellAttrLbl.show()
         else:
             self.cellSizeLbl.hide()
             self.cellSizeBox.hide()
             self.cellFeatLbl.hide()
             self.cellFeatCmb.hide()
+            #self.cellAttrCmb.hide()
+            #self.cellAttrLbl.hide()
 
-        if self.curVisMethod in [7]:
+        if self.curVisMethod in [9]:
             self.isoInteLbl.show()
             self.isoInteBox.show()
         else:
@@ -158,7 +166,7 @@ class QpalsProject:
     def loadVissettings(self):
         s = QtCore.QSettings()
         proj = QgsProject.instance()
-        self.vismethod = proj.readNumEntry('qpals', 'vismethod', 3)[0]
+        self.vismethod = proj.readNumEntry('qpals', 'vismethod', 1)[0]
         self.viscells = proj.readEntry('qpals', 'vis-cells', '1;1')[0]
         self.viscellm = proj.readNumEntry('qpals', 'vis-cellm', 3)[0]
         self.visisoint = proj.readNumEntry('qpals', 'vis-isoint', 10)[0]

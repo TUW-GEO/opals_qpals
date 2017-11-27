@@ -168,16 +168,16 @@ def getAttributeInformation(file, project):
         attrs = []
         entries = []
         for line in outtext.split("\n"):
-            if line.startswith("Attribute	type"):
+            if line.startswith("Attribute "):
                 header_passed = True
-                entries = line.split("\t")
+                entries = line.split()
             elif header_passed:
-                if line.startswith("Index statistics"):
-                    break  # end of attribute table
-                data = line.split("\t")
+                data = line.split()
+                if len(data) == 0:  # end of attribute list
+                    break
                 attrs.append(data)
         if not header_passed:
             raise NotImplementedError
-        return  attrs, entries
+        return attrs, entries
     except Exception:
         return None, None

@@ -54,7 +54,7 @@ class moduleSelector(QtGui.QDialog):
     cmdIcon = QtGui.QIcon(os.path.join(IconPath, "cmd_icon.png"))
     loadingIcon = QtGui.QIcon(os.path.join(IconPath, "spinner_icon.png"))
     errorIcon = QtGui.QIcon(os.path.join(IconPath, "error_icon.png"))
-    checkIcon = QtGui.QIcon(os.path.join(IconPath, "checkIcon.png"))
+    checkIcon = QtGui.QIcon(os.path.join(IconPath, "opalsIconCheck.png"))
 
     abort_signal = QtCore.pyqtSignal(name='abort_signal')
 

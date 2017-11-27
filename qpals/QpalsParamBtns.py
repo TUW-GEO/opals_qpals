@@ -36,6 +36,8 @@ class QpalsLockIconBtn(QtGui.QToolButton):
         self.setIcon(unlockedIcon)
         self.setStyleSheet("border-style: none;opacity:0.5;")
         self.param = param
+        if self.param.changed:
+            self.setIcon(lockedIcon)
         self.clicked.connect(self.changeLockStatus)
 
     def changeLockStatus(self):

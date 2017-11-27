@@ -30,8 +30,22 @@ from qgis.gui import *
 import QpalsProject
 import QpalsShowFile
 import moduleSelector
-
 from modules import QpalsSection, QpalsLM, QpalsAttributeMan, QpalsQuickLM
+
+def ensure_opals_path(path, exe="opalsCell.exe"):
+    while not os.path.exists(os.path.join(path, exe)):
+        msg = QMessageBox()
+        msg.setText("Ooops..")
+        msg.setInformativeText("Could not validate opals path. Please make sure to select the folder "
+                               "containing the opals binaries, i.e. opalsCell.exe, opalsInfo.exe, etc.")
+        msg.setWindowTitle("qpals opals path")
+        msg.setStandardButtons(QMessageBox.Ok)
+        ret = msg.exec_()
+        if ret == QMessageBox.Ok:
+            path = QFileDialog.getExistingDirectory(None, caption='Select path containing opals*.exe binaries')
+        else:
+            return None
+    return path
 
 
 class qpals:
@@ -49,7 +63,7 @@ class qpals:
         workdir = proj.readEntry("qpals","workdir", tempfile.gettempdir())[0]
 
         firstrun = False
-        while opalspath == "":
+        if opalspath == "":
             msg = QMessageBox()
             msg.setText("The path to the opals binaries has not been set.")
             msg.setInformativeText("Please set it now, or press cancel to unload the qpals plugin.")
@@ -58,22 +72,13 @@ class qpals:
             ret = msg.exec_()
             if ret == QMessageBox.Ok:
                 opalspath = QFileDialog.getExistingDirectory(None, caption='Select path containing opals*.exe binaries')
-                if opalspath:
-                    if os.path.exists(os.path.join(opalspath, "opalsCell.exe")):
-                        s.setValue("qpals/opalspath", opalspath)
-                        firstrun = True
-                    else:
-                        opalspath = ""
-                        msg = QMessageBox()
-                        msg.setText("Ooops..")
-                        msg.setInformativeText("Could not validate opals path. Please make sure to select the folder "
-                                               "containing the opals binaries, i.e. opalsCell.exe, opalsInfo.exe, etc.")
-                        msg.setWindowTitle("qpals opals path")
-                        msg.setStandardButtons(QMessageBox.Ok)
-                        ret = msg.exec_()
+                s.setValue("qpals/opalspath", opalspath)
+                firstrun = True
 
-            else:
-                self.active = False
+        opalspath = ensure_opals_path(opalspath)
+
+        if not opalspath:
+            self.active = False
 
         if self.active:
             self.prjSet = QpalsProject.QpalsProject(name="", opalspath=opalspath,
@@ -158,7 +163,22 @@ class qpals:
         self.secUIDock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self.secUIDock.setFloating(True)
         self.secUIDock.show()
+        self.secUIDock.resize(400, 600)
         self.secUIDock.visibilityChanged.connect(self.sec.close)
+
+    def showLMGUI(self):
+        if not self.linemodeler:
+            self.linemodeler = QpalsLM.QpalsLM(project=self.prjSet, layerlist=self.layerlist, iface=self.iface)
+            self.linemodeler.createWidget()
+        self.linemodelerUIDock = QDockWidget("qpals LineModeler", self.iface.mainWindow())
+        self.linemodelerUIDock.setWidget(self.linemodeler.scrollwidget)
+        self.linemodelerUIDock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.linemodelerUIDock.setFloating(True)
+        self.linemodelerUIDock.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        self.linemodelerUIDock.resize(800, 800)
+        self.linemodelerUIDock.move(50,50)
+        self.linemodelerUIDock.show()
+
 
     def initGui(self):
         if self.active:
