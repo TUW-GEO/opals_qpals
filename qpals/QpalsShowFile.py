@@ -1,14 +1,14 @@
 import os
 import tempfile
 
-from PyQt4 import QtGui
+from qgis.PyQt import QtGui
 from qgis.core import *
 from qgis.gui import *
 
-import QpalsModuleBase
-import QpalsParameter
-from qt_extensions import QpalsDropTextbox
-from modules.QpalsAttributeMan import getAttributeInformation
+from qpals.qpals import QpalsModuleBase
+from qpals.qpals import QpalsParameter
+from qpals.qpals.qt_extensions import QpalsDropTextbox
+from qpals.qpals.modules.QpalsAttributeMan import getAttributeInformation
 
 VISUALISATION_METHODS = {
     0: "[fast] Bounding box (vector)",
@@ -234,7 +234,7 @@ class QpalsShowFile():
         except Exception as e:
             self.iface.messageBar().pushMessage('Something went wrong! See the message log for more information.',
                                                 duration=3)
-            print e
+            print(e)
 
         if self.ui:
             self.okBtn.setText("Load")

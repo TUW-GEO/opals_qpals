@@ -1,4 +1,4 @@
-from PyQt4 import QtGui
+from qgis.PyQt import QtGui
 
 class QTextComboBox(QtGui.QComboBox):
     def __init__(self, *args, **kwargs):

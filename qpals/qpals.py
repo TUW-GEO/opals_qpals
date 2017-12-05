@@ -19,18 +19,17 @@ email                : lukas.winiwarter@tuwien.ac.at
 import os
 import tempfile
 import subprocess
-import cPickle
 
 # Import the PyQt and QGIS libraries
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
 from qgis.core import *
 from qgis.gui import *
 
-import QpalsProject
-import QpalsShowFile
-import moduleSelector
-from modules import QpalsSection, QpalsLM, QpalsAttributeMan, QpalsQuickLM
+from qpals.qpals import QpalsProject
+from qpals.qpals import QpalsShowFile
+from qpals.qpals import moduleSelector
+from qpals.qpals.modules import QpalsSection, QpalsLM, QpalsAttributeMan, QpalsQuickLM
 
 def ensure_opals_path(path, exe="opalsCell.exe"):
     while not os.path.exists(os.path.join(path, exe)):
@@ -94,7 +93,7 @@ class qpals:
                                         startupinfo=info)
                 proc.communicate()
             except:
-                print "Failed to update attribute types..."
+                print("Failed to update attribute types...")
 
         if firstrun:
             self.showproject()
@@ -147,7 +146,7 @@ class qpals:
         except Exception as e:
             self.iface.messageBar().pushMessage('Something went wrong! See the message log for more information.',
                                                 duration=3)
-            print e
+            print(e)
 
     def showAttrMan(self):
         self.attrman = QpalsAttributeMan.QpalsAttributeMan(project=self.prjSet,

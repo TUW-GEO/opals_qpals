@@ -23,14 +23,13 @@ import subprocess
 import re
 from xml.dom import minidom
 
-from qt_extensions import QTextComboBox
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import pyqtSlot
+from qgis.PyQt import QtCore, QtGui
+from qgis.PyQt.QtCore import pyqtSlot
 
-import QpalsParamBtns
-import QpalsParameter
-from qt_extensions import QpalsDropTextbox, QCollapsibleGroupBox
-from modules.QpalsAttributeMan import getAttributeInformation
+from qpals.qpals.qt_extensions import QTextComboBox, QpalsDropTextbox, QCollapsibleGroupBox
+from qpals.qpals import QpalsParamBtns
+from qpals.qpals import QpalsParameter
+from qpals.qpals.modules.QpalsAttributeMan import getAttributeInformation
 
 IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
 
@@ -114,7 +113,7 @@ class ModuleLoadWorker(QtCore.QObject):
         self.killed = True
 
     finished = QtCore.pyqtSignal(object)
-    error = QtCore.pyqtSignal(Exception, basestring, object)
+    error = QtCore.pyqtSignal(Exception, str, object)
     progress = QtCore.pyqtSignal(float)
 
 
@@ -139,7 +138,7 @@ class ModuleValidateWorker(QtCore.QObject):
         self.killed = True
 
     finished = QtCore.pyqtSignal(object)
-    error = QtCore.pyqtSignal(Exception, basestring, object)
+    error = QtCore.pyqtSignal(Exception, str, object)
     progress = QtCore.pyqtSignal(float)
 
 
@@ -156,7 +155,7 @@ class ModuleRunWorker(QtCore.QObject):
                 self.progress.emit(100)
         except Exception as e:
             self.error.emit(e, str(e), self.module)
-            print "Error:", str(e)
+            print("Error:", str(e))
         ret = (None, "", self.module)
         self.finished.emit(ret)
 
@@ -165,9 +164,9 @@ class ModuleRunWorker(QtCore.QObject):
         self.killed[0] = True
 
     finished = QtCore.pyqtSignal(object)
-    error = QtCore.pyqtSignal(Exception, basestring, object)
+    error = QtCore.pyqtSignal(Exception, str, object)
     progress = QtCore.pyqtSignal(float)
-    status = QtCore.pyqtSignal(basestring)
+    status = QtCore.pyqtSignal(str)
 
 
 class ModuleBaseRunWorker(QtCore.QObject):
@@ -183,7 +182,7 @@ class ModuleBaseRunWorker(QtCore.QObject):
                 self.progress.emit(100)
         except Exception as e:
             self.error.emit(e, str(e), self.module)
-            print "Error:", str(e)
+            print("Error:", str(e))
         ret = (None, "", self.module)
         self.finished.emit(ret)
 
@@ -192,9 +191,9 @@ class ModuleBaseRunWorker(QtCore.QObject):
         self.killed[0] = True
 
     finished = QtCore.pyqtSignal(object)
-    error = QtCore.pyqtSignal(Exception, basestring, object)
+    error = QtCore.pyqtSignal(Exception, str, object)
     progress = QtCore.pyqtSignal(float)
-    status = QtCore.pyqtSignal(basestring)
+    status = QtCore.pyqtSignal(str)
 
 
 
@@ -235,7 +234,7 @@ class QpalsModuleBase():
     def errorBar(self, message):
         self.progressbar.setValue(100)
         self.progressbar.setFormat("Error: %s" % message)
-        print "error:", message
+        print("error:", message)
 
     @classmethod
     def fromCallString(cls, string, project, layerlist):

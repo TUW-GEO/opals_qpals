@@ -17,7 +17,7 @@ email                : lukas.winiwarter@tuwien.ac.at
  ***************************************************************************/
  """
 
-from PyQt4 import QtGui, QtCore
+from qgis.PyQt import QtGui, QtCore
 from distutils.version import LooseVersion
 import matplotlib
 import ogr
@@ -37,7 +37,7 @@ class HighlightSelected(lines.VertexSelector):
         self.markers, = self.axes.plot([], [], [], fmt, **kwargs)
 
     def process_selected(self, ind, xs, ys, zs):
-        print "clicked %s" % ind
+        print("clicked %s" % ind)
         self.markers.set_data(xs, ys, zs)
         self.canvas.draw()
 
@@ -75,7 +75,7 @@ class plotwindow():
                 ogeom = ogr.CreateGeometryFromWkb(wkb)
                 usegeom = ogeom.Intersection(aoi.Buffer(2))
                 if not usegeom:
-                    print ogeom.Intersection(aoi)
+                    print(ogeom.Intersection(aoi))
                     continue
                 linelist = []
                 if usegeom.GetGeometryType() in [ogr.wkbMultiLineString, ogr.wkbMultiLineString25D]:

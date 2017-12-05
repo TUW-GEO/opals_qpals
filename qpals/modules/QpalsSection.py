@@ -25,9 +25,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import ogr
 import re
-from PyQt4 import QtGui
-from PyQt4.QtGui import QColor
-from PyQt4.QtGui import QCursor, QBitmap
+from qgis.PyQt import QtGui
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtGui import QCursor, QBitmap
 from qgis.core import *
 from qgis.core import QgsMapLayerRegistry
 from qgis.gui import *

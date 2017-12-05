@@ -21,11 +21,11 @@ import glob
 import os
 import re
 
-from PyQt4 import QtCore, QtGui
+from qgis.PyQt import QtCore, QtGui
 
-import QpalsShowFile
-from QpalsModuleBase import QpalsModuleBase, QpalsRunBatch, ModuleLoadWorker, ModuleRunWorker
-from qt_extensions.QpalsListWidgetItem import QpalsListWidgetItem
+from qpals.qpals import QpalsShowFile
+from qpals.qpals.QpalsModuleBase import QpalsModuleBase, QpalsRunBatch, ModuleLoadWorker, ModuleRunWorker
+from qpals.qpals.qt_extensions.QpalsListWidgetItem import QpalsListWidgetItem
 
 qtwhite = QtGui.QColor(255, 255, 255)
 qtsoftred = QtGui.QColor(255, 140, 140)
@@ -355,7 +355,7 @@ class moduleSelector(QtGui.QDialog):
             try:
                 module.paramClass.load()
             except Exception as e:
-                print e
+                print(e)
         self.loadAllBtn.hide()
 
     def viewboxChanged(self):
@@ -472,7 +472,7 @@ class moduleSelector(QtGui.QDialog):
                     if module:
                         self.runListWidget.addItem(module)
             except Exception as e:
-                print e
+                print(e)
 
 class QpalsDeleteLabel(QtGui.QLabel):
 

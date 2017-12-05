@@ -1,4 +1,4 @@
-from PyQt4 import QtGui, QtCore
+from qgis.PyQt import QtGui
 import os
 
 

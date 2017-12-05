@@ -1,7 +1,7 @@
 import ogr
 import os, sys, glob
 import numpy as np
-from PyQt4 import QtCore
+from qgis.PyQt import QtCore
 from qgis.core import QgsPoint, QgsRaster
 
 class RunWorker(QtCore.QObject):
@@ -278,7 +278,7 @@ def main(SOURCE_LINES, tempf, split_size, max_elements, progressslot=None, dtm=N
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
-        print "Usage: findDoubleSegments.py source.shp result_dir [split_size=50] [max_elements=1000]"
+        print("Usage: findDoubleSegments.py source.shp result_dir [split_size=50] [max_elements=1000]")
         exit(1)
 
     SOURCE_LINES = sys.argv[1]

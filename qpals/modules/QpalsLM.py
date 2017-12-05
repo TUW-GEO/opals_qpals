@@ -27,9 +27,9 @@ import numpy as np
 import ogr
 import re
 import time
-from PyQt4 import QtGui, QtCore
-from PyQt4.QtGui import QMouseEvent, QDockWidget, QSpinBox
-from PyQt4.QtCore import Qt, QEvent
+from qgis.PyQt import QtGui, QtCore
+from qgis.PyQt.QtGui import QMouseEvent, QDockWidget, QSpinBox
+from qgis.PyQt.QtCore import Qt, QEvent
 from qgis.core import *
 from qgis.core import QgsMapLayerRegistry, QgsPoint, QgsCoordinateTransform, \
     QgsGeometry, QgsFeatureRequest, QgsRectangle, QgsRaster

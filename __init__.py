@@ -37,5 +37,5 @@ def qgisMinimumVersion():
 
 def classFactory(iface): 
     # load qpals class from file qpals
-    from qpals import qpals
+    from qpals.qpals import qpals
     return qpals.qpals(iface)

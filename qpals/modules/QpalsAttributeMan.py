@@ -17,13 +17,13 @@ email                : lukas.winiwarter@tuwien.ac.at
  ***************************************************************************/
  """
 
-from PyQt4 import QtCore, QtGui, QtWebKit
+from qgis.PyQt import QtCore, QtGui, QtWebKit
 from qgis.core import *
 from qgis.gui import *
 import os
 import operator, webbrowser
-from ..qt_extensions import QpalsDropTextbox
-from ..resources.attribute_types import odm_predef_attributes, odm_data_types
+from qpals.qpals.qt_extensions import QpalsDropTextbox
+from qpals.qpals.resources.attribute_types import odm_predef_attributes, odm_data_types
 
 class QpalsAttributeMan:
     def __init__(self, project, iface=None, layerlist=None):
@@ -120,7 +120,7 @@ class QpalsAttributeMan:
             moduleOut = addinfoinst.run(show=0)
             self.pcChanged()
         except Exception as e:
-            print e
+            print(e)
 
 
     def pcChanged(self):
