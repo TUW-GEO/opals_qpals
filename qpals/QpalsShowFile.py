@@ -1,7 +1,13 @@
+from __future__ import print_function
+from __future__ import absolute_import
+from builtins import str
+from builtins import range
+from builtins import object
 import os
 import tempfile
 
 from qgis.PyQt import QtGui
+from qgis.PyQt import QtWidgets
 from qgis.core import *
 from qgis.gui import *
 
@@ -23,7 +29,7 @@ VISUALISATION_METHODS = {
     9: "Isolines (vector, based on Z-Value)",
 }
 
-class QpalsShowFile():
+class QpalsShowFile(object):
     METHOD_SHADING = 0
     METHOD_Z_COLOR = 1
     METHOD_Z = 2
@@ -63,16 +69,16 @@ class QpalsShowFile():
         self.ui.show()
 
     def initUI(self):
-        self.ui = QtGui.QDialog()
-        lo = QtGui.QFormLayout()
-        self.ui.setSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Maximum)
-        lo.addRow(QtGui.QLabel("Load ALS file(s):"))
+        self.ui = QtWidgets.QDialog()
+        lo = QtWidgets.QFormLayout()
+        self.ui.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Maximum)
+        lo.addRow(QtWidgets.QLabel("Load ALS file(s):"))
         self.dropspace = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)
         self.dropspace.setMinimumContentsLength(20)
-        self.dropspace.setSizeAdjustPolicy(QtGui.QComboBox.AdjustToMinimumContentsLength)
+        self.dropspace.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToMinimumContentsLength)
         self.dropspace.editingFinished.connect(self.inFileUpdated)
         lo.addRow(self.dropspace)
-        self.visMethod = QtGui.QComboBox()
+        self.visMethod = QtWidgets.QComboBox()
         self.visMethod.addItem(VISUALISATION_METHODS[0])
         self.visMethod.addItem(VISUALISATION_METHODS[1])
         self.visMethod.addItem(VISUALISATION_METHODS[2])
@@ -84,16 +90,16 @@ class QpalsShowFile():
         self.visMethod.addItem(VISUALISATION_METHODS[8])
         self.visMethod.addItem(VISUALISATION_METHODS[9])
         self.visMethod.currentIndexChanged.connect(self.updatevisMethod)
-        self.cellSizeLbl = QtGui.QLabel("Set cell size:")
-        self.cellSizeBox = QtGui.QLineEdit()
-        self.cellFeatLbl = QtGui.QLabel("Set feature:")
-        self.cellFeatCmb = QtGui.QComboBox()
-        self.cellAttrLbl = QtGui.QLabel("Select attribute:")
-        self.cellAttrCmb = QtGui.QComboBox()
+        self.cellSizeLbl = QtWidgets.QLabel("Set cell size:")
+        self.cellSizeBox = QtWidgets.QLineEdit()
+        self.cellFeatLbl = QtWidgets.QLabel("Set feature:")
+        self.cellFeatCmb = QtWidgets.QComboBox()
+        self.cellAttrLbl = QtWidgets.QLabel("Select attribute:")
+        self.cellAttrCmb = QtWidgets.QComboBox()
         self.cellAttrCmb.addItem("Z")
-        self.cellAttrCmb.setSizeAdjustPolicy(QtGui.QComboBox.AdjustToContents)
-        self.isoInteLbl = QtGui.QLabel("Set isoline interval:")
-        self.isoInteBox = QtGui.QLineEdit()
+        self.cellAttrCmb.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
+        self.isoInteLbl = QtWidgets.QLabel("Set isoline interval:")
+        self.isoInteBox = QtWidgets.QLineEdit()
         self.isoInteBox.setText("10")
         cellInst = QpalsModuleBase.QpalsModuleBase(os.path.join(self.project.opalspath, "opalsCell.exe"), self.project)
         cellInst.load()
@@ -108,7 +114,7 @@ class QpalsShowFile():
         lo.addRow(self.cellFeatLbl, self.cellFeatCmb)
         lo.addRow(self.isoInteLbl, self.isoInteBox)
         lo.addRow(self.visMethod)
-        self.okBtn = QtGui.QPushButton("Load")
+        self.okBtn = QtWidgets.QPushButton("Load")
         self.okBtn.clicked.connect(self.loadHelper)
         lo.addRow(self.okBtn)
         self.ui.setLayout(lo)
@@ -218,7 +224,7 @@ class QpalsShowFile():
 
                     if layer:
                         layer.setCustomProperty("qpals-odmpath", drop)
-                        QgsMapLayerRegistry.instance().addMapLayer(layer)
+                        QgsProject.instance().addMapLayer(layer)
 
                         if self.curVisMethod in [0, 6, 7, 8]:
                             layer.setCustomProperty("labeling", "pal")
@@ -305,7 +311,7 @@ class QpalsShowFile():
     def updateText(self, text):
         if self.ui:
             self.okBtn.setText(text)
-            QtGui.QApplication.processEvents()
+            QtWidgets.QApplication.processEvents()
 
     def call(self, module, params, outext="", returnstdout=False, nooutfile=False):
         Module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, module+".exe"), QpalsProject=self.project)
@@ -314,7 +320,7 @@ class QpalsShowFile():
             params["outFile"] = file.name + outext
             file.close()
         paramlist = []
-        for param in params.iterkeys():
+        for param in params.keys():
             paramlist.append(QpalsParameter.QpalsParameter(param, params[param], None, None, None, None, None))
         Module.params = paramlist
         moduleOut = Module.run(show=0)

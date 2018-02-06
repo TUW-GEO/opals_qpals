@@ -16,12 +16,16 @@ email                : lukas.winiwarter@tuwien.ac.at
  *                                                                         *
  ***************************************************************************/
 """
+from __future__ import print_function
+from __future__ import absolute_import
+from builtins import object
 import os
 import tempfile
 import subprocess
 
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtGui import *
 from qgis.core import *
 from qgis.gui import *
@@ -47,7 +51,7 @@ def ensure_opals_path(path, exe="opalsCell.exe"):
     return path
 
 
-class qpals:
+class qpals(object):
     def __init__(self, iface):
         # Save reference to the QGIS interface
         self.iface = iface
@@ -193,7 +197,7 @@ class qpals:
             self.menuItemModuleSelector = QAction(opalsIcon, "&ModuleSelector", self.iface.mainWindow())
             self.menuItemModuleSelector.setWhatsThis("Select a module from a list")
             self.menuItemModuleSelector.setStatusTip("Select module from list")
-            QObject.connect(self.menuItemModuleSelector, SIGNAL("triggered()"), self.showModuleSelector)
+            self.menuItemModuleSelector.triggered.connect(self.showModuleSelector)
 
             self.logmnu = QMenu(self.menu)
             self.logmnu.setIcon(settingsIcon)
@@ -202,7 +206,7 @@ class qpals:
 
             self.mnulog = QAction("show opalsLog", self.iface.mainWindow())
             self.mnulog.setStatusTip("Show log information")
-            QObject.connect(self.mnulog, SIGNAL("triggered()"), self.showlog)
+            self.mnulog.triggered.connect(self.showlog)
             self.logmnu.addAction(self.mnulog)
 
             self.mnuclearlog = QAction("clear opalsLog", self.iface.mainWindow())
@@ -214,15 +218,15 @@ class qpals:
 
             self.mnuproject = QAction(settingsIcon, "&ProjectSettings", self.iface.mainWindow())
             self.mnuproject.setStatusTip("ProjectSettings")
-            QObject.connect(self.mnuproject, SIGNAL("triggered()"), self.showproject)
+            self.mnuproject.triggered.connect(self.showproject)
 
             self.mnusec = QAction(specialIcon, "&Section", self.iface.mainWindow())
             self.mnusec.setStatusTip("Section")
-            QObject.connect(self.mnusec, SIGNAL("triggered()"), self.showSecGUI)
+            self.mnusec.triggered.connect(self.showSecGUI)
 
             self.mnulm = QAction(specialIcon, "&LineModeler", self.iface.mainWindow())
             self.mnulm.setStatusTip("LineModeler")
-            QObject.connect(self.mnulm, SIGNAL("triggered()"), self.showLMGUI)
+            self.mnulm.triggered.connect(self.showLMGUI)
 
 
             # QuickLM is acessible through LM
@@ -233,7 +237,7 @@ class qpals:
 
             self.mnuatt = QAction(opalsIcon, "&AttributeManager", self.iface.mainWindow())
             self.mnuatt.setStatusTip("AttributeManager")
-            QObject.connect(self.mnuatt, SIGNAL("triggered()"), self.showAttrMan)
+            self.mnuatt.triggered.connect(self.showAttrMan)
 
             self.menu.addAction(self.menuItemModuleSelector)
             self.menu.addAction(self.mnuatt)

@@ -16,7 +16,11 @@ email                : lukas.winiwarter@tuwien.ac.at
  *                                                                         *
  ***************************************************************************/
  """
+from __future__ import absolute_import
 
+from builtins import str
+from builtins import range
+from builtins import object
 import os
 import tempfile
 from collections import OrderedDict
@@ -28,19 +32,21 @@ import ogr
 import re
 import time
 from qgis.PyQt import QtGui, QtCore
-from qgis.PyQt.QtGui import QMouseEvent, QDockWidget, QSpinBox
+from qgis.PyQt.QtGui import QMouseEvent
+from qgis.PyQt.QtWidgets import QDockWidget, QSpinBox
 from qgis.PyQt.QtCore import Qt, QEvent
 from qgis.core import *
-from qgis.core import QgsMapLayerRegistry, QgsPoint, QgsCoordinateTransform, \
+from qgis.core import QgsProject as QgsMapLayerRegistry, QgsPoint, QgsCoordinateTransform, \
     QgsGeometry, QgsFeatureRequest, QgsRectangle, QgsRaster
 from qgis.gui import *
-from qgis.gui import QgsMapTool, QgsMapLayerComboBox, QgsMapLayerProxyModel
+from qgis.gui import QgsMapTool, QgsMapLayerComboBox
+from qgis.core import QgsMapLayerProxyModel
 
 from ..qt_extensions import QpalsDropTextbox
 from .. import QpalsModuleBase
 from ..qt_extensions.QCollapsibleGroupBox import QCollapsibleGroupBox
 from ..QpalsMultiModuleRunner import qpalsMultiModuleRunner as qMMR
-import findDoubleSegments
+from . import findDoubleSegments
 
 
 
@@ -303,7 +309,7 @@ class QpalsLM(object):
                     ('chkExport', QtGui.QCheckBox("Export")),
                 ]
                 )
-                for key, value in self.settings['settings'].items():
+                for key, value in list(self.settings['settings'].items()):
                     if isinstance(value, QpalsDropTextbox.QpalsDropTextbox):
                         value.setMinimumContentsLength(20)
                         value.setSizeAdjustPolicy(QtGui.QComboBox.AdjustToMinimumContentsLength)
@@ -526,13 +532,13 @@ class QpalsLM(object):
                 ls.addRow(desc)
 
                 box1 = QtGui.QGroupBox("QuickLineModeller")
-                import QpalsQuickLM
+                from . import QpalsQuickLM
                 self.quicklm = QpalsQuickLM.QpalsQuickLM(project=self.project, layerlist=self.layerlist,
                                                          iface=self.iface)
                 box1.setLayout(self.quicklm.fl)
                 ls.addRow(box1)
                 box2 = QtGui.QGroupBox("qpalsSection")
-                import QpalsSection
+                from . import QpalsSection
                 self.section = QpalsSection.QpalsSection(project=self.project, layerlist=self.layerlist,
                                                          iface=self.iface)
                 self.section.createWidget()

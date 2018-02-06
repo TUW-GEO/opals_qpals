@@ -16,7 +16,10 @@ email                : lukas.winiwarter@tuwien.ac.at
  *                                                                         *
  ***************************************************************************/
  """
+from __future__ import absolute_import
 
+from builtins import range
+from builtins import object
 import os
 import tempfile
 from xml.dom import minidom
@@ -25,21 +28,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 import ogr
 import re
-from qgis.PyQt import QtGui
+from qgis.PyQt import QtGui, QtWidgets
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtGui import QCursor, QBitmap
 from qgis.core import *
-from qgis.core import QgsMapLayerRegistry
+from qgis.core import QgsProject as QgsMapLayerRegistry
 from qgis.gui import *
-from qgis.gui import QgsMapLayerComboBox, QgsMapLayerProxyModel
+from qgis.gui import QgsMapLayerComboBox
+from qgis.core import QgsMapLayerProxyModel
 
 from ..qt_extensions import QpalsDropTextbox
 from .. import QpalsShowFile, QpalsModuleBase, QpalsParameter
-from QpalsAttributeMan import getAttributeInformation
-from matplotlib_section import plotwindow
+from .QpalsAttributeMan import getAttributeInformation
+from .matplotlib_section import plotwindow
 
 
-class QpalsSection:
+class QpalsSection(object):
 
     def __init__(self, project, layerlist, iface):
         self.advanced_widget = None
@@ -55,32 +59,32 @@ class QpalsSection:
         self.bm = QBitmap(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'media', 'cursor-cross.png'))
 
     def createWidget(self):
-        self.advanced_widget = QtGui.QDialog()
-        self.simple_widget = QtGui.QDialog()
-        self.tabs = QtGui.QTabWidget()
+        self.advanced_widget = QtWidgets.QDialog()
+        self.simple_widget = QtWidgets.QDialog()
+        self.tabs = QtWidgets.QTabWidget()
         ### SIMPLE ###
-        self.ls = QtGui.QFormLayout()
-        self.ls.addRow(QtGui.QLabel("Choose input file:"))
+        self.ls = QtWidgets.QFormLayout()
+        self.ls.addRow(QtWidgets.QLabel("Choose input file:"))
         self.txtinfileSimple = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist, filterrex=".*\.odm$")
-        hboxsimple1 = QtGui.QHBoxLayout()
+        hboxsimple1 = QtWidgets.QHBoxLayout()
         hboxsimple1.addWidget(self.txtinfileSimple, 1)
         self.txtinfileSimple.textChanged.connect(self.simpleIsLoaded)
-        self.ls.addRow(QtGui.QLabel("Input file (odm)"), hboxsimple1)
-        self.linetoolBtn = QtGui.QPushButton("Pick section")
+        self.ls.addRow(QtWidgets.QLabel("Input file (odm)"), hboxsimple1)
+        self.linetoolBtn = QtWidgets.QPushButton("Pick section")
         self.linetoolBtn.clicked.connect(self.activateLineTool)
         self.linetoolBtn.setEnabled(False)
         self.ls.addRow(self.linetoolBtn)
-        self.runSecBtnSimple = QtGui.QPushButton("Create section")
+        self.runSecBtnSimple = QtWidgets.QPushButton("Create section")
         self.runSecBtnSimple.clicked.connect(self.ltool.runsec)
         self.runSecBtnSimple.setEnabled(False)
         self.runSecBtnSimple.setStyleSheet("background-color: rgb(50,240,50)")
         self.simpleLineLayer = QgsMapLayerComboBox()
         self.simpleLineLayer.setFilters(QgsMapLayerProxyModel.LineLayer)
-        self.simpleLineLayerChk = QtGui.QCheckBox("Visualize (3D) Line Layer:")
+        self.simpleLineLayerChk = QtWidgets.QCheckBox("Visualize (3D) Line Layer:")
         self.ls.addRow(self.simpleLineLayerChk, self.simpleLineLayer)
-        self.showSection = QtGui.QCheckBox("Show section")
-        self.filterStr = QtGui.QLineEdit("Class[Ground]")
-        self.progress = QtGui.QProgressBar()
+        self.showSection = QtWidgets.QCheckBox("Show section")
+        self.filterStr = QtWidgets.QLineEdit("Class[Ground]")
+        self.progress = QtWidgets.QProgressBar()
         self.showSection.stateChanged.connect(self.checkBoxChanged)
         self.showSection.setCheckState(2)
         self.showSection.setTristate(False)
@@ -90,31 +94,31 @@ class QpalsSection:
         self.ls.addRow(self.progress)
         self.simple_widget.setLayout(self.ls)
         ### ADVANCED ###
-        lo = QtGui.QFormLayout()
+        lo = QtWidgets.QFormLayout()
         ######
-        lo.addRow(QtGui.QLabel("Step 1. Choose point cloud and visualize it:"))
+        lo.addRow(QtWidgets.QLabel("Step 1. Choose point cloud and visualize it:"))
         self.txtinfile = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)
-        hbox1 = QtGui.QHBoxLayout()
+        hbox1 = QtWidgets.QHBoxLayout()
         hbox1.addWidget(self.txtinfile, 1)
-        lo.addRow(QtGui.QLabel("Input file (odm)"), hbox1)
-        self.runShdBtn = QtGui.QPushButton("Create shading")
+        lo.addRow(QtWidgets.QLabel("Input file (odm)"), hbox1)
+        self.runShdBtn = QtWidgets.QPushButton("Create shading")
         self.runShdBtn.clicked.connect(self.loadShading)
         lo.addRow(self.runShdBtn)
         ######
-        self.status = QtGui.QListWidgetItem("hidden status")
-        lo.addRow(QtGui.QLabel("Step 2. Create sections"))
+        self.status = QtWidgets.QListWidgetItem("hidden status")
+        lo.addRow(QtWidgets.QLabel("Step 2. Create sections"))
         self.secInst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsSection.exe"), QpalsProject=self.project)
         self.secInst.load()
         self.secInst.listitem = self.status
         secUi = self.secInst.getParamUi()
         lo.addRow(secUi)
 
-        self.runSecBtn = QtGui.QPushButton("Calculate sections")
+        self.runSecBtn = QtWidgets.QPushButton("Calculate sections")
         self.runSecBtn.clicked.connect(self.runSection)
         lo.addRow(self.runSecBtn)
         #######
-        lo.addRow(QtGui.QLabel("Step 3. Use the Section picking tool to show Sections"))
-        self.pickSecBtn = QtGui.QPushButton("Pick section")
+        lo.addRow(QtWidgets.QLabel("Step 3. Use the Section picking tool to show Sections"))
+        self.pickSecBtn = QtWidgets.QPushButton("Pick section")
         self.pickSecBtn.clicked.connect(self.activateTool)
         lo.addRow(self.pickSecBtn)
 
@@ -122,7 +126,7 @@ class QpalsSection:
         self.tabs.addTab(self.simple_widget, "Simple")
         self.tabs.addTab(self.advanced_widget, "Advanced")
 
-        self.scrollwidget = QtGui.QScrollArea()
+        self.scrollwidget = QtWidgets.QScrollArea()
         self.scrollwidget.setWidgetResizable(True)
         self.scrollwidget.setWidget(self.tabs)
 
@@ -145,7 +149,7 @@ class QpalsSection:
 
 
     def simpleIsLoaded(self):
-        layers = QgsMapLayerRegistry.instance().mapLayers().values()
+        layers = list(QgsMapLayerRegistry.instance().mapLayers().values())
         self.linetoolBtn.setEnabled(False)
         for layer in layers:
             odmpath = layer.customProperty("qpals-odmpath", "")
@@ -161,7 +165,7 @@ class QpalsSection:
         self.runShdBtn.setText("Calculating shading...")
         showfile = QpalsShowFile.QpalsShowFile(self.project.iface, self.layerlist, self.project)
         showfile.curVisMethod = QpalsShowFile.QpalsShowFile.METHOD_SHADING
-        showfile.cellSizeBox = QtGui.QLineEdit("1")
+        showfile.cellSizeBox = QtWidgets.QLineEdit("1")
         self.secInst.getParam("inFile").val = self.txtinfile.text()
         self.secInst.getParam("inFile").field.setText(self.txtinfile.text())
 
@@ -274,6 +278,7 @@ class LineTool(QgsMapTool):
         if self.p1 and not self.p2:
             self.rb = QgsRubberBand(self.canvas, False)
             points = [self.p1, self.toLayerCoordinates(self.layer,event.pos())]
+            points = [QgsPoint(pt) for pt in points]
             self.rb.setToGeometry(QgsGeometry.fromPolyline(points), None)
             self.rb.setColor(QColor(0, 128, 255))
             self.rb.setWidth(1)
@@ -307,7 +312,7 @@ class LineTool(QgsMapTool):
                       QgsPoint(c3[0], c3[1]),
                       QgsPoint(c4[0], c4[1])
                       ]]
-            self.rb.setToGeometry(QgsGeometry.fromPolygon(points), None)
+            self.rb.setToGeometry(QgsGeometry.fromPolygonXY(points), None)
             self.rb.setColor(QColor(0, 128, 255))
             fc = QColor(0, 128, 255)
             fc.setAlpha(128)

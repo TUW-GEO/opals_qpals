@@ -17,10 +17,10 @@ email                : lukas.winiwarter@tuwien.ac.at
  ***************************************************************************/
  """
 
-from qgis.PyQt import QtCore, QtGui
+from qgis.PyQt import QtCore, QtWidgets
 from ..QpalsModuleBase import QpalsModuleBase
 
-class QpalsListWidgetItem(QtGui.QListWidgetItem):
+class QpalsListWidgetItem(QtWidgets.QListWidgetItem):
 
     def __init__(self, defdict):
         self.name = defdict['name']
@@ -42,7 +42,7 @@ class QpalsListWidgetItem(QtGui.QListWidgetItem):
             defdict['class'].visualize = self.paramClass.visualize
             dup = QpalsListWidgetItem(defdict=defdict)
             dup.paramClass.listitem = dup
-            dup.setBackgroundColor(self.backgroundColor())
+            dup.setBackground(self.background())
             dup.setToolTip(self.toolTip())
             return dup
         return QpalsListWidgetItem({'name': self.name,

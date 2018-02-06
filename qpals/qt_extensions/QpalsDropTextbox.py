@@ -1,10 +1,12 @@
-from qgis.PyQt import QtCore, QtGui
-from qgis.core import QgsMapLayerRegistry
+from builtins import str
+from qgis.PyQt import QtCore, QtGui, QtWidgets
+from qgis.core import QgsProject as QgsMapLayerRegistry
 import os, re
 
-class QpalsDropTextbox(QtGui.QComboBox):
+class QpalsDropTextbox(QtWidgets.QComboBox):
     def __init__(self, layerlist=None, text=None, show_layers=True, filterrex='.*', *args, **kwargs):
         super(QpalsDropTextbox, self).__init__(*args, **kwargs)
+        self.textChanged = self.currentTextChanged
         self.setAcceptDrops(True)
         #self.setSizePolicy(QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Preferred))
         self.setEditable(True)
@@ -25,7 +27,7 @@ class QpalsDropTextbox(QtGui.QComboBox):
     def dragEnterEvent(self, e):
         if e.mimeData().hasFormat(u"application/qgis.layertreemodeldata") or e.mimeData().hasUrls():  #is a qgis layer or a file
             e.accept()
-            QtGui.QToolTip.showText(self.mapToGlobal(e.pos()), "[Ctrl] to append")
+            QtWidgets.QToolTip.showText(self.mapToGlobal(e.pos()), "[Ctrl] to append")
         else:
             e.ignore()
 
@@ -41,7 +43,7 @@ class QpalsDropTextbox(QtGui.QComboBox):
                 ide = ltl.attributes["id"].value
                 layer = None
 
-                for lyr in QgsMapLayerRegistry.instance().mapLayers().values():
+                for lyr in list(QgsMapLayerRegistry.instance().mapLayers().values()):
                     if lyr.id() == ide:
                         layer = lyr
                         break
@@ -78,7 +80,7 @@ class QpalsDropTextbox(QtGui.QComboBox):
                 self.removeItem(0)
             if self.text() == "":
                 self.addItem("")
-            layers = QgsMapLayerRegistry.instance().mapLayers().values()
+            layers = list(QgsMapLayerRegistry.instance().mapLayers().values())
             for layer in layers:
                 odmpath = layer.customProperty("qpals-odmpath", "")
                 if odmpath:
@@ -92,17 +94,17 @@ class QpalsDropTextbox(QtGui.QComboBox):
     def setPlaceholderText(self, text):
         self.lineEdit().setPlaceholderText(text)
 
-class droptester(QtGui.QWidget):
+class droptester(QtWidgets.QWidget):
 
     def __init__(self, *args, **kwargs):
         super(droptester, self).__init__(*args, **kwargs)
         self.initUI()
 
     def initUI(self):
-        lo = QtGui.QFormLayout()
-        lo.addRow(QtGui.QLabel("Drop something here:"))
-        l1 = QtGui.QLabel("")
-        l2 = QtGui.QLabel("")
+        lo = QtWidgets.QFormLayout()
+        lo.addRow(QtWidgets.QLabel("Drop something here:"))
+        l1 = QtWidgets.QLabel("")
+        l2 = QtWidgets.QLabel("")
         dropspace = QpalsDropTextbox()
         lo.addRow(dropspace)
         lo.addRow(l1)

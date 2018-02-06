@@ -16,7 +16,12 @@ email                : lukas.winiwarter@tuwien.ac.at
  *                                                                         *
  ***************************************************************************/
  """
+from __future__ import print_function
 
+from builtins import zip
+from builtins import str
+from builtins import range
+from builtins import object
 from qgis.PyQt import QtGui, QtCore
 from distutils.version import LooseVersion
 import matplotlib
@@ -41,7 +46,7 @@ class HighlightSelected(lines.VertexSelector):
         self.markers.set_data(xs, ys, zs)
         self.canvas.draw()
 
-class plotwindow():
+class plotwindow(object):
     def __init__(self, project, iface=None, data=None, mins=None, maxes=None, linelayer=None, aoi=None, trafo=None):
         self.project = project
         self.iface = iface

@@ -39,6 +39,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 * "this software" refers to the file "get_attribute_types.py" in this context.
 """
 
+from builtins import str
 import pyDM
 import sys
 import datetime
@@ -78,6 +79,6 @@ Automatically generated file from \n%s \non %s
         if attr != "null":
             f.write("    '%s': '%s',\n" % (attr, odm_data_types[type]))
     f.write("}\nodm_data_types = [\n")
-    for type in odm_data_types.values():
+    for type in list(odm_data_types.values()):
         f.write("    '%s',\n" % type)
     f.write("]\n")

@@ -16,12 +16,18 @@ email                : lukas.winiwarter@tuwien.ac.at
  *                                                                         *
  ***************************************************************************/
  """
+from __future__ import print_function
+from __future__ import absolute_import
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import range
 import glob
 import os
 import re
 
-from qgis.PyQt import QtCore, QtGui
+from qgis.PyQt import QtCore, QtGui, QtWidgets
 
 from qpals.qpals import QpalsShowFile
 from qpals.qpals.QpalsModuleBase import QpalsModuleBase, QpalsRunBatch, ModuleLoadWorker, ModuleRunWorker
@@ -47,7 +53,7 @@ def get_percentage(s):
     return match.group(1)
 
 
-class moduleSelector(QtGui.QDialog):
+class moduleSelector(QtWidgets.QDialog):
 
     IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
     opalsIcon = QtGui.QIcon(os.path.join(IconPath, "opalsIcon.png"))
@@ -88,98 +94,98 @@ class moduleSelector(QtGui.QDialog):
 
     def initUi(self):
 
-        groupSelect = QtGui.QGroupBox()
-        self.moduleList = QtGui.QListWidget()
+        groupSelect = QtWidgets.QGroupBox()
+        self.moduleList = QtWidgets.QListWidget()
         for moduleDict in self.modulesAvailiable:
             module = QpalsListWidgetItem(moduleDict)
             module.paramClass.listitem = module
             self.moduleList.addItem(module)
         self.moduleList.itemClicked.connect(self.loadModuleAsync)
 
-        filterBox = QtGui.QHBoxLayout()
-        filterBox.addWidget(QtGui.QLabel("Filter:"))
-        self.filterText = QtGui.QLineEdit()
+        filterBox = QtWidgets.QHBoxLayout()
+        filterBox.addWidget(QtWidgets.QLabel("Filter:"))
+        self.filterText = QtWidgets.QLineEdit()
         self.filterText.textChanged.connect(self.filterModuleList)
         filterBox.addWidget(self.filterText, stretch=1)
-        filterClear = QtGui.QPushButton()
+        filterClear = QtWidgets.QPushButton()
         filterClear.setText("X")
         filterClear.setMaximumWidth(20)
         filterClear.pressed.connect(self.clearFilterText)
         filterBox.addWidget(filterClear)
-        self.loadAllBtn = QtGui.QPushButton()
+        self.loadAllBtn = QtWidgets.QPushButton()
         self.loadAllBtn.setText("load all")
         self.loadAllBtn.pressed.connect(self.loadAllModules)
         filterBox.addWidget(self.loadAllBtn)
 
         groupSelect.setTitle("Module Selector")
-        vbox = QtGui.QVBoxLayout()
+        vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(self.moduleList, stretch=1)
         vbox.addLayout(filterBox)
         groupSelect.setLayout(vbox)
 
-        self.moduleparamLayout = QtGui.QVBoxLayout()
+        self.moduleparamLayout = QtWidgets.QVBoxLayout()
 
-        self.moduleparamBox = QtGui.QGroupBox()
+        self.moduleparamBox = QtWidgets.QGroupBox()
         self.moduleparamBox.setTitle("Module parameters")
         self.moduleparamBox.setLayout(self.moduleparamLayout)
 
-        rungroup = QtGui.QGroupBox()
+        rungroup = QtWidgets.QGroupBox()
         rungroup.setTitle("Run list")
-        self.runListWidget = QtGui.QListWidget()
+        self.runListWidget = QtWidgets.QListWidget()
         #self.runListWidget.currentItemChanged.connect(self.loadModuleAsync)
         self.runListWidget.itemClicked.connect(self.loadModuleAsync)
         self.runListWidget.setDragEnabled(True)
-        self.runListWidget.setDragDropMode(QtGui.QAbstractItemView.InternalMove)
+        self.runListWidget.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
 
-        runAllBtn = QtGui.QPushButton()
+        runAllBtn = QtWidgets.QPushButton()
         runAllBtn.setText("Run")
         runAllBtn.clicked.connect(self.runRunList)
 
         runDelZone = QpalsDeleteLabel("Drop here to remove")
         runDelZone.setAcceptDrops(True)
 
-        runvbox = QtGui.QVBoxLayout()
+        runvbox = QtWidgets.QVBoxLayout()
         runvbox.addWidget(self.runListWidget, stretch=1)
-        runhbox = QtGui.QHBoxLayout()
+        runhbox = QtWidgets.QHBoxLayout()
         runhbox.addWidget(runDelZone)
         runhbox.addWidget(runAllBtn)
         runvbox.addLayout(runhbox)
-        saveloadbox = QtGui.QHBoxLayout()
-        savbtn = QtGui.QPushButton("Save .bat")
-        loadbtn = QtGui.QPushButton("Load .bat")
+        saveloadbox = QtWidgets.QHBoxLayout()
+        savbtn = QtWidgets.QPushButton("Save .bat")
+        loadbtn = QtWidgets.QPushButton("Load .bat")
         savbtn.clicked.connect(self.saveRunList)
         loadbtn.clicked.connect(self.loadRunList)
         saveloadbox.addWidget(savbtn)
         saveloadbox.addWidget(loadbtn)
 
-        self.pbar = QtGui.QProgressBar()
+        self.pbar = QtWidgets.QProgressBar()
         self.pbar.setValue(100)
         runvbox.addWidget(self.pbar)
         runvbox.addLayout(saveloadbox)
         rungroup.setLayout(runvbox)
 
-        grpBoxContainer = QtGui.QHBoxLayout()
+        grpBoxContainer = QtWidgets.QHBoxLayout()
         grpBoxContainer.addWidget(groupSelect)
         grpBoxContainer.addWidget(self.moduleparamBox, stretch=1)
         grpBoxContainer.addWidget(rungroup)
 
-        lowerhbox = QtGui.QHBoxLayout()
+        lowerhbox = QtWidgets.QHBoxLayout()
 
-        statusLayoutBox = QtGui.QHBoxLayout()
-        self.statusText = QtGui.QTextEdit()
+        statusLayoutBox = QtWidgets.QHBoxLayout()
+        self.statusText = QtWidgets.QTextEdit()
         self.statusText.setReadOnly(True)
         self.statusText.setVisible(False)
-        self.progressBar = QtGui.QProgressBar()
+        self.progressBar = QtWidgets.QProgressBar()
         self.progressBar.setRange(0, 100)
         statusLayoutBox.addWidget(self.statusText, 1)
 
-        self.statusBar = QtGui.QPushButton()
+        self.statusBar = QtWidgets.QPushButton()
         self.statusBar.clicked.connect(self.showHideStatusText)
         self.statusBar.setFlat(True)
         self.statusBar.setStyleSheet("text-align:left")
         self.statusBar.setToolTip("Click to show/hide command line output")
-        statusBarLayout = QtGui.QHBoxLayout()
-        self.stopExec = QtGui.QPushButton()
+        statusBarLayout = QtWidgets.QHBoxLayout()
+        self.stopExec = QtWidgets.QPushButton()
         self.stopExec.setText("Stop")
         self.stopExec.clicked.connect(self.stop)
         statusBarLayout.addWidget(self.statusBar, 1)
@@ -187,13 +193,13 @@ class moduleSelector(QtGui.QDialog):
         statusBarLayout.addWidget(self.stopExec)
         self.setWorkerRunning(False)
 
-        overallBox = QtGui.QVBoxLayout()
+        overallBox = QtWidgets.QVBoxLayout()
         overallBox.addLayout(grpBoxContainer)
         overallBox.addLayout(lowerhbox)
         overallBox.addLayout(statusLayoutBox)
         overallBox.addLayout(statusBarLayout)
 
-        self.main_widget = QtGui.QWidget()
+        self.main_widget = QtWidgets.QWidget()
         self.main_widget.setLayout(overallBox)
         self.setLayout(overallBox)
         self.setWindowTitle('qpals')
@@ -282,26 +288,26 @@ class moduleSelector(QtGui.QDialog):
 
     def loadModule(self, module):
         if module:  # can happen if it gets filtered away
-            form = QtGui.QVBoxLayout()
+            form = QtWidgets.QVBoxLayout()
             self.moduleparamBox.setTitle("Parameters for " + module.text())
 
-            helpBtn = QtGui.QPushButton("Module help")
+            helpBtn = QtWidgets.QPushButton("Module help")
             helpBtn.clicked.connect(self.showHelp)
 
             parameterform = module.paramClass.getParamUi(parent=self)
             form.addLayout(parameterform, stretch=1)
             # reset / run / add to list / add to view
-            resetbar = QtGui.QHBoxLayout()
-            resetbtn = QtGui.QPushButton("Reset")
+            resetbar = QtWidgets.QHBoxLayout()
+            resetbtn = QtWidgets.QPushButton("Reset")
             resetbtn.clicked.connect(lambda: self.resetModule(module))
-            runbtn = QtGui.QPushButton("Run now")
+            runbtn = QtWidgets.QPushButton("Run now")
             runbtn.clicked.connect(lambda: self.runModuleAsync(module))
-            addbtn = QtGui.QPushButton("Add to run list >")
+            addbtn = QtWidgets.QPushButton("Add to run list >")
             addbtn.clicked.connect(self.addToRunList)
             if "opals" in module.text():
-                self.viewbox = QtGui.QCheckBox("Add result to canvas")
+                self.viewbox = QtWidgets.QCheckBox("Add result to canvas")
                 self.viewbox.clicked.connect(self.viewboxChanged)
-                self.commonbtn = QtGui.QPushButton("Common and Global parameters")
+                self.commonbtn = QtWidgets.QPushButton("Common and Global parameters")
                 self.commonwin = module.paramClass.getGlobalCommonParamsWindow(parent=self)
                 self.commonbtn.clicked.connect(self.commonwin.show)
                 form.addWidget(self.commonbtn)
@@ -322,8 +328,8 @@ class moduleSelector(QtGui.QDialog):
             self.curmodule = module
 
         else:
-            form = QtGui.QHBoxLayout()
-            l1 = QtGui.QLabel("No module selected...")
+            form = QtWidgets.QHBoxLayout()
+            l1 = QtWidgets.QLabel("No module selected...")
             form.addWidget(l1)
             self.moduleparamBox.setTitle("Module Parameters")
 
@@ -429,7 +435,7 @@ class moduleSelector(QtGui.QDialog):
             self.currentruncount = 0
 
     def saveRunList(self):
-        saveTo = QtGui.QFileDialog.getSaveFileName(None, caption='Save to file')
+        saveTo = QtWidgets.QFileDialog.getSaveFileName(None, caption='Save to file')
         if True:
             f = open(saveTo, 'w')
             f.write("rem BATCH FILE CREATED WITH QPALS\r\n")
@@ -440,7 +446,7 @@ class moduleSelector(QtGui.QDialog):
             f.close()
 
     def loadRunList(self):
-        loadFrom = QtGui.QFileDialog.getOpenFileName(None, caption='Load from file')
+        loadFrom = QtWidgets.QFileDialog.getOpenFileName(None, caption='Load from file')
         f = open(loadFrom, 'r')
         lines = f.readlines()
         skipnext = False
@@ -474,7 +480,7 @@ class moduleSelector(QtGui.QDialog):
             except Exception as e:
                 print(e)
 
-class QpalsDeleteLabel(QtGui.QLabel):
+class QpalsDeleteLabel(QtWidgets.QLabel):
 
     def __init__(self, *args, **kwargs):
         super(QpalsDeleteLabel, self).__init__(*args, **kwargs)

@@ -1,6 +1,6 @@
-from qgis.PyQt import QtGui
+from qgis.PyQt import QtWidgets
 
-class QCollapsibleGroupBox(QtGui.QGroupBox):
+class QCollapsibleGroupBox(QtWidgets.QGroupBox):
     def __init__(self, *args,  **kwargs):
         super(QCollapsibleGroupBox, self).__init__(*args, **kwargs)
         self.setCheckable(True)

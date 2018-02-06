@@ -18,7 +18,6 @@ email                : lukas.winiwarter@tuwien.ac.at
  This script initializes the plugin, making it known to QGIS.
 """
 
-
 def name(): 
     return "qpals"
 
@@ -28,11 +27,11 @@ def description():
 
 
 def version(): 
-    return "Version 1.2"
+    return "Version 2.0"
 
 
 def qgisMinimumVersion():
-    return "1.8"
+    return "2.99"
 
 
 def classFactory(iface): 
