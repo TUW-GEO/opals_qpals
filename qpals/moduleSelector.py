@@ -205,6 +205,8 @@ class moduleSelector(QtGui.QDialog):
     def setWorkerRunning(self, status):
         self.workerrunning = status
         self.stopExec.setEnabled(status)
+        self.progressBar.setValue(0)
+        self.statusBar.setText("")
 
     def stop(self):
         if self.workerrunning:

@@ -40,6 +40,18 @@ class QpalsProject:
         self.iface = iface
         self.common = dict()
         self.globals = dict()
+        self.PATH = os.environ['PATH']
+        self.getEnvVar()
+
+    def getEnvVar(self):
+        try:
+            import _winreg as wreg
+            key = wreg.OpenKey(wreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment", 0, wreg.KEY_READ)
+            self.PATH = wreg.QueryValueEx(key, "Path")[0]
+            #self.PATH = str(self.opalspath + ";" + self.PATH)
+            self.PATH = str(os.path.join(self.opalspath, "..") + ";" + self.PATH)
+        except Exception as e:
+            pass
 
 
     def getUI(self):
@@ -161,6 +173,7 @@ class QpalsProject:
         proj.writeEntry("qpals","vis-cellm", self.viscellm)
         proj.writeEntry("qpals","vis-isoint", self.visisoint)
         proj.setDirty(True)
+        self.getEnvVar()
         self.ui.hide()
 
     def loadVissettings(self):

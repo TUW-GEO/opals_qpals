@@ -326,6 +326,9 @@ class QpalsModuleBase():
         # print " ".join([self.execName] + list(args))
         my_env = os.environ.copy()
         my_env["GDAL_DRIVER_PATH"] = ""  # clear gdal driver paths, since this messes with some opals modules
+        my_env["PATH"] = self.project.PATH
+        my_env["PYTHONPATH"] = str(os.path.join(self.project.opalspath, ".."))
+
         # print [self.execName] + list(args)
         proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 stdin=subprocess.PIPE, cwd=self.project.workdir, startupinfo=info, env=my_env)
@@ -657,6 +660,9 @@ class QpalsModuleBase():
                 else:
                     errortext = "Unknown error."
                     raise Exception('Call failed:\n %s' % calld['stdout'])
+                if len(errortext) > 500:
+                    errortext = errortext[:500] + " ... (%s more characters)." % len(errortext)-500
+                    errortext += "\nRun the module and look at the log for more details."
                 if errormodule:
                     for param in self.params:
                         if param.name == errormodule:

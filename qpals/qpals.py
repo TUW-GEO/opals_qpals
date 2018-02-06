@@ -39,7 +39,7 @@ def ensure_opals_path(path, exe="opalsCell.exe"):
         msg.setInformativeText("Could not validate opals path. Please make sure to select the folder "
                                "containing the opals binaries, i.e. opalsCell.exe, opalsInfo.exe, etc.")
         msg.setWindowTitle("qpals opals path")
-        msg.setStandardButtons(QMessageBox.Ok)
+        msg.setStandardButtons(QMessageBox.Ok|QMessageBox.Cancel)
         ret = msg.exec_()
         if ret == QMessageBox.Ok:
             path = QFileDialog.getExistingDirectory(None, caption='Select path containing opals*.exe binaries')
@@ -96,7 +96,7 @@ class qpals:
             except:
                 print "Failed to update attribute types..."
 
-        if firstrun:
+        if firstrun and self.active:
             self.showproject()
 
     def __del__(self):
@@ -184,7 +184,9 @@ class qpals:
         if self.active:
             self.menu = QMenu(self.iface.mainWindow())
             self.menu.setObjectName("qpalsMenu")
-            self.menu.setTitle("qpals")
+            version_name = os.path.split(os.path.dirname(os.path.abspath(os.path.join(__file__, ".."))))[1]
+
+            self.menu.setTitle(version_name)
 
             IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
             opalsIcon = QIcon(os.path.join(IconPath, "opalsIcon.png"))
