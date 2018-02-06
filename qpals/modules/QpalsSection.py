@@ -307,10 +307,10 @@ class LineTool(QgsMapTool):
             c2 = b + dist*self.ab0N
             c3 = b - dist*self.ab0N
             c4 = a - dist*self.ab0N
-            points = [[QgsPoint(c1[0], c1[1]),
-                      QgsPoint(c2[0], c2[1]),
-                      QgsPoint(c3[0], c3[1]),
-                      QgsPoint(c4[0], c4[1])
+            points = [[QgsPointXY(c1[0], c1[1]),
+                      QgsPointXY(c2[0], c2[1]),
+                      QgsPointXY(c3[0], c3[1]),
+                      QgsPointXY(c4[0], c4[1])
                       ]]
             self.rb.setToGeometry(QgsGeometry.fromPolygonXY(points), None)
             self.rb.setColor(QColor(0, 128, 255))
@@ -378,6 +378,7 @@ class LineTool(QgsMapTool):
         self.write_axis_shape(outShapeFile)
 
         self.currattr = self.attrs_left.pop()
+        self.secInst.progress.setValue(0)
         self.secInst.progress.setFormat("Running opalsSection for attribute %s (%s/%s)..." % (self.currattr,
                                                                                               self.count,
                                                                                               self.total))
@@ -394,8 +395,8 @@ class LineTool(QgsMapTool):
                                                   None, None, None, None, None
                                                   )
 
-        outParamFileH = tempfile.NamedTemporaryFile(delete=False)
-        self.outParamFile = outParamFileH.name + "x.xml"
+        outParamFileH = tempfile.NamedTemporaryFile(suffix='.xml', delete=True)
+        self.outParamFile = outParamFileH.name
         outParamFileH.close()
         outParamFileParam = QpalsParameter.QpalsParameter('outParamFile', self.outParamFile, None, None, None, None,
                                                           None)
@@ -404,8 +405,10 @@ class LineTool(QgsMapTool):
         Module.params.append(thickness)
         Module.params.append(attribute)
         Module.params.append(outParamFileParam)
+        self.thread, self.worker = Module.run_async(status=self.update_status, on_finish=self.parse_output, on_error=self.sec_error)
 
-        self.thread, self.worker = Module.run_async(status=self.update_status, on_finish=self.parse_output)
+    def sec_error(self, msg, e, inst):
+        raise e
 
     def parse_output(self):
         #read from file and display
