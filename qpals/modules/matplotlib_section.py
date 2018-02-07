@@ -76,7 +76,7 @@ class plotwindow(object):
             req = QgsFeatureRequest(aoirect)
             for feat in linelayer.getFeatures(req):
                 geom = feat.geometry()
-                wkb = geom.asWkb()
+                wkb = geom.asWkb().data()
                 ogeom = ogr.CreateGeometryFromWkb(wkb)
                 usegeom = ogeom.Intersection(aoi.Buffer(2))
                 if not usegeom:
