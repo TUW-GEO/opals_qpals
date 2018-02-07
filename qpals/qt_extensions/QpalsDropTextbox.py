@@ -6,7 +6,7 @@ import os, re
 class QpalsDropTextbox(QtWidgets.QComboBox):
     def __init__(self, layerlist=None, text=None, show_layers=True, filterrex='.*', *args, **kwargs):
         super(QpalsDropTextbox, self).__init__(*args, **kwargs)
-        self.textChanged = self.currentTextChanged
+        self.textChanged = self.editTextChanged
         self.setAcceptDrops(True)
         #self.setSizePolicy(QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Preferred))
         self.setEditable(True)

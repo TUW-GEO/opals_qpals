@@ -22,13 +22,13 @@ from builtins import zip
 from builtins import str
 from builtins import range
 from builtins import object
-from qgis.PyQt import QtGui, QtCore, QtWidgets
+from qgis.PyQt import QtWidgets
 from distutils.version import LooseVersion
 import matplotlib
 import ogr
 import numpy as np
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
 import matplotlib.lines as lines
 from matplotlib.pyplot import cm
@@ -105,7 +105,6 @@ class plotwindow(object):
                         y.append(y_loc)
                         z.append(zi)
                     self.lines.append([x, y, z])
-
         self.ui = self.getUI()
         self.ax = self.figure.add_subplot(111, projection='3d')
         self.figure.subplots_adjust(left=0, right=1, top=0.99, bottom=0.01)
@@ -195,6 +194,7 @@ class plotwindow(object):
         self.vb.addLayout(self.hb2)
 
         ui.setLayout(self.vb)
+        ui.setMinimumSize(500,500)
         return ui
 
     def colorpicker(self):

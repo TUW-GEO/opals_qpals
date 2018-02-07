@@ -37,10 +37,10 @@ from qgis.gui import *
 from qgis.gui import QgsMapLayerComboBox
 from qgis.core import QgsMapLayerProxyModel
 
-from ..qt_extensions import QpalsDropTextbox
-from .. import QpalsShowFile, QpalsModuleBase, QpalsParameter
-from .QpalsAttributeMan import getAttributeInformation
-from .matplotlib_section import plotwindow
+from qpals.qpals.qt_extensions import QpalsDropTextbox, QCollapsibleGroupBox
+from qpals.qpals import QpalsShowFile, QpalsModuleBase, QpalsParameter
+from qpals.qpals.modules.QpalsAttributeMan import getAttributeInformation
+from qpals.qpals.modules.matplotlib_section import plotwindow
 
 
 class QpalsSection(object):
@@ -84,12 +84,17 @@ class QpalsSection(object):
         self.ls.addRow(self.simpleLineLayerChk, self.simpleLineLayer)
         self.showSection = QtWidgets.QCheckBox("Show section")
         self.filterStr = QtWidgets.QLineEdit("Class[Ground]")
+        self.filterAttrBox = QCollapsibleGroupBox.QCollapsibleGroupBox('Show attribute selection')
+        self.filterAttrBox.setLayout(QtWidgets.QGridLayout())
+        self.filterAttrBox.setChecked(False) # hide it
+        self.filterAttrs = {}
         self.progress = QtWidgets.QProgressBar()
         self.showSection.stateChanged.connect(self.checkBoxChanged)
         self.showSection.setCheckState(2)
         self.showSection.setTristate(False)
         self.ls.addRow(self.showSection)
         self.ls.addRow("Filter String:", self.filterStr)
+        self.ls.addRow(self.filterAttrBox)
         self.ls.addRow(self.runSecBtnSimple)
         self.ls.addRow(self.progress)
         self.simple_widget.setLayout(self.ls)
@@ -149,6 +154,10 @@ class QpalsSection(object):
 
 
     def simpleIsLoaded(self):
+        if self.txtinfileSimple.text() == '':
+            return
+        self.txtinfileSimple.setStyleSheet('')
+        self.txtinfileSimple.setToolTip('')
         layers = list(QgsMapLayerRegistry.instance().mapLayers().values())
         self.linetoolBtn.setEnabled(False)
         for layer in layers:
@@ -158,7 +167,31 @@ class QpalsSection(object):
                     self.linetoolBtn.setEnabled(True)
                     self.visLayer = layer
                     self.ltool.layer = self.visLayer
-
+        # grab availiable attributes
+        try:
+            attrs, _ = getAttributeInformation(self.txtinfileSimple.text(), self.project)
+            self.ltool.mins = {attr[0]: attr[3] for attr in attrs}
+            self.ltool.maxes = {attr[0]: attr[4] for attr in attrs}
+            # remove existing checkboxes
+            for chkbox in self.filterAttrs.values():
+                chkbox.deleteLater()
+            self.filterAttrs = {}
+            # re-add attributes
+            row = 0
+            col = 0
+            for attr in attrs:
+                name = attr[0]
+                chkbox = QtWidgets.QCheckBox(name)
+                chkbox.setChecked(0)
+                self.filterAttrBox.layout().addWidget(chkbox, row, col)
+                self.filterAttrs[name] = chkbox
+                col += 1
+                if col > 2:
+                    col = 0
+                    row += 1
+        except Exception as e:
+            self.txtinfileSimple.setStyleSheet('background-color: rgb(255,140,140);')
+            self.txtinfileSimple.setToolTip('Invalid file')
 
     def loadShading(self):
         self.runShdBtn.setEnabled(False)
@@ -350,23 +383,19 @@ class LineTool(QgsMapTool):
         self.aoi = None
         self.trafo = None
         self.data = {}
-        self.mins = {}
-        self.maxes = {}
         self.attrs_left = []
         self.count = 0
         self.total = 0
         self.filter = self.secInst.filterStr
 
-        # grab availiable attributes
-        attrs, _ = getAttributeInformation(self.secInst.txtinfileSimple.text(), self.secInst.project)
-        self.mins = {attr[0]: attr[3] for attr in attrs}
-        self.maxes = {attr[0]: attr[4] for attr in attrs}
-        self.attrs_left = [attr[0] for attr in attrs]
-        #self.attrs_left = [self.attrs_left[0]]
-        self.total = len(self.attrs_left)
+
         if self.pltwindow:
             self.pltwindow.ui.deleteLater()
 
+        self.attrs_left = [name for (name, val) in self.secInst.filterAttrs.items() if val.checkState() > 0]
+        if len(self.attrs_left) == 0:
+            self.attrs_left = ['Classification']  # one attribute has to be queried
+        self.total = len(self.attrs_left)
         self.run_next()
 
     def run_next(self):
@@ -450,8 +479,11 @@ class LineTool(QgsMapTool):
             self.secInst.progress.setFormat("No data found in section area.")
             return False
         if self.attrs_left:
+            self.thread.terminate()
+            self.worker = None
             self.run_next()
         else:
+            print('s')
             self.show_pltwindow()
 
     def show_pltwindow(self):

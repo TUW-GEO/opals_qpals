@@ -166,7 +166,8 @@ class qpals(object):
         self.secUIDock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self.secUIDock.setFloating(True)
         self.secUIDock.show()
-        self.secUIDock.resize(400, 600)
+        self.secUIDock.resize(1000, 800)
+        self.secUIDock.move(50, 50)
         self.secUIDock.visibilityChanged.connect(self.sec.close)
 
     def showLMGUI(self):
