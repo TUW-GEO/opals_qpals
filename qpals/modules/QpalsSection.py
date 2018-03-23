@@ -41,7 +41,10 @@ from qpals.qpals.qt_extensions import QpalsDropTextbox, QCollapsibleGroupBox, QT
 from qpals.qpals import QpalsShowFile, QpalsModuleBase, QpalsParameter
 from qpals.qpals.modules.QpalsAttributeMan import getAttributeInformation
 from qpals.qpals.modules.matplotlib_section import plotwindow as mpl_plotwindow
-from qpals.qpals.modules.vispy_section import plotwindow as vispy_plotwindow
+try:
+    from qpals.qpals.modules.vispy_section import plotwindow as vispy_plotwindow
+except:
+    vispy_plotwindow = None
 
 
 class QpalsSection(object):
@@ -173,8 +176,8 @@ class QpalsSection(object):
         # grab availiable attributes
         try:
             attrs, _ = getAttributeInformation(self.txtinfileSimple.text(), self.project)
-            self.ltool.mins = {attr[0]: attr[3] for attr in attrs}
-            self.ltool.maxes = {attr[0]: attr[4] for attr in attrs}
+            self.ltool.mins = {attr[0]: float(attr[3]) for attr in attrs}
+            self.ltool.maxes = {attr[0]: float(attr[4]) for attr in attrs}
             # remove existing checkboxes
             for chkbox in self.filterAttrs.values():
                 chkbox.deleteLater()
@@ -491,19 +494,25 @@ class LineTool(QgsMapTool):
 
     def show_pltwindow(self):
         self.secInst.progress.setFormat("")
+        self.pltwindow = None
         if self.secInst.stateSwitch.state:
-            self.pltwindow = vispy_plotwindow(self.secInst.project, self.secInst.iface, self.data, self.mins, self.maxes,
+            if vispy_plotwindow is not None:
+                self.pltwindow = vispy_plotwindow(self.secInst.project, self.secInst.iface, self.data, self.mins, self.maxes,
                                         linelayer=None if self.secInst.simpleLineLayerChk.checkState() != 2 else \
                                             self.secInst.simpleLineLayer.currentLayer(),
                                         aoi=self.aoi,
                                         trafo=self.trafo)
+            else:
+                self.secInst.progress.setFormat("Could not load vispy. Please install the package in the"
+                                                " osgeo shell or use matplotlib!")
         else:
             self.pltwindow = mpl_plotwindow(self.secInst.project, self.secInst.iface, self.data, self.mins, self.maxes,
                                     linelayer=None if self.secInst.simpleLineLayerChk.checkState() != 2 else \
                                     self.secInst.simpleLineLayer.currentLayer(),
                                     aoi=self.aoi,
                                     trafo=self.trafo)
-        self.secInst.ls.addRow(self.pltwindow.ui)
+        if self.pltwindow:
+            self.secInst.ls.addRow(self.pltwindow.ui)
 
 
 
