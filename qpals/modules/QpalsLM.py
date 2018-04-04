@@ -18,33 +18,22 @@ email                : lukas.winiwarter@tuwien.ac.at
  """
 from __future__ import absolute_import
 
-from builtins import str
 from builtins import range
-from builtins import object
 import os
-import tempfile
 from collections import OrderedDict
-from xml.dom import minidom
 
-import matplotlib.pyplot as plt
-import numpy as np
 import ogr
 import re
-import time
-from qgis.PyQt import QtGui, QtCore, QtWidgets
-from qgis.PyQt.QtGui import QMouseEvent
-from qgis.PyQt.QtWidgets import QDockWidget, QSpinBox
-from qgis.PyQt.QtCore import Qt, QEvent
+from qgis.PyQt import QtWidgets
+from qgis.PyQt.QtWidgets import QSpinBox
 from qgis.core import *
-from qgis.core import QgsProject as QgsMapLayerRegistry, QgsPoint, QgsCoordinateTransform, \
-    QgsGeometry, QgsFeatureRequest, QgsRectangle, QgsRaster, QgsCoordinateTransformContext
+from qgis.core import QgsPoint, QgsCoordinateTransform, QgsMapLayerProxyModel, \
+    QgsGeometry, QgsRectangle, QgsRaster, QgsCoordinateTransformContext
 from qgis.gui import *
-from qgis.gui import QgsMapTool, QgsMapLayerComboBox
-from qgis.core import QgsMapLayerProxyModel
+from qgis.gui import QgsMapLayerComboBox
 
 from ..qt_extensions import QpalsDropTextbox
 from .. import QpalsModuleBase
-from ..qt_extensions.QCollapsibleGroupBox import QCollapsibleGroupBox
 from ..QpalsMultiModuleRunner import qpalsMultiModuleRunner as qMMR
 from . import findDoubleSegments
 

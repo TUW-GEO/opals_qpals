@@ -33,7 +33,7 @@ from qgis.gui import *
 from qpals.qpals import QpalsProject
 from qpals.qpals import QpalsShowFile
 from qpals.qpals import moduleSelector
-from qpals.qpals.modules import QpalsSection, QpalsLM, QpalsAttributeMan, QpalsQuickLM
+from qpals.qpals.modules import QpalsSection, QpalsLM, QpalsAttributeMan, QpalsQuickLM, QpalsWSM
 
 def ensure_opals_path(path, exe="opalsCell.exe"):
     while not os.path.exists(os.path.join(path, exe)):
@@ -58,6 +58,7 @@ class qpals(object):
         self.active = True
         self.layerlist = dict()
         self.linemodeler = None
+        self.wsm = None
         QgsProject.instance().readProject.connect(self.projectloaded)
         s = QSettings()
         proj = QgsProject.instance()
@@ -183,6 +184,19 @@ class qpals(object):
         self.linemodelerUIDock.move(50,50)
         self.linemodelerUIDock.show()
 
+    def showWSM(self):
+        if not self.wsm:
+            self.wsm = QpalsWSM.QpalsWSM(project=self.prjSet, layerlist=self.layerlist, iface=self.iface)
+            self.wsm.createWidget()
+        self.wsmDock = QDockWidget("qpals WaterSurfaceModeler", self.iface.mainWindow())
+        self.wsmDock.setWidget(self.wsm.widget)
+        self.wsmDock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.wsmDock.setFloating(True)
+        self.wsmDock.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        self.wsmDock.resize(1100, 700)
+        self.wsmDock.move(50,50)
+        self.wsmDock.show()
+
 
     def initGui(self):
         if self.active:
@@ -229,6 +243,10 @@ class qpals(object):
             self.mnulm.setStatusTip("LineModeler")
             self.mnulm.triggered.connect(self.showLMGUI)
 
+            self.mnuWsm = QAction(specialIcon, "&WaterSurfaceModeler", self.iface.mainWindow())
+            self.mnuWsm.setStatusTip("WaterSurfaceModeler")
+            self.mnuWsm.triggered.connect(self.showWSM)
+
 
             # QuickLM is acessible through LM
             # self.mnulm = QAction(opalsIcon, "quick LineModeller", self.iface.mainWindow())
@@ -245,6 +263,7 @@ class qpals(object):
             self.menu.addSeparator()
             self.menu.addAction(self.mnusec)
             self.menu.addAction(self.mnulm)
+            self.menu.addAction(self.mnuWsm)
             self.menu.addSeparator()
             self.menu.addMenu(self.logmnu)
             self.menu.addAction(self.mnuproject)
