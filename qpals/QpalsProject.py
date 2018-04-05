@@ -23,6 +23,7 @@ from builtins import object
 from qgis.PyQt import QtCore, QtGui, QtWidgets
 from qgis.core import *
 from qgis.gui import *
+import os
 
 from qpals.qpals.QpalsShowFile import VISUALISATION_METHODS
 from qpals.qpals.qt_extensions import QpalsDropTextbox
@@ -41,7 +42,19 @@ class QpalsProject(object):
         self.iface = iface
         self.common = dict()
         self.globals = dict()
+        self.PATH = os.environ['PATH']
+        self.getEnvVar()
 
+    def getEnvVar(self):
+        try:
+            import winreg as wreg
+            key = wreg.OpenKey(wreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+                               0, wreg.KEY_READ)
+            self.PATH = wreg.QueryValueEx(key, "Path")[0]
+            # self.PATH = str(self.opalspath + ";" + self.PATH)
+            self.PATH = str(os.path.join(self.opalspath, "..") + ";" + self.PATH)
+        except Exception as e:
+            raise e
 
     def getUI(self):
         self.ui = QtWidgets.QDialog()
@@ -162,6 +175,7 @@ class QpalsProject(object):
         proj.writeEntry("qpals","vis-cellm", self.viscellm)
         proj.writeEntry("qpals","vis-isoint", self.visisoint)
         proj.setDirty(True)
+        self.getEnvVar()
         self.ui.hide()
 
     def loadVissettings(self):

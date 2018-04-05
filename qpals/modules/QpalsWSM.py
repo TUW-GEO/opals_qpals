@@ -23,6 +23,7 @@ from xml.dom import minidom
 import re
 import ogr
 import numpy as np
+import pickle, copy
 
 from qgis.PyQt import QtWidgets, QtCore, QtGui
 from ..qt_extensions.QpalsDropTextbox import QpalsDropTextbox
@@ -198,11 +199,11 @@ class QpalsWSM:
         if not os.path.exists(axispath):
             QtWidgets.QMessageBox("Error", "Axis file not found.")
             return
-        outpath = QtWidgets.QFileDialog.getSaveFileName(caption="Select output file", filter=".sec.npz")
+        outpath = QtWidgets.QFileDialog.getSaveFileName(caption="Select output file", filter="*.qpalsWSM")
 
         self.WSMProj.odmpath = odmpath
         self.WSMProj.axispath = axispath
-        self.WSMProj.savepath = os.path.join(outpath)
+        self.WSMProj.savepath = outpath[0]
         self.WSMProj.shdpath = self.shdText.text()
         self.WSMProj.overlap = self.overlapSpin.value()
         self.WSMProj.depth = self.depthSpin.value()
@@ -214,8 +215,8 @@ class QpalsWSM:
         infile = QpalsParameter('inFile', odmpath, None, None, None, None, None)
         axisfile = QpalsParameter('axisFile', axispath, None, None, None, None, None)
         attribute = QpalsParameter('attribute', self.attrSel.currentText(), None, None, None, None, None)
-        overlap = QpalsParameter('overlap', self.overlapSpin.value() / 100, None, None, None, None, None)
-        thickness = QpalsParameter('patchSize', '%s;%s' % (self.depthSpin.value(), self.widthSpin.value()),
+        overlap = QpalsParameter('overlap', str(self.overlapSpin.value() / 100), None, None, None, None, None)
+        thickness = QpalsParameter('patchSize', '%s;%s' % (self.widthSpin.value(), self.depthSpin.value()),
                                    None, None, None, None, None)
 
         outParamFileH = tempfile.NamedTemporaryFile(suffix='.xml', delete=True)
@@ -275,7 +276,6 @@ class QpalsWSM:
             perc = QpalsModuleBase.get_percentage(percentage)
             self.progress.setValue(int(perc))
 
-
     def saveProgress(self):
         pass
 
@@ -284,7 +284,6 @@ class QpalsWSM:
 
     def odmFileChanged(self, odmFile):
         pass
-
 
     def secFileChanged(self, secFile):
         pass
@@ -305,35 +304,29 @@ class QpalsWSMProject:
         self.sections = []
 
     def save(self):
-        np.savez_compressed(self.savepath,
-                            odmpath=self.odmpath,
-                            axispath=self.axispath,
-                            shdpath=self.shdpath,
-                            width=self.width,
-                            depth=self.depth,
-                            overlap=self.overlap,
-                            sections=self.sections)
+        sec_temp = copy.deepcopy(self.sections)
+        #self.sections = None
+        with open(self.savepath, 'wb') as f:
+            pickle.dump(self, f)
+            #np.savez(self.savepath.replace('.qpalsWSM', '.qpalsWSM.data'), *sec_temp)
+        self.sections = sec_temp
 
-    def load(self, from_path):
-        file = np.load(from_path)
-        try:
-            self.savepath = file.savepath
-            self.odmpath = file.odmpath
-            self.axispath = file.axispath
-            self.shdpath = file.shdpath
-            self.width = file.width
-            self.depth = file.depth
-            self.overlap = file.overlap
-            self.sections = file.sections
-        except Exception as e:
-            raise e
+    @staticmethod
+    def load(from_path):
+        with open(from_path, 'rb') as f:
+            obj = pickle.load(f)
+            obj.sections = np.load(from_path.replace('.qpalsWSM', '.qpalsWSM.data'))
+            return obj
 
 class QpalsWSMSection:
     def __init__(self, pc, aoi, status='never', left_h=None, left_x=None, right_h=None, right_x=None):
         self.pc = pc
-        self.aoi = aoi
+        self.aoi = aoi.ExportToWkb()
         self.status = status
         self.left_h = left_h
         self.left_x = left_x
         self.right_h = right_h
         self.right_x = right_x
+
+    def aoi_as_ogr(self):
+        return ogr.CreateGeometryFromWkb(self.aoi)
