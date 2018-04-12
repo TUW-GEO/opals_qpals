@@ -189,13 +189,14 @@ class qpals(object):
             self.wsm = QpalsWSM.QpalsWSM(project=self.prjSet, layerlist=self.layerlist, iface=self.iface)
             self.wsm.createWidget()
         self.wsmDock = QDockWidget("qpals WaterSurfaceModeler", self.iface.mainWindow())
-        self.wsmDock.setWidget(self.wsm.widget)
+        self.wsmDock.setWidget(self.wsm)
         self.wsmDock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self.wsmDock.setFloating(True)
         self.wsmDock.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         self.wsmDock.resize(1100, 700)
         self.wsmDock.move(50,50)
         self.wsmDock.show()
+        self.wsmDock.visibilityChanged.connect(self.wsm.close)
 
 
     def initGui(self):

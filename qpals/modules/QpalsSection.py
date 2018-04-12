@@ -304,8 +304,8 @@ class LineTool(QgsMapTool):
         self.ab0N = None
         self.rb = None
         self.pltwindow = None
-        self.thread = None
-        self.worker = None
+        self.thread = []
+        self.worker = []
         self.outParamFile = None
         self.currattr = None
         self.aoi = None
@@ -316,6 +316,7 @@ class LineTool(QgsMapTool):
         self.attrs_left = []
         self.count = 0
         self.total = 0
+        self.rbPoints = []
 
     def canvasPressEvent(self, event):
         pass
@@ -355,6 +356,7 @@ class LineTool(QgsMapTool):
             c2 = b + dist*self.ab0N
             c3 = b - dist*self.ab0N
             c4 = a - dist*self.ab0N
+            self.rbPoints = [c1, c2, c3, c4]
             points = [[QgsPointXY(c1[0], c1[1]),
                        QgsPointXY(c2[0], c2[1]),
                        QgsPointXY(c3[0], c3[1]),
@@ -396,14 +398,9 @@ class LineTool(QgsMapTool):
 
     def runview(self):
         self.secInst.runSecBtnView.setEnabled(False)
-        ab0Nn = self.ab0N[::-1] * np.array([-1, 1])
-        deltavec = self.ab0N * self.width * 2 + ab0Nn * self.seclength
-        dx = abs(deltavec[0])
-        dy = abs(deltavec[1])
         regionFilter = "Region["
-        for x, y in zip([-1, 1, 1, -1], [-1, -1,  1, 1]):
-            currp = self.midpoint + np.array((x*dx, y*dy))
-            regionFilter += "%.3f %.3f " % (currp[0], currp[1])
+        for p in self.rbPoints:
+            regionFilter += "%.3f %.3f " % (p[0], p[1])
         regionFilter += "]"
         if self.secInst.filterStr.text() != "":
             regionFilter = regionFilter + " and " + self.secInst.filterStr.text()
@@ -416,9 +413,11 @@ class LineTool(QgsMapTool):
 
         Module.params.append(infile)
         Module.params.append(filter)
-        self.thread, self.worker = Module.run_async(status=self.update_status,
+        thread, worker = Module.run_async(status=self.update_status,
                                                     on_error=self.sec_error,
                                                     on_finish=self.runviewfinished)
+        self.thread.append(thread)
+        self.worker.append(worker)
 
     def runviewfinished(self):
         self.secInst.runSecBtnView.setEnabled(True)
@@ -479,7 +478,9 @@ class LineTool(QgsMapTool):
         Module.params.append(thickness)
         Module.params.append(attribute)
         Module.params.append(outParamFileParam)
-        self.thread, self.worker = Module.run_async(status=self.update_status, on_finish=self.parse_output, on_error=self.sec_error)
+        thread, worker = Module.run_async(status=self.update_status, on_finish=self.parse_output, on_error=self.sec_error)
+        self.thread.append(thread)
+        self.worker.append(worker)
 
     def sec_error(self, msg, e, inst):
         raise e
@@ -524,11 +525,10 @@ class LineTool(QgsMapTool):
             self.secInst.progress.setFormat("No data found in section area.")
             return False
         if self.attrs_left:
-            self.thread.terminate()
+            self.thread[-1].terminate()
             self.worker = None
             self.run_next()
         else:
-            print('s')
             self.show_pltwindow()
 
     def show_pltwindow(self):
