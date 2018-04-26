@@ -21,12 +21,14 @@ import os
 import tempfile
 from xml.dom import minidom
 import re
-import ogr
+import ogr, gdal
 import numpy as np
 import pickle, copy
+from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.optimize import fminbound
 
 from qgis.PyQt import QtWidgets, QtCore, QtGui
-from qgis.gui import QgsRubberBand
+from qgis.gui import QgsRubberBand, QgsMapTool
 from qgis.core import QgsPointXY, QgsGeometry
 
 import matplotlib
@@ -40,7 +42,9 @@ from ..qt_extensions.QLine import QHLine, QVLine
 from ..modules.QpalsAttributeMan import getAttributeInformation
 from .. import QpalsModuleBase
 from ..QpalsParameter import QpalsParameter
+from .matplotlib_section import plotwindow as mpl_plotwindow
 
+bm = QtGui.QBitmap(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'media', 'cursor-cross.png'))
 
 class QpalsWSM(QtWidgets.QSplitter):
     colors = {
@@ -63,7 +67,6 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.WSMProj = QpalsWSMProject()
         self.sectionsRbs = []
         self.currSecRb = None
-        self.lastSec = 0
         self.dragStart = (0, 0)
         self.dragEnd = (0, 0)
         self.zoomStart = (0, 0)
@@ -143,6 +146,7 @@ class QpalsWSM(QtWidgets.QSplitter):
         saveBtn.clicked.connect(self.saveProgress)
         boxleft.addWidget(saveBtn)
         expBtn = QtWidgets.QPushButton("Export WSM")
+        expBtn.clicked.connect(self.exportWSM)
         boxleft.addWidget(expBtn)
 
         # center figure
@@ -168,8 +172,14 @@ class QpalsWSM(QtWidgets.QSplitter):
 
         # right figure
         vboxright = QtWidgets.QVBoxLayout()
-        self.plotright = QtWidgets.QLabel("3D plot")
-        self.plotright.setAlignment(QtCore.Qt.AlignCenter)
+        data3d = {'X': np.array([0]),
+                  'Y': np.array([0]),
+                  'Z': np.array([0]),
+                  self.attrSel.currentText(): np.array([0])}
+        mins = {self.attrSel.currentText(): 0}
+        maxes = {self.attrSel.currentText(): 1}
+        self.pltwindow_3d = mpl_plotwindow(self.project, self.iface, data3d, mins, maxes)
+        self.plotright = self.pltwindow_3d.ui
 
         # Section Grid Buttons
         secGrid = QtWidgets.QGridLayout()
@@ -192,6 +202,7 @@ class QpalsWSM(QtWidgets.QSplitter):
         navGrid = QtWidgets.QGridLayout()
         prevBtn = QtWidgets.QPushButton("prev")
         nextBtn = QtWidgets.QPushButton("next")
+        prevBtn.clicked.connect(self.prevSec)
         nextBtn.clicked.connect(self.nextSec)
         self.incbox = QtWidgets.QSpinBox()
         self.incbox.setMinimum(1)
@@ -200,7 +211,8 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.skipSeen = QtWidgets.QCheckBox("Skip already seen sections")
         self.skipSeen.setChecked(True)
         pickBtn = QtWidgets.QPushButton("pick")
-        self.status = QtWidgets.QLabel("Section 0/0: 0%")
+        pickBtn.clicked.connect(self.activatePickTool)
+        self.status = QtWidgets.QLabel("Section 0/0: 0% finished")
         navGrid.addWidget(prevBtn, 0, 0)
         navGrid.addWidget(QtWidgets.QLabel("inc"), 0, 1)
         navGrid.addWidget(self.incbox, 0, 2)
@@ -214,7 +226,7 @@ class QpalsWSM(QtWidgets.QSplitter):
 
         vboxright.addWidget(self.plotright, stretch=1)
         vboxright.addWidget(QHLine())
-        vboxright.addLayout(secGrid)
+        #vboxright.addLayout(secGrid)
         vboxright.addWidget(QHLine())
         vboxright.addLayout(navGrid)
 
@@ -240,6 +252,7 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.shdText.setText(self.WSMProj.shdpath)
         self.depthSpin.setValue(self.WSMProj.depth)
         self.widthSpin.setValue(self.WSMProj.width)
+        self.attrSel.setCurrentText(self.WSMProj.attr)
 
         self.currbox.setMaximum(len(self.WSMProj.sections)-1)
         self.currSecChanged()
@@ -269,6 +282,7 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.WSMProj.overlap = self.overlapSpin.value()
         self.WSMProj.depth = self.depthSpin.value()
         self.WSMProj.width = self.widthSpin.value()
+        self.WSMProj.attr = self.attrSel.currentText()
 
         self.prjBox.setEnabled(False)
         module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsSection.exe"),
@@ -304,7 +318,8 @@ class QpalsWSM(QtWidgets.QSplitter):
         geomCnt = len(outGeoms)
         for idx, outGeom in enumerate(outGeoms):
             geoms = ogr.CreateGeometryFromWkt(outGeom)
-            trafo = [geoms.GetGeometryRef(0), geoms.GetGeometryRef(2)]
+            stat = geoms.GetGeometryRef(2).GetY()
+            trafo = geoms.GetGeometryRef(0)
             aoi = geoms.GetGeometryRef(1)
             pointcloud = geoms.GetGeometryRef(3)
             xvec = []
@@ -322,7 +337,7 @@ class QpalsWSM(QtWidgets.QSplitter):
                 if attrcloud:
                     at = attrcloud.GetGeometryRef(i)
                     cvec.append(at.GetZ())
-            currsec = QpalsWSMSection(pc=np.array([xvec, yvec, zvec, cvec]), aoi=aoi)
+            currsec = QpalsWSMSection(pc=np.array([xvec, yvec, zvec, cvec]), aoi=aoi, station=stat, trafo=trafo)
             self.WSMProj.sections.append(currsec)
         self.progress.setEnabled(False)
         self.WSMProj.save()
@@ -340,7 +355,9 @@ class QpalsWSM(QtWidgets.QSplitter):
     def saveProgress(self):
         self.WSMProj.save()
         msg = QtWidgets.QMessageBox()
-
+        msg.setText("Saving completed!")
+        msg.setWindowTitle("Saving completed!")
+        msg.exec_()
 
     def showSectionsInOverview(self):
         # clear existing rubberbands
@@ -364,7 +381,25 @@ class QpalsWSM(QtWidgets.QSplitter):
             self.sectionsRbs.append(rb)
 
     def exportWSM(self):
-        pass
+        outputFile = QtWidgets.QFileDialog.getSaveFileName(caption="Select output file", filter="*.tif")
+        dX = 1
+        dY = 1
+        results_matr, coll = self.WSMProj.export(dX, dY)
+        nrows, ncols = results_matr.shape
+        outDs = gdal.GetDriverByName("GTiff").Create(outputFile[0], nrows, ncols, 1 ,gdal.GDT_Float32)
+        geotransform=(coll[0], dX, 0, coll[2], 0, dY)
+        outDs.SetGeoTransform(geotransform)
+        # copy spatial ref from axis file
+        axisFile = ogr.Open(self.axisText.currentText())
+        lay = axisFile.GetLayerByIndex(0)
+        ref = lay.GetSpatialRef()
+        outDs.SetProjection(ref.ExportToWkt())
+        # set nodata to 9999
+        results_matr[np.isnan(results_matr)] = 9999
+        # write output
+        outDs.GetRasterBand(1).WriteArray(results_matr.T)  # transpose because rows/cols are mixed up
+        outDs = None
+        axisFile = None
 
     def odmFileChanged(self, odmFile):
         attrs, _ = getAttributeInformation(odmFile, self.project)
@@ -393,22 +428,36 @@ class QpalsWSM(QtWidgets.QSplitter):
             self.gotoSec(next_val)
         elif self.modeGrp.buttons()[1].isChecked():  # farthest
             self.gotoSec(self.WSMProj.farthest_new_section(skip=self.skipSeen.isChecked()))
-
+            
+    def prevSec(self):
+        self.gotoSec(self.WSMProj.secHistory[-2])  # [-1] is the current one
+        
     def currSecChanged(self):
         self.showSectionsInOverview()
-        self.lastSec = self.currbox.value()
+        if self.currbox.value() not in self.WSMProj.secHistory:
+            self.WSMProj.secHistory.append(self.currbox.value())
         doneCount = 0
         totalCount = len(self.WSMProj.sections)-1
         for sec in self.WSMProj.sections:
             doneCount += 1 if sec.status > 0 else 0
-        self.status.setText("Section %d/%d: %.2f%%" % (doneCount, totalCount, 100*doneCount/totalCount))
+        self.status.setText("Section %d/%d: %.2f%% finished" % (doneCount, totalCount, 100*doneCount/totalCount))
         self.show2DPlot()
+        self.show3DPlot()
 
     def show2DPlot(self):
         currsec = self.getCurrSec()
         xlim, ylim = self.axcenter.get_xlim(), self.axcenter.get_ylim()
 
         self.axcenter.cla()
+        self.axcenter.text(0.05, 0.95, '''
+LMB: set section
+MMB: pan
+RMB: zoom
+PgDown/Up: next/prev section
+Enter: confirm
+Del: deconfirm
+'''[1:-1],
+                           verticalalignment='top', horizontalalignment='left', transform=self.axcenter.transAxes)
         if len(currsec.pc[3]) > 0:
             self.axcenter.scatter(currsec.pc[0], currsec.pc[2], marker='o', s=1, c=currsec.pc[3], cmap='viridis')
         else:
@@ -432,6 +481,42 @@ class QpalsWSM(QtWidgets.QSplitter):
             self.axcenter.set_ylim(ylim)
 
         self.plotcenter.draw()
+
+    def show3DPlot(self):
+        currsec = self.getCurrSec()
+        curridx = self.currbox.value()
+        pc = currsec.pc
+        #if curridx > 0:
+        #    pc = np.hstack((pc, self.WSMProj.sections[curridx - 1].pc))
+        #if curridx < len(self.WSMProj.sections)-1:
+        #    pc = np.hstack((pc, self.WSMProj.sections[curridx + 1].pc))
+
+        self.pltwindow_3d.data = {'X': pc[0],
+                                  'Y': pc[1] - currsec.station,
+                                  'Z': pc[2],
+                                  self.WSMProj.attr:  pc[3]}
+        self.pltwindow_3d.mins = {key: np.min(vals) for key, vals in self.pltwindow_3d.data.items()}
+        self.pltwindow_3d.maxes = {key: np.max(vals) for key, vals in self.pltwindow_3d.data.items()}
+        self.pltwindow_3d.attrsel.setItemText(0, self.WSMProj.attr)
+        self.pltwindow_3d.scale_min.setText("%.3f" % self.pltwindow_3d.mins[self.attrSel.currentText()])
+        self.pltwindow_3d.scale_max.setText("%.3f" % self.pltwindow_3d.maxes[self.attrSel.currentText()])
+        lines = self.createLinesFor3D()
+        self.pltwindow_3d.lines = lines
+        self.pltwindow_3d.draw_new_plot()
+
+    def createLinesFor3D(self):
+        lines = []
+        depth_half = self.depthSpin.value()/2
+        x_base = self.dragLine.get_xdata()
+        y_base = np.array([0,0])
+        z_base = self.dragLine.get_ydata()
+        lines.append([x_base, y_base, z_base])
+        lines.append([x_base, y_base - depth_half, z_base])
+        lines.append([x_base, y_base + depth_half, z_base])
+        lines.append([[x_base[0], x_base[0]], y_base + np.array([-depth_half, depth_half]), [z_base[0], z_base[0]]])
+        lines.append([[x_base[1], x_base[1]], y_base + np.array([-depth_half, depth_half]), [z_base[1], z_base[1]]])
+        lines.append([[x_base[1], x_base[1]], y_base + np.array([-depth_half, depth_half]), [z_base[1], z_base[1]]])
+        return lines
 
     def close(self):
         for rb in self.sectionsRbs:
@@ -472,7 +557,6 @@ class QpalsWSM(QtWidgets.QSplitter):
             return
         self.plotcenter.draw()
 
-
     def mouseReleased(self, e):
         if e.button != 1:
             return
@@ -486,7 +570,15 @@ class QpalsWSM(QtWidgets.QSplitter):
             currsec = self.getCurrSec()
             currsec.left_x, currsec.right_x, currsec.left_h, currsec.right_h = widthL, widthR, heightL, heightR
 
+            self.dragLine.set_xdata([self.dragEnd[0], self.dragStart[0]])
+            self.dragLine.set_ydata([self.dragEnd[1], self.dragStart[1]])
+
         self.dragLine.set_linestyle("-")
+        self.dragLine.set_color(self.linecolors[0])
+        self.plotcenter.draw()
+        lines = self.createLinesFor3D()
+        self.pltwindow_3d.lines = lines
+        self.pltwindow_3d.draw_new_plot()
 
     def mouseScrolled(self, e):
         dir = e.button
@@ -496,10 +588,7 @@ class QpalsWSM(QtWidgets.QSplitter):
 
     def keyPressEvent(self, event):
         if type(event) == QtGui.QKeyEvent:
-            #here accept the event and do something
-            print(event.key())
             if event.key() in [QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter]:
-                print("Enter")
                 self.getCurrSec().status = 1
                 self.dragLine.set_color(self.linecolors[1])
             elif event.key() == QtCore.Qt.Key_Delete:
@@ -507,14 +596,23 @@ class QpalsWSM(QtWidgets.QSplitter):
                 self.dragLine.set_color(self.linecolors[0])
             elif event.key() == QtCore.Qt.Key_PageDown:
                 self.nextSec()
+            elif event.key() == QtCore.Qt.Key_PageUp:
+                self.prevSec()
             self.plotcenter.draw()
             event.accept()
         else:
             event.ignore()
 
+    def activatePickTool(self):
+        aoi_list = [sec.aoi_as_ogr() for sec in self.WSMProj.sections]
+        tool = WSMPickTool(self.iface, aoi_list, self)
+        c = QtGui.QCursor(bm, bm)
+        self.iface.mapCanvas().setCursor(c)
+        self.iface.mapCanvas().setMapTool(tool)
+
 class QpalsWSMProject:
     def __init__(self, savepath=None, odmpath=None, axispath=None, shdpath=None,
-                 width=None, depth=None, overlap=None):
+                 width=None, depth=None, overlap=None, attr=None):
         self.savepath = savepath
         self.odmpath = odmpath
         self.axispath = axispath
@@ -522,8 +620,10 @@ class QpalsWSMProject:
         self.width = width
         self.depth = depth
         self.overlap = overlap
+        self.attr = attr
         self.sections = []
         self.skipped_sections = []
+        self.secHistory = [0]
 
     def save(self):
         with open(self.savepath, 'wb') as f:
@@ -543,7 +643,10 @@ class QpalsWSMProject:
         right_x_vec = []
         right_h_vec = []
         for curridx, sec in enumerate(self.sections):
-            if sec.status < 1 or curridx == idx:
+            if sec.status < 1 or curridx == idx or any([sec.left_h is None,
+                                                        sec.right_h is None,
+                                                        sec.left_x is None,
+                                                        sec.right_x is None]):
                 continue
             dist_vec.append(abs(idx - curridx))
             left_x_vec.append(sec.left_x)
@@ -570,9 +673,106 @@ class QpalsWSMProject:
         return np.argmax(np.array(next_old_section))
 
 
+    def export(self, dX, dY):
+        axis_x, axis_y = self.createAxisModel()
+        aoi_coll = ogr.Geometry(type=ogr.wkbGeometryCollection)
+        for sec in self.sections:
+            aoi_coll.AddGeometry(sec.aoi_as_ogr())
+        coll = aoi_coll.GetEnvelope()
+        x_loc = np.arange(coll[0], coll[1], dX)
+        y_loc = np.arange(coll[2], coll[3], dY)
+        results = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
+        tot = len(x_loc) * len(y_loc)
+        curr = 0
+        coll_buf = aoi_coll.Buffer(2)
+        print("")
+        for xidx, x in enumerate(x_loc):
+            for yidx, y in enumerate(y_loc):
+                curr += 1
+                currP = ogr.Geometry(ogr.wkbPoint)
+                currP.AddPoint(x, y)
+                if not coll_buf.Contains(currP):  # point outside of section areas + 2 m
+                    results[xidx, yidx] = np.NaN
+                    continue
+                s, q = self.findAxisCoordinates(axis_x, axis_y, np.array([x, y]))
+                #print("\r%5s of %5s processed..." % (curr, tot), end="")
+                try:
+                    prevSec = [sec for sec in self.sections if sec.station < s and sec.status > 0][-1]
+                    nextSec = [sec for sec in self.sections if sec.station >= s and sec.status > 0][0]
+                    dStat = nextSec.station - prevSec.station
+                    if q < 0:  # left river side
+                        dQ = nextSec.left_x - prevSec.left_x
+                        prevQ = prevSec.left_x
+                        nextQ = nextSec.left_x
+                        prevH = prevSec.left_h
+                        prevH_center = ((prevH*prevQ)+(prevSec.right_h*prevSec.right_x))/(prevQ+prevSec.right_x)
+                        nextH = nextSec.left_h
+                        nextH_center = ((nextH*nextQ)+(nextSec.right_h*nextSec.right_x))/(nextQ+nextSec.right_x)
+                    else:  # right river side
+                        dQ = nextSec.right_x - prevSec.right_x
+                        prevQ = prevSec.right_x
+                        nextQ = nextSec.right_x
+                        prevH = prevSec.right_h
+                        prevH_center = ((prevH*prevQ)+(prevSec.left_h*prevSec.left_x))/(prevQ+prevSec.left_x)
+                        nextH = nextSec.right_h
+                        nextH_center = ((nextH*nextQ)+(nextSec.left_h*nextSec.left_x))/(nextQ+nextSec.left_x)
+                    currQ = prevQ + (s - prevSec.station) * dQ/dStat
+                    facQ = q/currQ
+                    if facQ > 1:  # outside of section concave hull
+                        results[xidx, yidx] = np.NaN
+                    prevQ *= facQ
+                    nextQ *= facQ
+                    prevX = prevH_center + (prevH - prevH_center) * prevQ  # linear interpolation prev section
+                    nextX = nextH_center + (nextH - nextH_center) * nextQ  # linear interpolation next section
+                    X = prevX + (nextX - prevX) * (s - prevSec.station)/dStat  # linear interpolation between sections
+                    results[xidx, yidx] = X
+
+                except Exception as e:
+                    print("Error in evaluating water level height:")
+                    import traceback
+                    traceback.print_exc()
+                    #print(e)
+                    results[xidx, yidx] = np.NaN
+
+        return results, coll
+
+    def createAxisModel(self):
+        xy = np.array([sec.origin_in_wcs() for sec in self.sections])
+        s = np.array([sec.station for sec in self.sections])
+        stat_x = xy[:,0]
+        stat_y = xy[:,1]
+        model_x = InterpolatedUnivariateSpline(s, stat_x, k=3)
+        model_y = InterpolatedUnivariateSpline(s, stat_y, k=3)
+        return model_x, model_y
+
+    def findAxisCoordinates(self, axis_x, axis_y, point):
+        # find approximate solution
+        idx_close = 0
+        q_close = np.inf
+        for idx, sec in enumerate(self.sections):
+            s = sec.station
+            q_curr = np.linalg.norm(point - np.array([axis_x(s), axis_y(s)]))
+            if q_curr < q_close:
+                idx_close = idx
+                q_close = q_curr
+        stat_bounds = self.sections[max(idx_close-1, 0)].station, self.sections[min(idx_close+1, len(self.sections)-1)].station
+        # get best solition between last three sections
+        s_ideal, q_ideal, ierr, numfunct = fminbound(lambda s: np.linalg.norm(point - np.array([axis_x(s), axis_y(s)])),
+                                                     stat_bounds[0],
+                                                     stat_bounds[1],
+                                                     maxfun=100,
+                                                     full_output=True)
+
+        tang = np.array([axis_x(s_ideal, 1), axis_y(s_ideal, 1)])
+        if np.cross(tang, point - np.array([axis_x(s_ideal), axis_y(s_ideal)])) > 0: # point is left of tangent vector
+            q_ideal *= -1
+
+        return s_ideal, q_ideal
+
+
 
 class QpalsWSMSection:
-    def __init__(self, pc, aoi, status=0, left_h=None, left_x=None, right_h=None, right_x=None):
+    def __init__(self, pc, aoi, status=0, station=None, trafo=None, left_h=None, left_x=None, right_h=None, right_x=None):
         """
 
         :param pc:
@@ -586,6 +786,8 @@ class QpalsWSMSection:
         self.pc = pc
         self.aoi = aoi.ExportToWkb()
         self.status = status
+        self.station = station
+        self.trafo = trafo.ExportToWkb()
         self.left_h = left_h
         self.left_x = left_x
         self.right_h = right_h
@@ -595,3 +797,54 @@ class QpalsWSMSection:
 
     def aoi_as_ogr(self):
         return ogr.CreateGeometryFromWkb(self.aoi)
+
+    def origin_in_wcs(self):
+        tf_geom = ogr.CreateGeometryFromWkb(self.trafo)
+        tf_origin = tf_geom.GetPoint(0)
+        return list(tf_origin)[0:2]
+
+class WSMPickTool(QgsMapTool):
+    def __init__(self, iface, aoi_list, WSM):
+        QgsMapTool.__init__(self, iface.mapCanvas())
+        self.iface = iface
+        self.aoi_list = aoi_list
+        self.WSM = WSM
+
+    def canvasPressEvent(self, event):
+        pass
+
+    def canvasMoveEvent(self, event):
+        pass
+
+    def canvasReleaseEvent(self, event):
+        if self.aoi_list:
+            layerPoint = self.toMapCoordinates(event.pos())
+            ogrPoint = ogr.Geometry(ogr.wkbPoint)
+            ogrPoint.AddPoint(*layerPoint)
+            shortestDistance = float("inf")
+            closestFeatureId = -1
+
+            # Loop through all features in the layer
+            for idx, aoi in enumerate(self.aoi_list):
+                dist = aoi.Distance(ogrPoint)
+                if dist < shortestDistance:
+                    shortestDistance = dist
+                    closestFeatureId = idx
+
+            self.WSM.currbox.setValue(closestFeatureId)
+        self.iface.actionPan().trigger()
+
+    def activate(self):
+        pass
+
+    def deactivate(self):
+        pass
+
+    def isZoomTool(self):
+        return False
+
+    def isTransient(self):
+        return False
+
+    def isEditTool(self):
+        return True

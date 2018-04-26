@@ -94,6 +94,12 @@ class QpalsDropTextbox(QtWidgets.QComboBox):
     def setPlaceholderText(self, text):
         self.lineEdit().setPlaceholderText(text)
 
+    def sizeHint(self):
+        return self.minimumSizeHint()
+
+    def minimumSizeHint(self):
+        return QtCore.QSize(50, super().minimumSizeHint().height())
+
 class droptester(QtWidgets.QWidget):
 
     def __init__(self, *args, **kwargs):
