@@ -30,6 +30,8 @@ from scipy.optimize import fminbound
 from qgis.PyQt import QtWidgets, QtCore, QtGui
 from qgis.gui import QgsRubberBand, QgsMapTool
 from qgis.core import QgsPointXY, QgsGeometry
+from qgis.PyQt.QtCore import pyqtSlot
+
 
 import matplotlib
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -71,6 +73,8 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.dragEnd = (0, 0)
         self.zoomStart = (0, 0)
         self.dragLine = None
+        self.threads = []
+        self.workers = []
 
     def createWidget(self):
         # Form
@@ -117,13 +121,9 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.attrSel = QtWidgets.QComboBox()
         formL.addRow("attribute", self.attrSel)
 
-        self.shdText = QpalsDropTextbox(layerlist=self.layerlist)
         createShd = QtWidgets.QPushButton("create shading")
         createShd.clicked.connect(self.createShd)
         formL.addRow(createShd)
-        formL.addRow("shd", self.shdText)
-        self.secText = QpalsDropTextbox(layerlist=self.layerlist)
-        self.secText.setPlaceholderText("drop or create shading...")
         createSec = QtWidgets.QPushButton("save && create sections")
         createSec.clicked.connect(self.createSec)
         formL.addRow(createSec)
@@ -145,9 +145,31 @@ class QpalsWSM(QtWidgets.QSplitter):
         saveBtn = QtWidgets.QPushButton("Save progress")
         saveBtn.clicked.connect(self.saveProgress)
         boxleft.addWidget(saveBtn)
-        expBtn = QtWidgets.QPushButton("Export WSM")
-        expBtn.clicked.connect(self.exportWSM)
-        boxleft.addWidget(expBtn)
+
+        expGroup = QtWidgets.QGroupBox("Export")
+        expGroupLayout = QtWidgets.QFormLayout()
+        expGroup.setLayout(expGroupLayout)
+        self.expBtn = QtWidgets.QPushButton("Export WSM")
+        self.expBtn.clicked.connect(self.exportWSM)
+        self.expBtn.setEnabled(False)
+        self.expPath = QpalsDropTextbox()
+        self.expPath.currentTextChanged.connect(self.exportChanged)
+        expGroupLayout.addRow("Output file", self.expPath)
+        self.dXSpin = QtWidgets.QDoubleSpinBox()
+        self.dYSpin = QtWidgets.QDoubleSpinBox()
+        self.dXSpin.valueChanged.connect(self.dXdYChanged)
+        self.dYSpin.valueChanged.connect(self.dXdYChanged)
+        self.dXSpin.setValue(1)
+        self.dYSpin.setValue(1)
+        self.dXSpin.setSingleStep(0.1)
+        self.dYSpin.setSingleStep(0.1)
+        expGroupLayout.addRow("X cell size", self.dXSpin)
+        expGroupLayout.addRow("Y cell size", self.dYSpin)
+        self.progress2 = QtWidgets.QProgressBar()
+        expGroupLayout.addRow(self.progress2)
+        expGroupLayout.addRow(self.expBtn)
+
+        boxleft.addWidget(expGroup)
 
         # center figure
         figure = plt.figure()
@@ -243,13 +265,21 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.setStyleSheet("QSplitter::handle{background-color: #CCCCCC;}")
         self.setHandleWidth(2)
 
+    def dXdYChanged(self):
+        self.WSMProj.dX = self.dXSpin.value()
+        self.WSMProj.dY = self.dYSpin.value()
+
+    def exportChanged(self, path):
+        if os.access(path, os.W_OK):
+            self.expBtn.setEnabled(True)
+        else:
+            self.expBtn.setEnabled(False)
 
     def loadProject(self):
         inpath = QtWidgets.QFileDialog.getOpenFileName(caption="Select input file", filter="*.qpalsWSM")
         self.WSMProj = QpalsWSMProject.load(inpath[0])
         self.odmText.setText(self.WSMProj.odmpath)
         self.axisText.setText(self.WSMProj.axispath)
-        self.shdText.setText(self.WSMProj.shdpath)
         self.depthSpin.setValue(self.WSMProj.depth)
         self.widthSpin.setValue(self.WSMProj.width)
         self.attrSel.setCurrentText(self.WSMProj.attr)
@@ -262,7 +292,20 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.WSMProj = QpalsWSMProject()
 
     def createShd(self):
-        pass
+        module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsShade.exe"),
+                                                 QpalsProject=self.project)
+        odmpath = self.odmText.text().encode('UTF-8')
+        infile = QpalsParameter('inFile', odmpath, None, None, None, None, None)
+        outFile = QpalsParameter('outFile', odmpath.replace(".odm", "_shd.tif"), None, None, None, None,
+                                           None)
+        module.params += [infile, outFile]
+        thread, worker = module.run_async(status=self.update_status, on_finish=lambda: self.shdFinished(outFile),
+                                                    on_error=self.sec_error)
+        self.threads.append(thread)
+        self.workers.append(worker)
+
+    def shdFinished(self, file):
+        self.iface.addRasterLayer(file, os.path.basename(file))
 
     def createSec(self):
         odmpath = self.odmText.text()
@@ -300,10 +343,12 @@ class QpalsWSM(QtWidgets.QSplitter):
         outParamFileParam = QpalsParameter('outParamFile', self.outParamFile, None, None, None, None,
                                                           None)
         module.params += [infile, axisfile, thickness, attribute, overlap, outParamFileParam]
-        self.thread, self.worker = module.run_async(status=self.update_status, on_finish=self.parse_output,
+        thread, worker = module.run_async(status=self.update_status, on_finish=self.parse_output,
                                                     on_error=self.sec_error)
+        self.threads.append(thread)
+        self.workers.append(worker)
 
-    def sec_error(self, msg, e, inst):
+    def sec_error(self, msg, e, inst=None):
         raise e
 
     def parse_output(self):
@@ -381,14 +426,30 @@ class QpalsWSM(QtWidgets.QSplitter):
             self.sectionsRbs.append(rb)
 
     def exportWSM(self):
-        outputFile = QtWidgets.QFileDialog.getSaveFileName(caption="Select output file", filter="*.tif")
-        dX = 1
-        dY = 1
-        results_matr, coll, additionals = self.WSMProj.export(dX, dY)
+        self.WSMProj.outputFile = self.expPath.currentText()
+        self.WSMProj.dX = self.dXSpin.value()
+        self.WSMProj.dY = self.dYSpin.value()
+        self.expBtn.setEnabled(False)
+
+        worker = QpalsWSMExporter(self.WSMProj)
+        thread = QtCore.QThread()
+        worker.moveToThread(thread)
+        worker.error.connect(self.sec_error)
+        worker.finished.connect(self.saveWSM)
+        worker.progress.connect(lambda p: self.progress2.setValue(p))
+        worker.finished.connect(thread.quit)
+        thread.started.connect(worker.run)
+        thread.start()
+
+        self.threads.append(thread)
+        self.workers.append(worker)
+
+    def saveWSM(self, results):
+        results_matr, coll = results
         nrows, ncols = results_matr.shape
 
-        outDs = gdal.GetDriverByName("GTiff").Create(outputFile[0], nrows, ncols, 1 ,gdal.GDT_Float32)
-        geotransform=(coll[0], dX, 0, coll[2], 0, dY)
+        outDs = gdal.GetDriverByName("GTiff").Create(self.WSMProj.outputFile, nrows, ncols, 1 ,gdal.GDT_Float32)
+        geotransform=(coll[0] - self.WSMProj.dX/2, self.WSMProj.dX, 0, coll[2] - self.WSMProj.dY/2, 0, self.WSMProj.dY)
         outDs.SetGeoTransform(geotransform)
         # copy spatial ref from axis file
         axisFile = ogr.Open(self.axisText.currentText())
@@ -401,16 +462,10 @@ class QpalsWSM(QtWidgets.QSplitter):
         outDs.GetRasterBand(1).SetNoDataValue(9999)
         outDs.GetRasterBand(1).WriteArray(results_matr.T)  # transpose because rows/cols are mixed up
         outDs = None
-        for idx, add in enumerate(additionals):
-            outDs = gdal.GetDriverByName("GTiff").Create(outputFile[0].replace(".tif", "_%s.tif" % idx), nrows, ncols, 1, gdal.GDT_Float32)
-            outDs.SetGeoTransform(geotransform)
-            outDs.SetProjection(ref.ExportToWkt())
-            add[np.isnan(add)] = 9999
-            # write output
-            outDs.GetRasterBand(1).SetNoDataValue(9999)
-            outDs.GetRasterBand(1).WriteArray(add.T)  # transpose because rows/cols are mixed up
-            outDs = None
         axisFile = None
+
+        self.iface.addRasterLayer(self.WSMProj.outputFile, os.path.basename(self.WSMProj.outputFile))
+        self.expBtn.setEnabled(True)
 
     def odmFileChanged(self, odmFile):
         attrs, _ = getAttributeInformation(odmFile, self.project)
@@ -641,6 +696,8 @@ class QpalsWSMProject:
         self.sections = []
         self.skipped_sections = []
         self.secHistory = [0]
+        self.dX = 1
+        self.dY = 1
 
     def save(self):
         with open(self.savepath, 'wb') as f:
@@ -690,14 +747,14 @@ class QpalsWSMProject:
         return np.argmax(np.array(next_old_section))
 
 
-    def export(self, dX, dY):
+    def export(self, progress):
         axis_x, axis_y = self.createAxisModel()
         aoi_coll = ogr.Geometry(type=ogr.wkbGeometryCollection)
         for sec in self.sections:
             aoi_coll.AddGeometry(sec.aoi_as_ogr())
         coll = aoi_coll.GetEnvelope()
-        x_loc = np.arange(coll[0], coll[1], dX)
-        y_loc = np.arange(coll[2], coll[3], dY)
+        x_loc = np.arange(coll[0], coll[1], self.dX)
+        y_loc = np.arange(coll[2], coll[3], self.dY)
         results = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
         RprevSec = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
         RnextSec = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
@@ -717,7 +774,7 @@ class QpalsWSMProject:
                     results[xidx, yidx] = np.NaN
                     continue
                 s, q = self.findAxisCoordinates(axis_x, axis_y, np.array([x, y]))
-                #print("\r%5s of %5s processed..." % (curr, tot), end="")
+                progress.emit(100*curr/tot)
                 try:
                     prevSec = [sec for sec in self.sections if sec.station < s and sec.status > 0][-1]
                     nextSec = [sec for sec in self.sections if sec.station >= s and sec.status > 0][0]
@@ -760,7 +817,7 @@ class QpalsWSMProject:
                     #print(e)
                     results[xidx, yidx] = np.NaN
 
-        return results, coll, [RprevSec, RnextSec, Rq, Rfq, Rfs]
+        return results, coll
 
     def createAxisModel(self):
         xy = np.array([sec.origin_in_wcs() for sec in self.sections])
@@ -795,6 +852,30 @@ class QpalsWSMProject:
 
         return s_ideal, q_ideal
 
+class QpalsWSMExporter(QtCore.QObject):
+    def __init__(self, WSMProject):
+        QtCore.QObject.__init__(self)
+        self.WSMProj = WSMProject
+        self.killed = [False]
+
+    def run(self):
+        try:
+            results, coll = self.WSMProj.export(self.progress)
+            if not self.killed[0]:
+                self.progress.emit(100)
+            ret = (results, coll)
+            self.finished.emit(ret)
+        except Exception as e:
+            self.error.emit(e, str(e))
+            print(("Error:", str(e)))
+
+    @pyqtSlot()
+    def stop(self):
+        self.killed[0] = True
+
+    finished = QtCore.pyqtSignal(object)
+    error = QtCore.pyqtSignal(Exception, str)
+    progress = QtCore.pyqtSignal(float)
 
 
 class QpalsWSMSection:
