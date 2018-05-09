@@ -384,8 +384,9 @@ class QpalsWSM(QtWidgets.QSplitter):
         outputFile = QtWidgets.QFileDialog.getSaveFileName(caption="Select output file", filter="*.tif")
         dX = 1
         dY = 1
-        results_matr, coll = self.WSMProj.export(dX, dY)
+        results_matr, coll, additionals = self.WSMProj.export(dX, dY)
         nrows, ncols = results_matr.shape
+
         outDs = gdal.GetDriverByName("GTiff").Create(outputFile[0], nrows, ncols, 1 ,gdal.GDT_Float32)
         geotransform=(coll[0], dX, 0, coll[2], 0, dY)
         outDs.SetGeoTransform(geotransform)
@@ -397,8 +398,18 @@ class QpalsWSM(QtWidgets.QSplitter):
         # set nodata to 9999
         results_matr[np.isnan(results_matr)] = 9999
         # write output
+        outDs.GetRasterBand(1).SetNoDataValue(9999)
         outDs.GetRasterBand(1).WriteArray(results_matr.T)  # transpose because rows/cols are mixed up
         outDs = None
+        for idx, add in enumerate(additionals):
+            outDs = gdal.GetDriverByName("GTiff").Create(outputFile[0].replace(".tif", "_%s.tif" % idx), nrows, ncols, 1, gdal.GDT_Float32)
+            outDs.SetGeoTransform(geotransform)
+            outDs.SetProjection(ref.ExportToWkt())
+            add[np.isnan(add)] = 9999
+            # write output
+            outDs.GetRasterBand(1).SetNoDataValue(9999)
+            outDs.GetRasterBand(1).WriteArray(add.T)  # transpose because rows/cols are mixed up
+            outDs = None
         axisFile = None
 
     def odmFileChanged(self, odmFile):
@@ -590,6 +601,12 @@ Del: deconfirm
         if type(event) == QtGui.QKeyEvent:
             if event.key() in [QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter]:
                 self.getCurrSec().status = 1
+                if self.getCurrSec().left_x is None:
+                    x1, h1, x2, h2 = self.WSMProj.estimate_level(self.currbox.value())
+                    self.getCurrSec().left_x = x1
+                    self.getCurrSec().right_x = x2
+                    self.getCurrSec().left_h = h1
+                    self.getCurrSec().right_h = h2
                 self.dragLine.set_color(self.linecolors[1])
             elif event.key() == QtCore.Qt.Key_Delete:
                 self.getCurrSec().status = 0
@@ -682,6 +699,11 @@ class QpalsWSMProject:
         x_loc = np.arange(coll[0], coll[1], dX)
         y_loc = np.arange(coll[2], coll[3], dY)
         results = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
+        RprevSec = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
+        RnextSec = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
+        Rq = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
+        Rfq = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
+        Rfs = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
         tot = len(x_loc) * len(y_loc)
         curr = 0
         coll_buf = aoi_coll.Buffer(2)
@@ -700,32 +722,36 @@ class QpalsWSMProject:
                     prevSec = [sec for sec in self.sections if sec.station < s and sec.status > 0][-1]
                     nextSec = [sec for sec in self.sections if sec.station >= s and sec.status > 0][0]
                     dStat = nextSec.station - prevSec.station
+                    facS = (s - prevSec.station) / dStat
+                    prevH_center = (abs(prevSec.left_h*prevSec.left_x)+abs(prevSec.right_h*prevSec.right_x)) \
+                                   / (abs(prevSec.left_x)+abs(prevSec.right_x))
+                    nextH_center = (abs(nextSec.left_h*nextSec.left_x)+abs(nextSec.right_h*nextSec.right_x)) \
+                                   / (abs(nextSec.left_x)+abs(nextSec.right_x))
                     if q < 0:  # left river side
-                        dQ = nextSec.left_x - prevSec.left_x
                         prevQ = prevSec.left_x
                         nextQ = nextSec.left_x
                         prevH = prevSec.left_h
-                        prevH_center = ((prevH*prevQ)+(prevSec.right_h*prevSec.right_x))/(prevQ+prevSec.right_x)
                         nextH = nextSec.left_h
-                        nextH_center = ((nextH*nextQ)+(nextSec.right_h*nextSec.right_x))/(nextQ+nextSec.right_x)
                     else:  # right river side
-                        dQ = nextSec.right_x - prevSec.right_x
                         prevQ = prevSec.right_x
                         nextQ = nextSec.right_x
                         prevH = prevSec.right_h
-                        prevH_center = ((prevH*prevQ)+(prevSec.left_h*prevSec.left_x))/(prevQ+prevSec.left_x)
                         nextH = nextSec.right_h
-                        nextH_center = ((nextH*nextQ)+(nextSec.left_h*nextSec.left_x))/(nextQ+nextSec.left_x)
-                    currQ = prevQ + (s - prevSec.station) * dQ/dStat
-                    facQ = q/currQ
+                    dQ = abs(nextQ) - abs(prevQ)
+                    currQ = prevQ + facS * dQ
+                    facQ = abs(q/currQ)
                     if facQ > 1:  # outside of section concave hull
                         results[xidx, yidx] = np.NaN
-                    prevQ *= facQ
-                    nextQ *= facQ
-                    prevX = prevH_center + (prevH - prevH_center) * prevQ  # linear interpolation prev section
-                    nextX = nextH_center + (nextH - nextH_center) * nextQ  # linear interpolation next section
-                    X = prevX + (nextX - prevX) * (s - prevSec.station)/dStat  # linear interpolation between sections
-                    results[xidx, yidx] = X
+                    else:
+                        prevX = prevH_center + (prevH - prevH_center) * facQ  # linear interpolation prev section
+                        nextX = nextH_center + (nextH - nextH_center) * facQ  # linear interpolation next section
+                        X = prevX + (nextX - prevX) * facS  # linear interpolation between sections
+                        results[xidx, yidx] = X
+                    RprevSec[xidx, yidx] = prevH_center
+                    RnextSec[xidx, yidx] = nextH_center
+                    Rq[xidx, yidx] = q
+                    Rfq[xidx, yidx] = facQ
+                    Rfs[xidx, yidx] = facS
 
                 except Exception as e:
                     print("Error in evaluating water level height:")
@@ -734,7 +760,7 @@ class QpalsWSMProject:
                     #print(e)
                     results[xidx, yidx] = np.NaN
 
-        return results, coll
+        return results, coll, [RprevSec, RnextSec, Rq, Rfq, Rfs]
 
     def createAxisModel(self):
         xy = np.array([sec.origin_in_wcs() for sec in self.sections])

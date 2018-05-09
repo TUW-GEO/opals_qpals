@@ -215,10 +215,10 @@ class QpalsShowFile(object):
                             layer = self.iface.addVectorLayer("Polygon", os.path.basename(drop), "memory")
                             pr = layer.dataProvider()
                             feat = QgsFeature()
-                            feat.setGeometry(QgsGeometry.fromPolygon([[QgsPoint(xmin, ymin),
-                                                                       QgsPoint(xmax, ymin),
-                                                                       QgsPoint(xmax, ymax),
-                                                                       QgsPoint(xmin, ymax)]]))
+                            feat.setGeometry(QgsGeometry.fromPolygonXY([[QgsPointXY(xmin, ymin),
+                                                                       QgsPointXY(xmax, ymin),
+                                                                       QgsPointXY(xmax, ymax),
+                                                                       QgsPointXY(xmin, ymax)]]))
                             pr.addFeatures([feat])
                             layer.updateExtents()
 
