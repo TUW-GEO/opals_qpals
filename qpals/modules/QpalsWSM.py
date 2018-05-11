@@ -270,7 +270,7 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.WSMProj.dY = self.dYSpin.value()
 
     def exportChanged(self, path):
-        if os.access(path, os.W_OK):
+        if os.access(path, os.W_OK) or not os.path.exists(path):
             self.expBtn.setEnabled(True)
         else:
             self.expBtn.setEnabled(False)
@@ -449,7 +449,12 @@ class QpalsWSM(QtWidgets.QSplitter):
         nrows, ncols = results_matr.shape
 
         outDs = gdal.GetDriverByName("GTiff").Create(self.WSMProj.outputFile, nrows, ncols, 1 ,gdal.GDT_Float32)
-        geotransform=(coll[0] - self.WSMProj.dX/2, self.WSMProj.dX, 0, coll[2] - self.WSMProj.dY/2, 0, self.WSMProj.dY)
+        geotransform=(coll[0] - self.WSMProj.dX/2,
+                      self.WSMProj.dX,
+                      0,
+                      coll[3] + self.WSMProj.dY/2,
+                      0,
+                      -self.WSMProj.dY)
         outDs.SetGeoTransform(geotransform)
         # copy spatial ref from axis file
         axisFile = ogr.Open(self.axisText.currentText())
@@ -460,7 +465,7 @@ class QpalsWSM(QtWidgets.QSplitter):
         results_matr[np.isnan(results_matr)] = 9999
         # write output
         outDs.GetRasterBand(1).SetNoDataValue(9999)
-        outDs.GetRasterBand(1).WriteArray(results_matr.T)  # transpose because rows/cols are mixed up
+        outDs.GetRasterBand(1).WriteArray(results_matr.T)
         outDs = None
         axisFile = None
 
@@ -749,30 +754,53 @@ class QpalsWSMProject:
 
     def export(self, progress):
         axis_x, axis_y = self.createAxisModel()
-        aoi_coll = ogr.Geometry(type=ogr.wkbGeometryCollection)
+        aoi_coll = ogr.Geometry(type=ogr.wkbMultiPolygon)
         for sec in self.sections:
             aoi_coll.AddGeometry(sec.aoi_as_ogr())
         coll = aoi_coll.GetEnvelope()
         x_loc = np.arange(coll[0], coll[1], self.dX)
-        y_loc = np.arange(coll[2], coll[3], self.dY)
+        y_loc = np.arange(coll[3], coll[2], -self.dY)
+
+        # rasterize areas of interest to speed up processing
+        coll_buf = aoi_coll.Buffer(2)
+        temp_raster = tempfile.NamedTemporaryFile(delete=False)
+        temp_raster.close()
+        temp_vector = tempfile.NamedTemporaryFile(delete=False)
+        temp_vector.close()
+        drv = ogr.GetDriverByName("ESRI Shapefile")
+        temp_vector_ds = drv.CreateDataSource(temp_vector.name + ".shp")
+        temp_layer = temp_vector_ds.CreateLayer("name", geom_type=ogr.wkbMultiPolygon)
+        temp_feat = ogr.Feature(ogr.FeatureDefn())
+        temp_feat.SetGeometry(coll_buf)
+        temp_layer.CreateFeature(temp_feat)
+
+        temp_ds = gdal.GetDriverByName("GTiff").Create(temp_raster.name + ".tif", len(x_loc), len(y_loc), gdal.GDT_Byte)
+        temp_ds.SetGeoTransform((coll[0], self.dX, 0, coll[3], 0, -self.dY))
+        band = temp_ds.GetRasterBand(1)
+        band.SetNoDataValue(255)
+
+        gdal.RasterizeLayer(temp_ds, [1], temp_layer, burn_values=[1])
+        mask = np.copy(band.ReadAsArray())
+
+        temp_vector_ds = None
+        temp_ds = None
+
         results = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
         RprevSec = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
         RnextSec = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
         Rq = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
         Rfq = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
         Rfs = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
-        tot = len(x_loc) * len(y_loc)
+
+        valid_yidx, valid_xidx = np.nonzero(mask < 255)
+        tot = len(valid_xidx)
         curr = 0
-        coll_buf = aoi_coll.Buffer(2)
-        print("")
-        for xidx, x in enumerate(x_loc):
-            for yidx, y in enumerate(y_loc):
+
+        for xidx, yidx in zip(valid_xidx, valid_yidx):
+            if True:
+                x = x_loc[xidx]
+                y = y_loc[yidx]
                 curr += 1
-                currP = ogr.Geometry(ogr.wkbPoint)
-                currP.AddPoint(x, y)
-                if not coll_buf.Contains(currP):  # point outside of section areas + 2 m
-                    results[xidx, yidx] = np.NaN
-                    continue
                 s, q = self.findAxisCoordinates(axis_x, axis_y, np.array([x, y]))
                 progress.emit(100*curr/tot)
                 try:
@@ -817,7 +845,7 @@ class QpalsWSMProject:
                     #print(e)
                     results[xidx, yidx] = np.NaN
 
-        return results, coll
+        return Rq, coll #results, coll
 
     def createAxisModel(self):
         xy = np.array([sec.origin_in_wcs() for sec in self.sections])
