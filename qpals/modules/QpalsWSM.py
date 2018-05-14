@@ -763,36 +763,27 @@ class QpalsWSMProject:
 
         # rasterize areas of interest to speed up processing
         coll_buf = aoi_coll.Buffer(2)
-        temp_raster = tempfile.NamedTemporaryFile(delete=False)
-        temp_raster.close()
-        temp_vector = tempfile.NamedTemporaryFile(delete=False)
-        temp_vector.close()
-        drv = ogr.GetDriverByName("ESRI Shapefile")
-        temp_vector_ds = drv.CreateDataSource(temp_vector.name + ".shp")
-        temp_layer = temp_vector_ds.CreateLayer("name", geom_type=ogr.wkbMultiPolygon)
+        drv = ogr.GetDriverByName("MEMORY")
+        temp_vector_ds = drv.CreateDataSource("mem_vec")
+        temp_layer = temp_vector_ds.CreateLayer("mem_vec", geom_type=ogr.wkbMultiPolygon)
         temp_feat = ogr.Feature(ogr.FeatureDefn())
         temp_feat.SetGeometry(coll_buf)
         temp_layer.CreateFeature(temp_feat)
 
-        temp_ds = gdal.GetDriverByName("GTiff").Create(temp_raster.name + ".tif", len(x_loc), len(y_loc), gdal.GDT_Byte)
-        temp_ds.SetGeoTransform((coll[0], self.dX, 0, coll[3], 0, -self.dY))
+        temp_ds = gdal.GetDriverByName("MEM").Create("mem_ras", len(x_loc), len(y_loc), gdal.GDT_Byte)
+        temp_ds.SetGeoTransform((coll[0] - self.dX/2, self.dX, 0, coll[3] + self.dY/2, 0, -self.dY))
         band = temp_ds.GetRasterBand(1)
-        band.SetNoDataValue(255)
 
         gdal.RasterizeLayer(temp_ds, [1], temp_layer, burn_values=[1])
         mask = np.copy(band.ReadAsArray())
 
+        # free resources
         temp_vector_ds = None
         temp_ds = None
 
-        results = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
-        RprevSec = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
-        RnextSec = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
-        Rq = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
-        Rfq = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
-        Rfs = np.zeros((len(x_loc), len(y_loc)), dtype=np.float32)
-
-        valid_yidx, valid_xidx = np.nonzero(mask < 255)
+        results = np.empty((len(x_loc), len(y_loc)), dtype=np.float32)
+        results.fill(np.NaN)
+        valid_yidx, valid_xidx = np.nonzero(mask == 1)
         tot = len(valid_xidx)
         curr = 0
 
@@ -832,20 +823,12 @@ class QpalsWSMProject:
                         nextX = nextH_center + (nextH - nextH_center) * facQ  # linear interpolation next section
                         X = prevX + (nextX - prevX) * facS  # linear interpolation between sections
                         results[xidx, yidx] = X
-                    RprevSec[xidx, yidx] = prevH_center
-                    RnextSec[xidx, yidx] = nextH_center
-                    Rq[xidx, yidx] = q
-                    Rfq[xidx, yidx] = facQ
-                    Rfs[xidx, yidx] = facS
 
                 except Exception as e:
-                    print("Error in evaluating water level height:")
-                    import traceback
-                    traceback.print_exc()
-                    #print(e)
+                    # e.g. no prev section found
                     results[xidx, yidx] = np.NaN
 
-        return Rq, coll #results, coll
+        return results, coll
 
     def createAxisModel(self):
         xy = np.array([sec.origin_in_wcs() for sec in self.sections])
