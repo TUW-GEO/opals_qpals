@@ -23,6 +23,7 @@ from builtins import object
 from qgis.PyQt import QtCore, QtGui, QtWidgets
 from qgis.core import *
 from qgis.gui import *
+import os
 
 from qpals.qpals.QpalsShowFile import VISUALISATION_METHODS
 from qpals.qpals.qt_extensions import QpalsDropTextbox
@@ -46,14 +47,14 @@ class QpalsProject(object):
 
     def getEnvVar(self):
         try:
-            import _winreg as wreg
-            key = wreg.OpenKey(wreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment", 0, wreg.KEY_READ)
+            import winreg as wreg
+            key = wreg.OpenKey(wreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+                               0, wreg.KEY_READ)
             self.PATH = wreg.QueryValueEx(key, "Path")[0]
-            #self.PATH = str(self.opalspath + ";" + self.PATH)
+            # self.PATH = str(self.opalspath + ";" + self.PATH)
             self.PATH = str(os.path.join(self.opalspath, "..") + ";" + self.PATH)
         except Exception as e:
-            pass
-
+            raise e
 
     def getUI(self):
         self.ui = QtWidgets.QDialog()

@@ -245,11 +245,12 @@ class plotwindow(object):
         self.canvas.bgcolor = self.bgColorBtn.text()
         self.p1.set_data(np.vstack((X,Y,Z)).T, face_color=c, symbol=self.markerBox.currentText(),
                          size=self.markerSize.value(), edge_color=None, edge_width=0)
-        linesX = self.lines[:, 0] - x_mean
-        linesY = self.lines[:, 1] - y_mean
-        linesZ = (self.lines[:, 2] - z_mean) * self.zex.value()
-        self.l1.set_data(np.vstack((linesX, linesY, linesZ)).T, connect=np.array(self.connections),
-                         color=self.lineColorBtn.text(), width=self.lineWidth.value())
+        if self.lines:
+            linesX = self.lines[:, 0] - x_mean
+            linesY = self.lines[:, 1] - y_mean
+            linesZ = (self.lines[:, 2] - z_mean) * self.zex.value()
+            self.l1.set_data(np.vstack((linesX, linesY, linesZ)).T, connect=np.array(self.connections),
+                             color=self.lineColorBtn.text(), width=self.lineWidth.value())
 
     def bgColorPick(self):
         color = QtWidgets.QColorDialog.getColor()

@@ -78,10 +78,20 @@ class QpalsSection(object):
         self.linetoolBtn.clicked.connect(self.activateLineTool)
         self.linetoolBtn.setEnabled(False)
         self.ls.addRow(self.linetoolBtn)
+
         self.runSecBtnSimple = QtWidgets.QPushButton("Create section")
         self.runSecBtnSimple.clicked.connect(self.ltool.runsec)
         self.runSecBtnSimple.setEnabled(False)
         self.runSecBtnSimple.setStyleSheet("background-color: rgb(50,240,50)")
+
+        self.runSecBtnView = QtWidgets.QPushButton("Open section in opalsView")
+        self.runSecBtnView.clicked.connect(self.ltool.runview)
+        self.runSecBtnView.setEnabled(False)
+        self.runSecBtnView.setStyleSheet("background-color: rgb(100,100,240)")
+        hb = QtWidgets.QHBoxLayout()
+        hb.addWidget(self.runSecBtnSimple)
+        hb.addWidget(self.runSecBtnView)
+
         self.simpleLineLayer = QgsMapLayerComboBox()
         self.simpleLineLayer.setFilters(QgsMapLayerProxyModel.LineLayer)
         self.simpleLineLayerChk = QtWidgets.QCheckBox("Visualize (3D) Line Layer:")
@@ -100,7 +110,7 @@ class QpalsSection(object):
         self.ls.addRow(self.showSection)
         self.ls.addRow("Filter String:", self.filterStr)
         self.ls.addRow(self.filterAttrBox)
-        self.ls.addRow(self.runSecBtnSimple)
+        self.ls.addRow(hb)
         self.ls.addRow(self.progress)
         self.ls.addRow(self.stateSwitch)
         self.simple_widget.setLayout(self.ls)
@@ -214,7 +224,6 @@ class QpalsSection(object):
         self.runShdBtn.setEnabled(True)
         self.linetoolBtn.setEnabled(True)
 
-
     def runSection(self):
         outParamFileH = tempfile.NamedTemporaryFile(delete=False)
         outParamFile = outParamFileH.name
@@ -295,8 +304,8 @@ class LineTool(QgsMapTool):
         self.ab0N = None
         self.rb = None
         self.pltwindow = None
-        self.thread = None
-        self.worker = None
+        self.thread = []
+        self.worker = []
         self.outParamFile = None
         self.currattr = None
         self.aoi = None
@@ -307,6 +316,7 @@ class LineTool(QgsMapTool):
         self.attrs_left = []
         self.count = 0
         self.total = 0
+        self.rbPoints = []
 
     def canvasPressEvent(self, event):
         pass
@@ -346,11 +356,12 @@ class LineTool(QgsMapTool):
             c2 = b + dist*self.ab0N
             c3 = b - dist*self.ab0N
             c4 = a - dist*self.ab0N
+            self.rbPoints = [c1, c2, c3, c4]
             points = [[QgsPointXY(c1[0], c1[1]),
-                      QgsPointXY(c2[0], c2[1]),
-                      QgsPointXY(c3[0], c3[1]),
-                      QgsPointXY(c4[0], c4[1])
-                      ]]
+                       QgsPointXY(c2[0], c2[1]),
+                       QgsPointXY(c3[0], c3[1]),
+                       QgsPointXY(c4[0], c4[1])
+                       ]]
             self.rb.setToGeometry(QgsGeometry.fromPolygonXY(points), None)
             self.rb.setColor(QColor(0, 128, 255))
             fc = QColor(0, 128, 255)
@@ -368,11 +379,13 @@ class LineTool(QgsMapTool):
         elif self.p1 and self.p2 and not self.p3:
             self.p3 = layerPoint
             self.secInst.runSecBtnSimple.setEnabled(True)
+            self.secInst.runSecBtnView.setEnabled(True)
         else:
             self.p1 = layerPoint
             self.p2 = None
             self.p3 = None
             self.secInst.runSecBtnSimple.setEnabled(False)
+            self.secInst.runSecBtnView.setEnabled(False)
             self.canvas.scene().removeItem(self.rb)
 
     def update_status(self, message):
@@ -383,6 +396,31 @@ class LineTool(QgsMapTool):
             perc = QpalsModuleBase.get_percentage(percentage)
             self.secInst.progress.setValue(int(perc))
 
+    def runview(self):
+        self.secInst.runSecBtnView.setEnabled(False)
+        regionFilter = "Region["
+        for p in self.rbPoints:
+            regionFilter += "%.3f %.3f " % (p[0], p[1])
+        regionFilter += "]"
+        if self.secInst.filterStr.text() != "":
+            regionFilter = regionFilter + " and " + self.secInst.filterStr.text()
+        Module = QpalsModuleBase.QpalsModuleBase(
+            execName=os.path.join(self.secInst.project.opalspath, "opalsView.exe"),
+            QpalsProject=self.secInst.project)
+        infile = QpalsParameter.QpalsParameter('inFile', self.secInst.txtinfileSimple.text(), None, None, None,
+                                               None, None)
+        filter = QpalsParameter.QpalsParameter('filter', regionFilter , None, None, None, None, None)
+
+        Module.params.append(infile)
+        Module.params.append(filter)
+        thread, worker = Module.run_async(status=self.update_status,
+                                                    on_error=self.sec_error,
+                                                    on_finish=self.runviewfinished)
+        self.thread.append(thread)
+        self.worker.append(worker)
+
+    def runviewfinished(self):
+        self.secInst.runSecBtnView.setEnabled(True)
 
     def runsec(self):
         self.currattr = None
@@ -440,7 +478,9 @@ class LineTool(QgsMapTool):
         Module.params.append(thickness)
         Module.params.append(attribute)
         Module.params.append(outParamFileParam)
-        self.thread, self.worker = Module.run_async(status=self.update_status, on_finish=self.parse_output, on_error=self.sec_error)
+        thread, worker = Module.run_async(status=self.update_status, on_finish=self.parse_output, on_error=self.sec_error)
+        self.thread.append(thread)
+        self.worker.append(worker)
 
     def sec_error(self, msg, e, inst):
         raise e
@@ -485,11 +525,10 @@ class LineTool(QgsMapTool):
             self.secInst.progress.setFormat("No data found in section area.")
             return False
         if self.attrs_left:
-            self.thread.terminate()
+            self.thread[-1].terminate()
             self.worker = None
             self.run_next()
         else:
-            print('s')
             self.show_pltwindow()
 
     def show_pltwindow(self):
@@ -498,19 +537,19 @@ class LineTool(QgsMapTool):
         if self.secInst.stateSwitch.state:
             if vispy_plotwindow is not None:
                 self.pltwindow = vispy_plotwindow(self.secInst.project, self.secInst.iface, self.data, self.mins, self.maxes,
-                                        linelayer=None if self.secInst.simpleLineLayerChk.checkState() != 2 else \
-                                            self.secInst.simpleLineLayer.currentLayer(),
-                                        aoi=self.aoi,
-                                        trafo=self.trafo)
+                                                  linelayer=None if self.secInst.simpleLineLayerChk.checkState() != 2 else \
+                                                      self.secInst.simpleLineLayer.currentLayer(),
+                                                  aoi=self.aoi,
+                                                  trafo=self.trafo)
             else:
                 self.secInst.progress.setFormat("Could not load vispy. Please install the package in the"
                                                 " osgeo shell or use matplotlib!")
         else:
             self.pltwindow = mpl_plotwindow(self.secInst.project, self.secInst.iface, self.data, self.mins, self.maxes,
-                                    linelayer=None if self.secInst.simpleLineLayerChk.checkState() != 2 else \
-                                    self.secInst.simpleLineLayer.currentLayer(),
-                                    aoi=self.aoi,
-                                    trafo=self.trafo)
+                                            linelayer=None if self.secInst.simpleLineLayerChk.checkState() != 2 else \
+                                                self.secInst.simpleLineLayer.currentLayer(),
+                                            aoi=self.aoi,
+                                            trafo=self.trafo)
         if self.pltwindow:
             self.secInst.ls.addRow(self.pltwindow.ui)
 

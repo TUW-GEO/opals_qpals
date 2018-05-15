@@ -34,7 +34,7 @@ class QpalsDropTextbox(QtWidgets.QComboBox):
     def dropEvent(self, e):
         paths = []
         if e.mimeData().hasFormat(u"application/qgis.layertreemodeldata"):
-            data = str(e.mimeData().data(u"application/qgis.layertreemodeldata"))
+            data = e.mimeData().data(u"application/qgis.layertreemodeldata").data().decode('utf8')
             from xml.dom import minidom
             dom = minidom.parseString(data)
             tmd = dom.getElementsByTagName("layer_tree_model_data")[0]
@@ -93,6 +93,12 @@ class QpalsDropTextbox(QtWidgets.QComboBox):
 
     def setPlaceholderText(self, text):
         self.lineEdit().setPlaceholderText(text)
+
+    def sizeHint(self):
+        return self.minimumSizeHint()
+
+    def minimumSizeHint(self):
+        return QtCore.QSize(50, super().minimumSizeHint().height())
 
 class droptester(QtWidgets.QWidget):
 
