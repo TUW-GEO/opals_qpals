@@ -335,9 +335,11 @@ class QpalsModuleBase(object):
         my_env = os.environ.copy()
         my_env["GDAL_DRIVER_PATH"] = ""  # clear gdal driver paths, since this messes with some opals modules
         my_env["PATH"] = self.project.PATH
-        my_env["PYTHONPATH"] = str(os.path.join(self.project.opalspath, ".."))
+        my_env["PYTHONPATH"] = str(os.path.realpath(os.path.join(self.project.opalspath , "..")))
+        my_env["PYTHONHOME"] = ""
         proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 stdin=subprocess.PIPE, cwd=self.project.workdir, startupinfo=info, env=my_env)
+        print(my_env)
         proc.stderr.flush()
         proc.stdin.close()
         if statusSignal is None:
