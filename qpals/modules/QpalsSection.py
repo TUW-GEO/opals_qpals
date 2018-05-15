@@ -16,7 +16,10 @@ email                : lukas.winiwarter@tuwien.ac.at
  *                                                                         *
  ***************************************************************************/
  """
+from __future__ import absolute_import
 
+from builtins import range
+from builtins import object
 import os
 import tempfile
 from xml.dom import minidom
@@ -25,21 +28,26 @@ import matplotlib.pyplot as plt
 import numpy as np
 import ogr
 import re
-from PyQt4 import QtGui
-from PyQt4.QtGui import QColor
-from PyQt4.QtGui import QCursor, QBitmap
+from qgis.PyQt import QtGui, QtWidgets
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtGui import QCursor, QBitmap
 from qgis.core import *
-from qgis.core import QgsMapLayerRegistry
+from qgis.core import QgsProject as QgsMapLayerRegistry
 from qgis.gui import *
-from qgis.gui import QgsMapLayerComboBox, QgsMapLayerProxyModel
+from qgis.gui import QgsMapLayerComboBox
+from qgis.core import QgsMapLayerProxyModel
 
-from ..qt_extensions import QpalsDropTextbox
-from .. import QpalsShowFile, QpalsModuleBase, QpalsParameter
-from QpalsAttributeMan import getAttributeInformation
-from matplotlib_section import plotwindow
+from qpals.qpals.qt_extensions import QpalsDropTextbox, QCollapsibleGroupBox, QToggleSwitch
+from qpals.qpals import QpalsShowFile, QpalsModuleBase, QpalsParameter
+from qpals.qpals.modules.QpalsAttributeMan import getAttributeInformation
+from qpals.qpals.modules.matplotlib_section import plotwindow as mpl_plotwindow
+try:
+    from qpals.qpals.modules.vispy_section import plotwindow as vispy_plotwindow
+except:
+    vispy_plotwindow = None
 
 
-class QpalsSection:
+class QpalsSection(object):
 
     def __init__(self, project, layerlist, iface):
         self.advanced_widget = None
@@ -55,66 +63,73 @@ class QpalsSection:
         self.bm = QBitmap(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'media', 'cursor-cross.png'))
 
     def createWidget(self):
-        self.advanced_widget = QtGui.QDialog()
-        self.simple_widget = QtGui.QDialog()
-        self.tabs = QtGui.QTabWidget()
+        self.advanced_widget = QtWidgets.QDialog()
+        self.simple_widget = QtWidgets.QDialog()
+        self.tabs = QtWidgets.QTabWidget()
         ### SIMPLE ###
-        self.ls = QtGui.QFormLayout()
-        self.ls.addRow(QtGui.QLabel("Choose input file:"))
+        self.ls = QtWidgets.QFormLayout()
+        self.ls.addRow(QtWidgets.QLabel("Choose input file:"))
         self.txtinfileSimple = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist, filterrex=".*\.odm$")
-        hboxsimple1 = QtGui.QHBoxLayout()
+        hboxsimple1 = QtWidgets.QHBoxLayout()
         hboxsimple1.addWidget(self.txtinfileSimple, 1)
         self.txtinfileSimple.textChanged.connect(self.simpleIsLoaded)
-        self.ls.addRow(QtGui.QLabel("Input file (odm)"), hboxsimple1)
-        self.linetoolBtn = QtGui.QPushButton("Pick section")
+        self.ls.addRow(QtWidgets.QLabel("Input file (odm)"), hboxsimple1)
+        self.linetoolBtn = QtWidgets.QPushButton("Pick section")
         self.linetoolBtn.clicked.connect(self.activateLineTool)
         self.linetoolBtn.setEnabled(False)
         self.ls.addRow(self.linetoolBtn)
-        self.runSecBtnSimple = QtGui.QPushButton("Create section")
+        self.runSecBtnSimple = QtWidgets.QPushButton("Create section")
         self.runSecBtnSimple.clicked.connect(self.ltool.runsec)
         self.runSecBtnSimple.setEnabled(False)
         self.runSecBtnSimple.setStyleSheet("background-color: rgb(50,240,50)")
         self.simpleLineLayer = QgsMapLayerComboBox()
         self.simpleLineLayer.setFilters(QgsMapLayerProxyModel.LineLayer)
-        self.simpleLineLayerChk = QtGui.QCheckBox("Visualize (3D) Line Layer:")
+        self.simpleLineLayerChk = QtWidgets.QCheckBox("Visualize (3D) Line Layer:")
         self.ls.addRow(self.simpleLineLayerChk, self.simpleLineLayer)
-        self.showSection = QtGui.QCheckBox("Show section")
-        self.filterStr = QtGui.QLineEdit("Class[Ground]")
-        self.progress = QtGui.QProgressBar()
+        self.showSection = QtWidgets.QCheckBox("Show section")
+        self.filterStr = QtWidgets.QLineEdit("Class[Ground]")
+        self.filterAttrBox = QCollapsibleGroupBox.QCollapsibleGroupBox('Show attribute selection')
+        self.filterAttrBox.setLayout(QtWidgets.QGridLayout())
+        self.filterAttrBox.setChecked(False) # hide it
+        self.filterAttrs = {}
+        self.progress = QtWidgets.QProgressBar()
+        self.stateSwitch = QToggleSwitch.QToggleSwitch("vispy", "matplotlib")
         self.showSection.stateChanged.connect(self.checkBoxChanged)
         self.showSection.setCheckState(2)
         self.showSection.setTristate(False)
         self.ls.addRow(self.showSection)
         self.ls.addRow("Filter String:", self.filterStr)
+        self.ls.addRow(self.filterAttrBox)
         self.ls.addRow(self.runSecBtnSimple)
         self.ls.addRow(self.progress)
+        self.ls.addRow(self.stateSwitch)
         self.simple_widget.setLayout(self.ls)
         ### ADVANCED ###
-        lo = QtGui.QFormLayout()
+        lo = QtWidgets.QFormLayout()
         ######
-        lo.addRow(QtGui.QLabel("Step 1. Choose point cloud and visualize it:"))
+        lo.addRow(QtWidgets.QLabel("Step 1. Choose point cloud and visualize it:"))
         self.txtinfile = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)
-        hbox1 = QtGui.QHBoxLayout()
+        hbox1 = QtWidgets.QHBoxLayout()
         hbox1.addWidget(self.txtinfile, 1)
-        lo.addRow(QtGui.QLabel("Input file (odm)"), hbox1)
-        self.runShdBtn = QtGui.QPushButton("Create shading")
+        lo.addRow(QtWidgets.QLabel("Input file (odm)"), hbox1)
+        self.runShdBtn = QtWidgets.QPushButton("Create shading")
         self.runShdBtn.clicked.connect(self.loadShading)
         lo.addRow(self.runShdBtn)
         ######
-        self.status = QtGui.QListWidgetItem("hidden status")
-        lo.addRow(QtGui.QLabel("Step 2. Create sections"))
+        self.status = QtWidgets.QListWidgetItem("hidden status")
+        lo.addRow(QtWidgets.QLabel("Step 2. Create sections"))
         self.secInst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsSection.exe"), QpalsProject=self.project)
         self.secInst.load()
         self.secInst.listitem = self.status
         secUi = self.secInst.getParamUi()
         lo.addRow(secUi)
 
-        self.runSecBtn = QtGui.QPushButton("Calculate sections")
+        self.runSecBtn = QtWidgets.QPushButton("Calculate sections")
         self.runSecBtn.clicked.connect(self.runSection)
         lo.addRow(self.runSecBtn)
         #######
-        lo.addRow(QtGui.QLabel("Step 3. Use the Section picking tool to show Sections"))
-        self.pickSecBtn = QtGui.QPushButton("Pick section")
+        lo.addRow(QtWidgets.QLabel("Step 3. Use the Section picking tool to show Sections"))
+        self.pickSecBtn = QtWidgets.QPushButton("Pick section")
         self.pickSecBtn.clicked.connect(self.activateTool)
         lo.addRow(self.pickSecBtn)
 
@@ -122,7 +137,7 @@ class QpalsSection:
         self.tabs.addTab(self.simple_widget, "Simple")
         self.tabs.addTab(self.advanced_widget, "Advanced")
 
-        self.scrollwidget = QtGui.QScrollArea()
+        self.scrollwidget = QtWidgets.QScrollArea()
         self.scrollwidget.setWidgetResizable(True)
         self.scrollwidget.setWidget(self.tabs)
 
@@ -145,7 +160,11 @@ class QpalsSection:
 
 
     def simpleIsLoaded(self):
-        layers = QgsMapLayerRegistry.instance().mapLayers().values()
+        if self.txtinfileSimple.text() == '':
+            return
+        self.txtinfileSimple.setStyleSheet('')
+        self.txtinfileSimple.setToolTip('')
+        layers = list(QgsMapLayerRegistry.instance().mapLayers().values())
         self.linetoolBtn.setEnabled(False)
         for layer in layers:
             odmpath = layer.customProperty("qpals-odmpath", "")
@@ -154,14 +173,38 @@ class QpalsSection:
                     self.linetoolBtn.setEnabled(True)
                     self.visLayer = layer
                     self.ltool.layer = self.visLayer
-
+        # grab availiable attributes
+        try:
+            attrs, _ = getAttributeInformation(self.txtinfileSimple.text(), self.project)
+            self.ltool.mins = {attr[0]: float(attr[3]) for attr in attrs}
+            self.ltool.maxes = {attr[0]: float(attr[4]) for attr in attrs}
+            # remove existing checkboxes
+            for chkbox in self.filterAttrs.values():
+                chkbox.deleteLater()
+            self.filterAttrs = {}
+            # re-add attributes
+            row = 0
+            col = 0
+            for attr in attrs:
+                name = attr[0]
+                chkbox = QtWidgets.QCheckBox(name)
+                chkbox.setChecked(0)
+                self.filterAttrBox.layout().addWidget(chkbox, row, col)
+                self.filterAttrs[name] = chkbox
+                col += 1
+                if col > 2:
+                    col = 0
+                    row += 1
+        except Exception as e:
+            self.txtinfileSimple.setStyleSheet('background-color: rgb(255,140,140);')
+            self.txtinfileSimple.setToolTip('Invalid file')
 
     def loadShading(self):
         self.runShdBtn.setEnabled(False)
         self.runShdBtn.setText("Calculating shading...")
         showfile = QpalsShowFile.QpalsShowFile(self.project.iface, self.layerlist, self.project)
         showfile.curVisMethod = QpalsShowFile.QpalsShowFile.METHOD_SHADING
-        showfile.cellSizeBox = QtGui.QLineEdit("1")
+        showfile.cellSizeBox = QtWidgets.QLineEdit("1")
         self.secInst.getParam("inFile").val = self.txtinfile.text()
         self.secInst.getParam("inFile").field.setText(self.txtinfile.text())
 
@@ -274,6 +317,7 @@ class LineTool(QgsMapTool):
         if self.p1 and not self.p2:
             self.rb = QgsRubberBand(self.canvas, False)
             points = [self.p1, self.toLayerCoordinates(self.layer,event.pos())]
+            points = [QgsPoint(pt) for pt in points]
             self.rb.setToGeometry(QgsGeometry.fromPolyline(points), None)
             self.rb.setColor(QColor(0, 128, 255))
             self.rb.setWidth(1)
@@ -302,12 +346,12 @@ class LineTool(QgsMapTool):
             c2 = b + dist*self.ab0N
             c3 = b - dist*self.ab0N
             c4 = a - dist*self.ab0N
-            points = [[QgsPoint(c1[0], c1[1]),
-                      QgsPoint(c2[0], c2[1]),
-                      QgsPoint(c3[0], c3[1]),
-                      QgsPoint(c4[0], c4[1])
+            points = [[QgsPointXY(c1[0], c1[1]),
+                      QgsPointXY(c2[0], c2[1]),
+                      QgsPointXY(c3[0], c3[1]),
+                      QgsPointXY(c4[0], c4[1])
                       ]]
-            self.rb.setToGeometry(QgsGeometry.fromPolygon(points), None)
+            self.rb.setToGeometry(QgsGeometry.fromPolygonXY(points), None)
             self.rb.setColor(QColor(0, 128, 255))
             fc = QColor(0, 128, 255)
             fc.setAlpha(128)
@@ -345,23 +389,19 @@ class LineTool(QgsMapTool):
         self.aoi = None
         self.trafo = None
         self.data = {}
-        self.mins = {}
-        self.maxes = {}
         self.attrs_left = []
         self.count = 0
         self.total = 0
         self.filter = self.secInst.filterStr
 
-        # grab availiable attributes
-        attrs, _ = getAttributeInformation(self.secInst.txtinfileSimple.text(), self.secInst.project)
-        self.mins = {attr[0]: attr[3] for attr in attrs}
-        self.maxes = {attr[0]: attr[4] for attr in attrs}
-        self.attrs_left = [attr[0] for attr in attrs]
-        #self.attrs_left = [self.attrs_left[0]]
-        self.total = len(self.attrs_left)
+
         if self.pltwindow:
             self.pltwindow.ui.deleteLater()
 
+        self.attrs_left = [name for (name, val) in self.secInst.filterAttrs.items() if val.checkState() > 0]
+        if len(self.attrs_left) == 0:
+            self.attrs_left = ['Classification']  # one attribute has to be queried
+        self.total = len(self.attrs_left)
         self.run_next()
 
     def run_next(self):
@@ -373,6 +413,7 @@ class LineTool(QgsMapTool):
         self.write_axis_shape(outShapeFile)
 
         self.currattr = self.attrs_left.pop()
+        self.secInst.progress.setValue(0)
         self.secInst.progress.setFormat("Running opalsSection for attribute %s (%s/%s)..." % (self.currattr,
                                                                                               self.count,
                                                                                               self.total))
@@ -389,8 +430,8 @@ class LineTool(QgsMapTool):
                                                   None, None, None, None, None
                                                   )
 
-        outParamFileH = tempfile.NamedTemporaryFile(delete=False)
-        self.outParamFile = outParamFileH.name + "x.xml"
+        outParamFileH = tempfile.NamedTemporaryFile(suffix='.xml', delete=True)
+        self.outParamFile = outParamFileH.name
         outParamFileH.close()
         outParamFileParam = QpalsParameter.QpalsParameter('outParamFile', self.outParamFile, None, None, None, None,
                                                           None)
@@ -399,8 +440,10 @@ class LineTool(QgsMapTool):
         Module.params.append(thickness)
         Module.params.append(attribute)
         Module.params.append(outParamFileParam)
+        self.thread, self.worker = Module.run_async(status=self.update_status, on_finish=self.parse_output, on_error=self.sec_error)
 
-        self.thread, self.worker = Module.run_async(status=self.update_status, on_finish=self.parse_output)
+    def sec_error(self, msg, e, inst):
+        raise e
 
     def parse_output(self):
         #read from file and display
@@ -442,18 +485,34 @@ class LineTool(QgsMapTool):
             self.secInst.progress.setFormat("No data found in section area.")
             return False
         if self.attrs_left:
+            self.thread.terminate()
+            self.worker = None
             self.run_next()
         else:
+            print('s')
             self.show_pltwindow()
 
     def show_pltwindow(self):
         self.secInst.progress.setFormat("")
-        self.pltwindow = plotwindow(self.secInst.project, self.secInst.iface, self.data, self.mins, self.maxes,
+        self.pltwindow = None
+        if self.secInst.stateSwitch.state:
+            if vispy_plotwindow is not None:
+                self.pltwindow = vispy_plotwindow(self.secInst.project, self.secInst.iface, self.data, self.mins, self.maxes,
+                                        linelayer=None if self.secInst.simpleLineLayerChk.checkState() != 2 else \
+                                            self.secInst.simpleLineLayer.currentLayer(),
+                                        aoi=self.aoi,
+                                        trafo=self.trafo)
+            else:
+                self.secInst.progress.setFormat("Could not load vispy. Please install the package in the"
+                                                " osgeo shell or use matplotlib!")
+        else:
+            self.pltwindow = mpl_plotwindow(self.secInst.project, self.secInst.iface, self.data, self.mins, self.maxes,
                                     linelayer=None if self.secInst.simpleLineLayerChk.checkState() != 2 else \
                                     self.secInst.simpleLineLayer.currentLayer(),
                                     aoi=self.aoi,
                                     trafo=self.trafo)
-        self.secInst.ls.addRow(self.pltwindow.ui)
+        if self.pltwindow:
+            self.secInst.ls.addRow(self.pltwindow.ui)
 
 
 

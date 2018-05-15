@@ -1,8 +1,10 @@
-from PyQt4 import QtGui
+from qgis.PyQt import QtWidgets
+from qgis.PyQt.QtCore import pyqtSignal
 
-class QTextComboBox(QtGui.QComboBox):
+class QTextComboBox(QtWidgets.QComboBox):
     def __init__(self, *args, **kwargs):
         super(QTextComboBox, self).__init__(*args, **kwargs)
+        self.textChanged = self.currentTextChanged
 
     def text(self):
         return self.currentText()
@@ -13,3 +15,4 @@ class QTextComboBox(QtGui.QComboBox):
             self.setCurrentIndex(i)
         elif self.isEditable():
             self.lineEdit().setText(QString)
+

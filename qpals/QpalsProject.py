@@ -16,18 +16,19 @@ email                : lukas.winiwarter@tuwien.ac.at
  *                                                                         *
  ***************************************************************************/
  """
+from __future__ import absolute_import
 
-from PyQt4 import QtCore, QtGui
+from builtins import str
+from builtins import object
+from qgis.PyQt import QtCore, QtGui, QtWidgets
 from qgis.core import *
 from qgis.gui import *
-import os
 
-from QpalsShowFile import VISUALISATION_METHODS
-from qt_extensions import QpalsDropTextbox
-import QpalsModuleBase
+from qpals.qpals.QpalsShowFile import VISUALISATION_METHODS
+from qpals.qpals.qt_extensions import QpalsDropTextbox
 
 
-class QpalsProject:
+class QpalsProject(object):
     def __init__(self, tempdir, name, opalspath, workdir, iface=None):
         self.tempdir = tempdir
         self.workdir = workdir
@@ -55,29 +56,29 @@ class QpalsProject:
 
 
     def getUI(self):
-        self.ui = QtGui.QDialog()
+        self.ui = QtWidgets.QDialog()
         self.ui.setWindowTitle("qpals ProjectSettings")
-        lo = QtGui.QFormLayout()
+        lo = QtWidgets.QFormLayout()
         self.txtOpalspath = QpalsDropTextbox.QpalsDropTextbox(show_layers=False)
         self.txtOpalspath.setText(self.opalspath)
-        hbox1 = QtGui.QHBoxLayout()
+        hbox1 = QtWidgets.QHBoxLayout()
         hbox1.addWidget(self.txtOpalspath,1)
         self.txtWorkdir = QpalsDropTextbox.QpalsDropTextbox(show_layers=False)
         self.txtWorkdir.setText(self.workdir)
-        hbox2 = QtGui.QHBoxLayout()
+        hbox2 = QtWidgets.QHBoxLayout()
         hbox2.addWidget(self.txtWorkdir,1)
         self.txtTempdir = QpalsDropTextbox.QpalsDropTextbox(show_layers=False)
         self.txtTempdir.setText(self.tempdir)
-        hbox3 = QtGui.QHBoxLayout()
+        hbox3 = QtWidgets.QHBoxLayout()
         hbox3.addWidget(self.txtTempdir,1)
         self.txtOpalspath.setPlaceholderText("drop folder here...")
         self.txtWorkdir.setPlaceholderText("drop folder here...")
         self.txtTempdir.setPlaceholderText("drop folder here...")
 
 
-        self.txtName = QtGui.QLineEdit(self.name)
+        self.txtName = QtWidgets.QLineEdit(self.name)
 
-        self.selVisMethod = QtGui.QComboBox()
+        self.selVisMethod = QtWidgets.QComboBox()
 
         self.selVisMethod.addItem(VISUALISATION_METHODS[0])
         self.selVisMethod.addItem(VISUALISATION_METHODS[1])
@@ -92,13 +93,13 @@ class QpalsProject:
 
 
 
-        self.cellSizeLbl = QtGui.QLabel("Set cell size:")
-        self.cellSizeBox = QtGui.QLineEdit()
+        self.cellSizeLbl = QtWidgets.QLabel("Set cell size:")
+        self.cellSizeBox = QtWidgets.QLineEdit()
 
-        self.cellFeatLbl = QtGui.QLabel("Set feature:")
-        self.cellFeatCmb = QtGui.QComboBox()
-        self.isoInteLbl = QtGui.QLabel("Set isoline interval:")
-        self.isoInteBox = QtGui.QLineEdit()
+        self.cellFeatLbl = QtWidgets.QLabel("Set feature:")
+        self.cellFeatCmb = QtWidgets.QComboBox()
+        self.isoInteLbl = QtWidgets.QLabel("Set isoline interval:")
+        self.isoInteBox = QtWidgets.QLineEdit()
         self.cellFeatCmb.addItems(["min", "max", "diff", "mean", "median", "sum", "variance", "rms", "pdens", "pcount",
                                    "minority", "majority", "entropy"])
         self.cellFeatCmb.setCurrentIndex(3)
@@ -107,20 +108,20 @@ class QpalsProject:
         self.selVisMethod.currentIndexChanged.connect(self.updatevisMethod)
 
 
-        lo.addRow(QtGui.QLabel("Path to opals binaries*"), hbox1)
-        lo.addRow(QtGui.QLabel("Working directory**"), hbox2)
-        lo.addRow(QtGui.QLabel("Temporary directory**"), hbox3)
-        lo.addRow(QtGui.QLabel("Project name (unused)"), self.txtName)
-        lo.addRow(QtGui.QLabel("Default visualisation method**"), self.selVisMethod)
+        lo.addRow(QtWidgets.QLabel("Path to opals binaries*"), hbox1)
+        lo.addRow(QtWidgets.QLabel("Working directory**"), hbox2)
+        lo.addRow(QtWidgets.QLabel("Temporary directory**"), hbox3)
+        lo.addRow(QtWidgets.QLabel("Project name (unused)"), self.txtName)
+        lo.addRow(QtWidgets.QLabel("Default visualisation method**"), self.selVisMethod)
         lo.addRow(self.cellSizeLbl, self.cellSizeBox)
         lo.addRow(self.cellFeatLbl, self.cellFeatCmb)
         lo.addRow(self.isoInteLbl, self.isoInteBox)
 
-        self.okbtn = QtGui.QPushButton("Save && Exit")
+        self.okbtn = QtWidgets.QPushButton("Save && Exit")
         self.okbtn.clicked.connect(self.savesettings)
         lo.addRow(self.okbtn)
-        lo.addRow(QtGui.QLabel("* will be saved within qgis for all projects"))
-        lo.addRow(QtGui.QLabel("** will be saved in the qgis project"))
+        lo.addRow(QtWidgets.QLabel("* will be saved within qgis for all projects"))
+        lo.addRow(QtWidgets.QLabel("** will be saved in the qgis project"))
         self.ui.setLayout(lo)
         self.loadVissettings()
         return self.ui

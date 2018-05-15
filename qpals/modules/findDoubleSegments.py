@@ -1,8 +1,10 @@
+from __future__ import print_function
+from builtins import range
 import ogr
 import os, sys, glob
 import numpy as np
-from PyQt4 import QtCore
-from qgis.core import QgsPoint, QgsRaster
+from qgis.PyQt import QtCore
+from qgis.core import QgsPointXY, QgsRaster
 
 class RunWorker(QtCore.QObject):
     def __init__(self, SOURCE_LINES, tempf, dtm, dtm_thres, split_size, max_elements):
@@ -18,14 +20,13 @@ class RunWorker(QtCore.QObject):
         try:
             main(self.SOURCE_LINES, self.tempf, self.split_size, self.max_elements, self.progress, self.dtm, self.dtm_thres)
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            #print "Error:", str(e)
+            self.error.emit((str(e), e, self))
         ret = 1
         self.finished.emit(ret)
 
     finished = QtCore.pyqtSignal(int)
     progress = QtCore.pyqtSignal(float)
+    error = QtCore.pyqtSignal(tuple)
 
 
 def main(SOURCE_LINES, tempf, split_size, max_elements, progressslot=None, dtm=None, dtmThres=0):
@@ -92,13 +93,13 @@ def main(SOURCE_LINES, tempf, split_size, max_elements, progressslot=None, dtm=N
                         yll = rlayer.extent().yMinimum() + 0.5 * dy
                         xoffs = (pt[0] - xll) % dx
                         yoffs = (pt[1] - yll) % dy
-                        dtm_val_ll = rlayer.dataProvider().identify(QgsPoint(xpos - dx / 2, ypos - dy / 2),
+                        dtm_val_ll = rlayer.dataProvider().identify(QgsPointXY(xpos - dx / 2, ypos - dy / 2),
                                                                     QgsRaster.IdentifyFormatValue).results()[1]
-                        dtm_val_ur = rlayer.dataProvider().identify(QgsPoint(xpos + dx / 2, ypos + dy / 2),
+                        dtm_val_ur = rlayer.dataProvider().identify(QgsPointXY(xpos + dx / 2, ypos + dy / 2),
                                                                     QgsRaster.IdentifyFormatValue).results()[1]
-                        dtm_val_lr = rlayer.dataProvider().identify(QgsPoint(xpos + dx / 2, ypos - dy / 2),
+                        dtm_val_lr = rlayer.dataProvider().identify(QgsPointXY(xpos + dx / 2, ypos - dy / 2),
                                                                     QgsRaster.IdentifyFormatValue).results()[1]
-                        dtm_val_ul = rlayer.dataProvider().identify(QgsPoint(xpos - dx / 2, ypos + dy / 2),
+                        dtm_val_ul = rlayer.dataProvider().identify(QgsPointXY(xpos - dx / 2, ypos + dy / 2),
                                                                     QgsRaster.IdentifyFormatValue).results()[1]
                         if all([dtm_val_ll, dtm_val_lr, dtm_val_ul, dtm_val_ur]):
                             a00 = dtm_val_ll
@@ -278,7 +279,7 @@ def main(SOURCE_LINES, tempf, split_size, max_elements, progressslot=None, dtm=N
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
-        print "Usage: findDoubleSegments.py source.shp result_dir [split_size=50] [max_elements=1000]"
+        print("Usage: findDoubleSegments.py source.shp result_dir [split_size=50] [max_elements=1000]")
         exit(1)
 
     SOURCE_LINES = sys.argv[1]

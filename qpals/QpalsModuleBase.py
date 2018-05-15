@@ -16,21 +16,27 @@ email                : lukas.winiwarter@geo.tuwien.ac.at
  *                                                                         *
  ***************************************************************************/
  """
+from __future__ import print_function
+from __future__ import absolute_import
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import object
 import os
+import sys
 import shlex
 import subprocess
 import re
 from xml.dom import minidom
 
-from qt_extensions import QTextComboBox
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import pyqtSlot
+from qgis.PyQt import QtCore, QtGui, QtWidgets
+from qgis.PyQt.QtCore import pyqtSlot
 
-import QpalsParamBtns
-import QpalsParameter
-from qt_extensions import QpalsDropTextbox, QCollapsibleGroupBox
-from modules.QpalsAttributeMan import getAttributeInformation
+from qpals.qpals.qt_extensions import QTextComboBox, QpalsDropTextbox, QCollapsibleGroupBox
+from qpals.qpals import QpalsParamBtns
+from qpals.qpals import QpalsParameter
+from qpals.qpals.modules.QpalsAttributeMan import getAttributeInformation
 
 IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
 
@@ -114,7 +120,7 @@ class ModuleLoadWorker(QtCore.QObject):
         self.killed = True
 
     finished = QtCore.pyqtSignal(object)
-    error = QtCore.pyqtSignal(Exception, basestring, object)
+    error = QtCore.pyqtSignal(Exception, str, object)
     progress = QtCore.pyqtSignal(float)
 
 
@@ -139,7 +145,7 @@ class ModuleValidateWorker(QtCore.QObject):
         self.killed = True
 
     finished = QtCore.pyqtSignal(object)
-    error = QtCore.pyqtSignal(Exception, basestring, object)
+    error = QtCore.pyqtSignal(Exception, str, object)
     progress = QtCore.pyqtSignal(float)
 
 
@@ -156,7 +162,8 @@ class ModuleRunWorker(QtCore.QObject):
                 self.progress.emit(100)
         except Exception as e:
             self.error.emit(e, str(e), self.module)
-            print "Error:", str(e)
+            # fix_print_with_import
+            print(("Error:", str(e)))
         ret = (None, "", self.module)
         self.finished.emit(ret)
 
@@ -165,9 +172,9 @@ class ModuleRunWorker(QtCore.QObject):
         self.killed[0] = True
 
     finished = QtCore.pyqtSignal(object)
-    error = QtCore.pyqtSignal(Exception, basestring, object)
+    error = QtCore.pyqtSignal(Exception, str, object)
     progress = QtCore.pyqtSignal(float)
-    status = QtCore.pyqtSignal(basestring)
+    status = QtCore.pyqtSignal(str)
 
 
 class ModuleBaseRunWorker(QtCore.QObject):
@@ -183,7 +190,8 @@ class ModuleBaseRunWorker(QtCore.QObject):
                 self.progress.emit(100)
         except Exception as e:
             self.error.emit(e, str(e), self.module)
-            print "Error:", str(e)
+            # fix_print_with_import
+            print(("Error:", str(e)))
         ret = (None, "", self.module)
         self.finished.emit(ret)
 
@@ -192,13 +200,13 @@ class ModuleBaseRunWorker(QtCore.QObject):
         self.killed[0] = True
 
     finished = QtCore.pyqtSignal(object)
-    error = QtCore.pyqtSignal(Exception, basestring, object)
+    error = QtCore.pyqtSignal(Exception, str, object)
     progress = QtCore.pyqtSignal(float)
-    status = QtCore.pyqtSignal(basestring)
+    status = QtCore.pyqtSignal(str)
 
 
 
-class QpalsModuleBase():
+class QpalsModuleBase(object):
     def __init__(self, execName, QpalsProject, layerlist=None, listitem=None, visualize=False):
         self.params = []
         self.layerlist = layerlist
@@ -235,7 +243,7 @@ class QpalsModuleBase():
     def errorBar(self, message):
         self.progressbar.setValue(100)
         self.progressbar.setFormat("Error: %s" % message)
-        print "error:", message
+        print(("error:", message))
 
     @classmethod
     def fromCallString(cls, string, project, layerlist):
@@ -272,12 +280,12 @@ class QpalsModuleBase():
 
     @classmethod
     def createGroupBox(cls, module_name, box_header, project, params, param_show_list):
-        box = QtGui.QGroupBox(box_header)
-        scroll = QtGui.QScrollArea()
+        box = QtWidgets.QGroupBox(box_header)
+        scroll = QtWidgets.QScrollArea()
         scroll.setWidget(box)
-        scroll.setFrameShape(QtGui.QFrame.NoFrame)
+        scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
         scroll.setWidgetResizable(True)
-        status = QtGui.QListWidgetItem("hidden status")
+        status = QtWidgets.QListWidgetItem("hidden status")
         mod = cls(execName=os.path.join(project.opalspath, module_name + ".exe"),
                   QpalsProject=project)
         mod.listitem = status
@@ -292,10 +300,10 @@ class QpalsModuleBase():
         ui.addRow(advancedBox)
         advancedLa = mod.getFilteredParamUi(notfilter=param_show_list)
         advancedBox.setLayout(advancedLa)
-        runbar = QtGui.QHBoxLayout()
-        runprogress = QtGui.QProgressBar()
+        runbar = QtWidgets.QHBoxLayout()
+        runprogress = QtWidgets.QProgressBar()
         mod.progressbar = runprogress
-        mod.runbtn = QtGui.QPushButton("Run module")
+        mod.runbtn = QtWidgets.QPushButton("Run module")
         mod.runbtn.clicked.connect(mod.run_async_self)
         runbar.addWidget(runprogress)
         runbar.addWidget(mod.runbtn)
@@ -332,25 +340,27 @@ class QpalsModuleBase():
         # print [self.execName] + list(args)
         proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 stdin=subprocess.PIPE, cwd=self.project.workdir, startupinfo=info, env=my_env)
+        proc.stderr.flush()
         proc.stdin.close()
         if statusSignal is None:
             stdout, stderr = proc.communicate()
+            stdout = stdout.decode()
         else:
             stdout = ""
             killflag = False
             while proc.poll() is None:
-                QtGui.QApplication.processEvents()
+                QtWidgets.QApplication.processEvents()
                 if killSignal[0] and not killflag:
                     proc.kill()
                     killflag = True
                     statusSignal.emit("Stopped Execution.")
                     return
                 currstdout = proc.stdout.read(1)  # read byte for byte while it is running
-                stdout += currstdout
+                stdout += currstdout.decode()
                 if stdout[-1] in ["\n", "\b"]:
                     statusSignal.emit(stdout)
             currstdout = proc.stdout.read()  # read the rest once the process is finished
-            stdout += currstdout
+            stdout += currstdout.decode()
             statusSignal.emit(stdout)
             stderr = "\n".join(proc.stderr.readlines())
 
@@ -370,9 +380,9 @@ class QpalsModuleBase():
 
     def makefilebrowser(self, param):
         def showpathbrowser():
-            filename = QtGui.QFileDialog.getSaveFileName(None, caption='Select file for %s' % param,
+            filename = QtWidgets.QFileDialog.getSaveFileName(None, caption='Select file for %s' % param,
                                                          directory=self.lastpath,
-                                                         options=QtGui.QFileDialog.DontConfirmOverwrite)
+                                                         options=QtWidgets.QFileDialog.DontConfirmOverwrite)
             if filename:
                 for par in self.params:
                     if par.name == param:
@@ -384,26 +394,26 @@ class QpalsModuleBase():
         return showpathbrowser
 
     def getGlobalCommonParamsWindow(self, parent=None):
-        window = QtGui.QDialog()
+        window = QtWidgets.QDialog()
         window.setWindowTitle("Global and common parameters")
-        scrollarea = QtGui.QScrollArea()
-        form = QtGui.QFormLayout()
-        form.addRow(QtGui.QLabel("Common Parameters:"))
+        scrollarea = QtWidgets.QScrollArea()
+        form = QtWidgets.QFormLayout()
+        form.addRow(QtWidgets.QLabel("Common Parameters:"))
         for param in self.common:
             (l1, l2) = self.getUIOneliner(param, global_common=True)
             form.addRow(l1, l2)
-        form.addRow(QtGui.QLabel("Global Parameters:"))
+        form.addRow(QtWidgets.QLabel("Global Parameters:"))
         for param in self.globals:
             (l1, l2) = self.getUIOneliner(param, global_common=True)
             form.addRow(l1, l2)
-        closebtn = QtGui.QPushButton("Close")
+        closebtn = QtWidgets.QPushButton("Close")
         closebtn.clicked.connect(lambda: self.closeGlobalCommonParamsWindow(window))
-        groupbox = QtGui.QGroupBox()
+        groupbox = QtWidgets.QGroupBox()
         groupbox.setLayout(form)
         scrollarea.setWidget(groupbox)
         window.setFixedHeight(600)
         window.setFixedWidth(600)
-        scrollbox = QtGui.QVBoxLayout()
+        scrollbox = QtWidgets.QVBoxLayout()
         scrollbox.addWidget(scrollarea)
         scrollbox.addWidget(closebtn)
         window.setLayout(scrollbox)
@@ -425,19 +435,19 @@ class QpalsModuleBase():
                     del self.project.globals[param.name]
 
     def getUIOneliner(self, param, parent=None, global_common=False):
-        l1 = QtGui.QLabel(param.name)
+        l1 = QtWidgets.QLabel(param.name)
         if len(param.choices) == 0:
             if "path" in param.type.lower():
                 param.field = QpalsDropTextbox.QpalsDropTextbox(self.layerlist, param.val)
                 param.field.setMinimumContentsLength(20)
-                param.field.setSizeAdjustPolicy(QtGui.QComboBox.AdjustToMinimumContentsLength)
+                param.field.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToMinimumContentsLength)
                 if global_common:
                     param.field.textChanged.connect(self.updateCommonGlobals)
                 else:
                     param.field.textChanged.connect(self.updateVals)
                 param.field.editingFinished.connect(self.validate)
 
-                param.browse = QtGui.QToolButton()
+                param.browse = QtWidgets.QToolButton()
                 param.browse.setText("...")
                 param.browse.clicked.connect(self.makefilebrowser(param.name))
                 if "infile" in param.name.lower():
@@ -453,7 +463,7 @@ class QpalsModuleBase():
                     param.field.editTextChanged.connect(self.updateVals)
 
             else:
-                param.field = QtGui.QLineEdit(param.val)
+                param.field = QtWidgets.QLineEdit(param.val)
                 if global_common:
                     param.field.textChanged.connect(self.updateCommonGlobals)
                 else:
@@ -476,7 +486,7 @@ class QpalsModuleBase():
         param.icon.setStyleSheet("border-style: none;")
         if param.opt == 'mandatory':
             param.icon.setIcon(WaitIconMandatory)
-        l2 = QtGui.QHBoxLayout()
+        l2 = QtWidgets.QHBoxLayout()
         param.changedIcon = QpalsParamBtns.QpalsLockIconBtn(param)
         l2.addWidget(param.changedIcon)
         l2.addWidget(param.field, stretch=1)
@@ -484,7 +494,7 @@ class QpalsModuleBase():
             l2.addWidget(param.browse)
         l2.addWidget(param.icon)
         if global_common:
-            param.use4proj = QtGui.QCheckBox("project setting")
+            param.use4proj = QtWidgets.QCheckBox("project setting")
             if param.name in self.project.common or param.name in self.project.globals:
                 param.use4proj.setChecked(True)
                 param.field.setText((self.project.globals_common())[param.name])
@@ -524,7 +534,7 @@ class QpalsModuleBase():
     def getParamUi(self, parent=None):
         if not self.loaded:
             self.load()
-        form = QtGui.QFormLayout()
+        form = QtWidgets.QFormLayout()
         for param in self.params:
             (l1, l2) = self.getUIOneliner(param, parent=parent)
             form.addRow(l1, l2)
@@ -533,7 +543,7 @@ class QpalsModuleBase():
     def getFilteredParamUi(self, parent=None, filter=[], notfilter=[]):
         if not self.loaded:
             self.load()
-        form = QtGui.QFormLayout()
+        form = QtWidgets.QFormLayout()
         for param in self.params:
             if (len(filter) > 0 and re.match(r"(?=(" + '|'.join(filter) + '))', param.name)) or \
                     (len(notfilter) > 0 and not re.match(r"(?=(" + '|'.join(notfilter) + '))', param.name)):
@@ -612,7 +622,7 @@ class QpalsModuleBase():
         self.revalidate = False
         allmandatoryset = True
         paramlist = []
-        self.listitem.setBackgroundColor(qtwhite)
+        self.listitem.setBackground(qtwhite)
         self.listitem.setToolTip("")
         for param in self.params:
             if param.opt == 'mandatory':
@@ -644,12 +654,12 @@ class QpalsModuleBase():
 
                 elif "Ambiguities while matching value" in calld['stdout']:
                     errortext = calld['stdout'].split("ERROR 0001: std::exception: ")[1].split("\n")[0]
-                    msg = QtGui.QMessageBox()
-                    msg.setIcon(QtGui.QMessageBox.Question)
+                    msg = QtWidgets.QMessageBox()
+                    msg.setIcon(QtWidgets.QMessageBox.Question)
                     msg.setText(errortext.split(".")[0])
                     msg.setInformativeText(".".join(errortext.split(".")[1:]))
                     msg.setWindowTitle("Ambiguities while setting parameter values")
-                    msg.setStandardButtons(QtGui.QMessageBox.Ok)
+                    msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
                     msg.exec_()
                 elif "ERROR 1000: the argument " in calld['stdout']:
                     errortext = calld['stdout'].split("ERROR 1000:")[1].split("\n")[0]
@@ -670,10 +680,10 @@ class QpalsModuleBase():
                             param.icon.setIcon(ErrorIcon)
                             param.field.setStyleSheet('background-color: rgb(255,140,140);')
                             break
-                self.listitem.setBackgroundColor(qtsoftred)
+                self.listitem.setBackground(qtsoftred)
                 self.listitem.setToolTip(errortext)
             else:
-                self.listitem.setBackgroundColor(qtsoftgreen)
+                self.listitem.setBackground(qtsoftgreen)
                 parsedXML = parseXML(calld['stderr'])['Specific']
                 for param in self.params:
                     for parsedParam in parsedXML:
@@ -770,7 +780,7 @@ class QpalsModuleBase():
             self.progressbar.setFormat("Error: " + msg)
 
 
-class QpalsRunBatch():
+class QpalsRunBatch(object):
     revalidate = False
     visualize = False
 
@@ -781,12 +791,12 @@ class QpalsRunBatch():
         self.t2 = t2
 
     def getParamUi(self, parent=None):
-        form = QtGui.QFormLayout()
+        form = QtWidgets.QFormLayout()
 
-        l1 = QtGui.QLabel("Command")
-        self.e1 = QtGui.QLineEdit(self.t1)
-        l2 = QtGui.QLabel("Working directory")
-        self.e2 = QtGui.QLineEdit(self.t2)
+        l1 = QtWidgets.QLabel("Command")
+        self.e1 = QtWidgets.QLineEdit(self.t1)
+        l2 = QtWidgets.QLabel("Working directory")
+        self.e2 = QtWidgets.QLineEdit(self.t2)
 
         self.e1.editingFinished.connect(self.updateVals)
         self.e2.editingFinished.connect(self.updateVals)

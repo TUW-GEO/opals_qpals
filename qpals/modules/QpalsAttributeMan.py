@@ -16,16 +16,18 @@ email                : lukas.winiwarter@tuwien.ac.at
  *                                                                         *
  ***************************************************************************/
  """
+from __future__ import print_function
 
-from PyQt4 import QtCore, QtGui, QtWebKit
+from builtins import object
+from qgis.PyQt import QtCore, QtWidgets, QtGui
 from qgis.core import *
 from qgis.gui import *
 import os
 import operator, webbrowser
-from ..qt_extensions import QpalsDropTextbox
-from ..resources.attribute_types import odm_predef_attributes, odm_data_types
+from qpals.qpals.qt_extensions import QpalsDropTextbox
+from qpals.qpals.resources.attribute_types import odm_predef_attributes, odm_data_types
 
-class QpalsAttributeMan:
+class QpalsAttributeMan(object):
     def __init__(self, project, iface=None, layerlist=None):
         self.project = project
         self.iface = iface
@@ -33,37 +35,37 @@ class QpalsAttributeMan:
         self.ui = self.getUI()
 
     def getUI(self):
-        self.ui = QtGui.QDialog()
+        self.ui = QtWidgets.QDialog()
         self.ui.resize(720, 300)
         self.ui.setWindowTitle("qpals AttributeManager")
-        lo = QtGui.QFormLayout()
-        vb = QtGui.QVBoxLayout()
-        hb = QtGui.QHBoxLayout()
+        lo = QtWidgets.QFormLayout()
+        vb = QtWidgets.QVBoxLayout()
+        hb = QtWidgets.QHBoxLayout()
         self.pointcloud = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)
         hb.addWidget(self.pointcloud,1)
         lo.addRow("ODM File", hb)
         vb.addLayout(lo,0)
-        self.attable = QtGui.QTableView()
-        self.newnamebox = QtGui.QComboBox()
+        self.attable = QtWidgets.QTableView()
+        self.newnamebox = QtWidgets.QComboBox()
         self.newnamebox.setEditable(True)
         for attr in odm_predef_attributes:
             self.newnamebox.addItem(attr)
         self.newnamebox.lineEdit().setPlaceholderText("_Name")
-        self.typedropdown = QtGui.QComboBox()
+        self.typedropdown = QtWidgets.QComboBox()
         for type in odm_data_types:
             self.typedropdown.addItem(type)
-        self.formulabox = QtGui.QLineEdit("")
+        self.formulabox = QtWidgets.QLineEdit("")
         self.formulabox.setPlaceholderText("opalsAddInfo formula")
-        self.helpbtn = QtGui.QPushButton('?')
+        self.helpbtn = QtWidgets.QPushButton('?')
         self.helpbtn.setMaximumWidth(self.helpbtn.fontMetrics().boundingRect("?").width() + 7)
-        self.addchangebtn = QtGui.QPushButton('Add/Change attribute')
-        self.closebtn = QtGui.QPushButton('Close')
-        hb2 = QtGui.QHBoxLayout()
+        self.addchangebtn = QtWidgets.QPushButton('Add/Change attribute')
+        self.closebtn = QtWidgets.QPushButton('Close')
+        hb2 = QtWidgets.QHBoxLayout()
         hb2.addWidget(self.newnamebox)
-        hb2.addWidget(QtGui.QLabel("("))
+        hb2.addWidget(QtWidgets.QLabel("("))
         hb2.addWidget(self.typedropdown)
-        hb2.addWidget(QtGui.QLabel(")"))
-        hb2.addWidget(QtGui.QLabel("="))
+        hb2.addWidget(QtWidgets.QLabel(")"))
+        hb2.addWidget(QtWidgets.QLabel("="))
         hb2.addWidget(self.formulabox)
         hb2.addWidget(self.addchangebtn)
         hb2.addWidget(self.helpbtn)
@@ -120,7 +122,7 @@ class QpalsAttributeMan:
             moduleOut = addinfoinst.run(show=0)
             self.pcChanged()
         except Exception as e:
-            print e
+            print(e)
 
 
     def pcChanged(self):
@@ -155,7 +157,7 @@ class QpalsAttributeMan:
 
 
 def getAttributeInformation(file, project):
-    from .. import QpalsModuleBase, QpalsParameter
+    from qpals.qpals import QpalsModuleBase, QpalsParameter
     infoinst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(project.opalspath, "opalsInfo.exe"),
                                                QpalsProject=project)
     infoinst.params = [QpalsParameter.QpalsParameter('inFile', file,
@@ -179,5 +181,6 @@ def getAttributeInformation(file, project):
         if not header_passed:
             raise NotImplementedError
         return attrs, entries
-    except Exception:
+    except Exception as e:
+        raise e
         return None, None

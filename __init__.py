@@ -28,14 +28,14 @@ def description():
 
 
 def version(): 
-    return "Version 1.6"
+    return "Version 2.0"
 
 
 def qgisMinimumVersion():
-    return "1.8"
+    return "2.99"
 
 
 def classFactory(iface): 
     # load qpals class from file qpals
-    from qpals import qpals
+    from qpals.qpals import qpals
     return qpals.qpals(iface)

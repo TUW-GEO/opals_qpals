@@ -18,7 +18,8 @@ email                : lukas.winiwarter@geo.tuwien.ac.at
  """
 
 
-class qpalsMultiModuleRunner:
+from builtins import object
+class qpalsMultiModuleRunner(object):
     def __init__(self):
         self.modules = []
         self.thread = None

@@ -17,7 +17,9 @@ email                : lukas.winiwarter@tuwien.ac.at
  ***************************************************************************/
  """
 
-class QpalsParameter:
+from builtins import range
+from builtins import object
+class QpalsParameter(object):
 
     changed = False
     use4proj = None

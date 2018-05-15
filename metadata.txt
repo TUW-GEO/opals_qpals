@@ -4,7 +4,7 @@
 name=qpals-nightly
 email=lukas.winiwarter@geo.tuwien.ac.at
 author=Lukas Winiwarter
-qgisMinimumVersion=2.18
+qgisMinimumVersion=2.99
 description=OPALS software integrated into QGIS
 about=IMPORTANT: This plugin requires an installation of OPALS developed by GEO at TU Wien.
  You can get an evaluation copy (processing up to 1.000.000 points) at photo.geo.tuwien.ac.at/opals .
@@ -21,6 +21,7 @@ repository=https://github.com/lwiniwar/qpals
 ; start of optional metadata
 changelog=Prior versions:
  1.6 Fixed PATH variable for MATLAB modules to work. Added support for python syntax e.g. with opalsAlgebra
+ 1.6 support for qgis3
  1.5.4 LineModeler is now scrollable, icon for finished module added
  1.5.3 added filter to Section GUI
  1.5.2 behaviour of parameter locking changed
@@ -53,6 +54,6 @@ experimental=False
 deprecated=False
 
 ; if empty, it will be automatically set to major version + .99
-qgisMaximumVersion=2.98
+qgisMaximumVersion=3.99
 
-; hash=9c587acdcf56d1c258515aef4f453f8aa146602074dced44f8e945b484f2d1a8cb94177454247454b3a3213d0320f0b7c0bf7205600df192cfeb79453bcab445
+; hash=

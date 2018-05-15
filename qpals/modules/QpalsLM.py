@@ -16,7 +16,11 @@ email                : lukas.winiwarter@tuwien.ac.at
  *                                                                         *
  ***************************************************************************/
  """
+from __future__ import absolute_import
 
+from builtins import str
+from builtins import range
+from builtins import object
 import os
 import tempfile
 from collections import OrderedDict
@@ -27,20 +31,22 @@ import numpy as np
 import ogr
 import re
 import time
-from PyQt4 import QtGui, QtCore
-from PyQt4.QtGui import QMouseEvent, QDockWidget, QSpinBox
-from PyQt4.QtCore import Qt, QEvent
+from qgis.PyQt import QtGui, QtCore, QtWidgets
+from qgis.PyQt.QtGui import QMouseEvent
+from qgis.PyQt.QtWidgets import QDockWidget, QSpinBox
+from qgis.PyQt.QtCore import Qt, QEvent
 from qgis.core import *
-from qgis.core import QgsMapLayerRegistry, QgsPoint, QgsCoordinateTransform, \
-    QgsGeometry, QgsFeatureRequest, QgsRectangle, QgsRaster
+from qgis.core import QgsProject as QgsMapLayerRegistry, QgsPoint, QgsCoordinateTransform, \
+    QgsGeometry, QgsFeatureRequest, QgsRectangle, QgsRaster, QgsCoordinateTransformContext
 from qgis.gui import *
-from qgis.gui import QgsMapTool, QgsMapLayerComboBox, QgsMapLayerProxyModel
+from qgis.gui import QgsMapTool, QgsMapLayerComboBox
+from qgis.core import QgsMapLayerProxyModel
 
 from ..qt_extensions import QpalsDropTextbox
 from .. import QpalsModuleBase
 from ..qt_extensions.QCollapsibleGroupBox import QCollapsibleGroupBox
 from ..QpalsMultiModuleRunner import qpalsMultiModuleRunner as qMMR
-import findDoubleSegments
+from . import findDoubleSegments
 
 
 
@@ -163,7 +169,7 @@ class QpalsLM(object):
             else:
                 pointGeom = pointGeom.asPoint()
             pid, feat = closestpoint(llayer, QgsGeometry.fromPoint(pointGeom))
-            linegeom = feat.geometry().asWkb()
+            linegeom = feat.geometry().asWkb().data()
             olinegeom = ogr.CreateGeometryFromWkb(linegeom)
             dx = rlayer.rasterUnitsPerPixelX()
             dy = rlayer.rasterUnitsPerPixelY()
@@ -220,8 +226,8 @@ class QpalsLM(object):
 
         mc = self.iface.mapCanvas()
         # get first layer
-        llayer.startEditing()
-        self.iface.actionNodeTool().trigger()
+        #llayer.startEditing()
+        #self.iface.actionVertexTool().trigger()
 
         # get point position
         points = list(player.getFeatures())
@@ -230,21 +236,21 @@ class QpalsLM(object):
             point = points[pointid]
             pointGeom = point.geometry().asMultiPoint()[0] if point.geometry().asMultiPoint() else point.geometry().asPoint()
 
-            t = QgsCoordinateTransform(llayer.crs(), mc.mapSettings().destinationCrs())
+            t = QgsCoordinateTransform(llayer.crs(), mc.mapSettings().destinationCrs(), QgsCoordinateTransformContext())
             tCenter = t.transform(pointGeom)
             rect = QgsRectangle(tCenter, tCenter)
             mc.setExtent(rect)
-            pos = QgsMapTool(self.iface.mapCanvas()).toCanvasCoordinates(tCenter)
-            click = QMouseEvent(QEvent.MouseButtonPress, pos, Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
-            mc.mousePressEvent(click)
-            mc.mousePressEvent(click)
+            #pos = QgsMapTool(self.iface.mapCanvas()).toCanvasCoordinates(tCenter)
+            #click = QMouseEvent(QEvent.MouseButtonPress, pos, Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
+            #mc.mousePressEvent(click)
+            #mc.mousePressEvent(click)
             mc.refresh()
-            vertexDock = \
-                [ch for ch in self.iface.mainWindow().findChildren(QDockWidget, "") if
-                 ch.windowTitle() == u'Vertex Editor']
-            if vertexDock:
-                vertexDock = vertexDock[0]
-                self.editingls.addWidget(vertexDock)
+            #vertexDock = \
+            #    [ch for ch in self.iface.mainWindow().findChildren(QDockWidget, "") if
+            #     ch.windowTitle() == u'Vertex Editor']
+            #if vertexDock:
+            #    vertexDock = vertexDock[0]
+            #    self.editingls.addWidget(vertexDock)
             mc.refresh()
 
     def nodeLayerChanged(self):
@@ -256,9 +262,9 @@ class QpalsLM(object):
             self.edit3d_currPointId.setMaximum(cnt)
 
     def createWidget(self):
-        self.scrollwidget = QtGui.QScrollArea()
+        self.scrollwidget = QtWidgets.QScrollArea()
         self.scrollwidget.setWidgetResizable(True)
-        self.tabs = QtGui.QTabWidget()
+        self.tabs = QtWidgets.QTabWidget()
         self.scrollwidget.setWidget(self.tabs)
         self.names = ['Settings',
                  'DTM',
@@ -274,62 +280,62 @@ class QpalsLM(object):
         self.modules = {}
 
         for idx, name in enumerate(self.names):
-            self.widgets[name] = QtGui.QDialog()
-            ls = QtGui.QFormLayout()
+            self.widgets[name] = QtWidgets.QDialog()
+            ls = QtWidgets.QFormLayout()
             # Tab-specific options
             if name == "Settings":
-                desc = QtGui.QLabel("Welcome to the qpals LineModeler GUI! \nThis tool will help you to detect and "
+                desc = QtWidgets.QLabel("Welcome to the qpals LineModeler GUI! \nThis tool will help you to detect and "
                                     "model breaklines based on a DTM and/or a point cloud using the opals module "
                                     "opalsLineModeler.\nThe process includes manual editing in QGIS (\"Editing\") "
                                     "as well as automatic dectection and modelling.\n\n"
                                     "To begin, please enter some basic information.")
                 desc.setWordWrap(True)
                 ls.addRow(desc)
-                boxRun = QtGui.QGroupBox("Run multiple steps automatically:")
-                boxVL = QtGui.QVBoxLayout()
+                boxRun = QtWidgets.QGroupBox("Run multiple steps automatically:")
+                boxVL = QtWidgets.QVBoxLayout()
                 boxRun.setLayout(boxVL)
                 self.settings['settings'] = OrderedDict([
-                    ('name', QtGui.QLineEdit()),
+                    ('name', QtWidgets.QLineEdit()),
                     ('inFile', QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist)),
                     ('tempFolder', QpalsDropTextbox.QpalsDropTextbox()),
                     ('outFolder', QpalsDropTextbox.QpalsDropTextbox()),
-                    ('chkDTM', QtGui.QCheckBox("DTM")),
-                    ('chkSlope', QtGui.QCheckBox("Slope")),
-                    ('chk2D', QtGui.QCheckBox("2D-Approximation")),
-                    ('chktopo2D', QtGui.QCheckBox("Topological correction")),
-                    ('chkEditing2d', QtGui.QLabel("--- Manual editing of 2D-Approximations ---")),
-                    ('chk3Dmodel', QtGui.QCheckBox("3D-Modelling")),
-                    ('chkEditing3d', QtGui.QLabel("--- Manual editing of 3D-Lines ---")),
-                    ('chkExport', QtGui.QCheckBox("Export")),
+                    ('chkDTM', QtWidgets.QCheckBox("DTM")),
+                    ('chkSlope', QtWidgets.QCheckBox("Slope")),
+                    ('chk2D', QtWidgets.QCheckBox("2D-Approximation")),
+                    ('chktopo2D', QtWidgets.QCheckBox("Topological correction")),
+                    ('chkEditing2d', QtWidgets.QLabel("--- Manual editing of 2D-Approximations ---")),
+                    ('chk3Dmodel', QtWidgets.QCheckBox("3D-Modelling")),
+                    ('chkEditing3d', QtWidgets.QLabel("--- Manual editing of 3D-Lines ---")),
+                    ('chkExport', QtWidgets.QCheckBox("Export")),
                 ]
                 )
-                for key, value in self.settings['settings'].items():
+                for key, value in list(self.settings['settings'].items()):
                     if isinstance(value, QpalsDropTextbox.QpalsDropTextbox):
                         value.setMinimumContentsLength(20)
-                        value.setSizeAdjustPolicy(QtGui.QComboBox.AdjustToMinimumContentsLength)
+                        value.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToMinimumContentsLength)
                     if key.startswith("chk"):
                         boxVL.addWidget(value)
 
-                ls.addRow(QtGui.QLabel("Project name"), self.settings['settings']['name'])
-                hbox_wrap = QtGui.QHBoxLayout()
+                ls.addRow(QtWidgets.QLabel("Project name"), self.settings['settings']['name'])
+                hbox_wrap = QtWidgets.QHBoxLayout()
                 hbox_wrap.addWidget(self.settings['settings']['inFile'], stretch=1)
-                ls.addRow(QtGui.QLabel("Input file (TIFF/LAS/ODM)"), hbox_wrap)
-                hbox_wrap = QtGui.QHBoxLayout()
+                ls.addRow(QtWidgets.QLabel("Input file (TIFF/LAS/ODM)"), hbox_wrap)
+                hbox_wrap = QtWidgets.QHBoxLayout()
                 hbox_wrap.addWidget(self.settings['settings']['tempFolder'], stretch=1)
                 self.settings['settings']['tempFolder'].setPlaceholderText(
                     "drop folder here (will be created if not exists)")
-                ls.addRow(QtGui.QLabel("Folder for temporary files"), hbox_wrap)
-                hbox_wrap = QtGui.QHBoxLayout()
+                ls.addRow(QtWidgets.QLabel("Folder for temporary files"), hbox_wrap)
+                hbox_wrap = QtWidgets.QHBoxLayout()
                 self.settings['settings']['outFolder'].setPlaceholderText(
                     "drop folder here (will be created if not exists)")
                 hbox_wrap.addWidget(self.settings['settings']['outFolder'], stretch=1)
-                ls.addRow(QtGui.QLabel("Folder for output files"), hbox_wrap)
-                ls.addRow(QtGui.QLabel(""))
-                boxBtnRun = QtGui.QPushButton("Run selected steps now")
+                ls.addRow(QtWidgets.QLabel("Folder for output files"), hbox_wrap)
+                ls.addRow(QtWidgets.QLabel(""))
+                boxBtnRun = QtWidgets.QPushButton("Run selected steps now")
                 boxBtnRun.clicked.connect(lambda: self.run_step("all"))
-                boxBtnExp = QtGui.QPushButton("Export selected steps to .bat")
+                boxBtnExp = QtWidgets.QPushButton("Export selected steps to .bat")
                 boxBtnExp.clicked.connect(self.createBatFile)
-                # saveBtn = QtGui.QPushButton("Save to project file")
+                # saveBtn = QtWidgets.QPushButton("Save to project file")
                 # saveBtn.clicked.connect(self.save)
                 boxVL.addWidget(boxBtnRun)
                 boxVL.addWidget(boxBtnExp)
@@ -337,7 +343,7 @@ class QpalsLM(object):
                 ls.addRow(boxRun)
 
             if name == "DTM":
-                desc = QtGui.QLabel(
+                desc = QtWidgets.QLabel(
                     "This first step will create a digital terrain model (DTM) from your point cloud data. "
                     "Also, a shading of your DTM "
                     "will be created for visualisation purposes. If the input file is not an ODM, one has to be "
@@ -383,7 +389,7 @@ class QpalsLM(object):
                 ls.addRow(shdscroll)
 
             if name == "Slope":
-                desc = QtGui.QLabel(
+                desc = QtWidgets.QLabel(
                     "To automatically detect breaklines, a slope map is calculated. This map uses the neighboring 9"
                     " pixels to estimate a plane. The gradient (steepest slope) is then taken, converted to a slope"
                     "in degrees, and assigned to the pixel.")
@@ -403,7 +409,7 @@ class QpalsLM(object):
                 ls.addRow(gfscroll)
 
             if name == "2D-Approximation":
-                desc = QtGui.QLabel(
+                desc = QtWidgets.QLabel(
                     "The slope map is used to detect breaklines. For this, the algorithm by Canny (1986) is used.\n"
                     "First, the slope map is convoluted with a gaussian kernel for smoothing, then the derivative "
                     "is calculated. The two threshold parameters represent the upper and lower values for the "
@@ -426,7 +432,7 @@ class QpalsLM(object):
                 self.modules['edgeDetect'] = edgeDmod
                 ls.addRow(edgeDscroll)
 
-                desc = QtGui.QLabel("Since the output of opalsEdgeDetect is still a raster, we need to vectorize it:")
+                desc = QtWidgets.QLabel("Since the output of opalsEdgeDetect is still a raster, we need to vectorize it:")
                 desc.setWordWrap(True)
                 ls.addRow(desc)
 
@@ -442,7 +448,7 @@ class QpalsLM(object):
                 ls.addRow(vecscroll)
 
             if name == "Topologic correction":
-                desc = QtGui.QLabel(
+                desc = QtWidgets.QLabel(
                     "Vectorized binary rasters usually need some topological cleaning. Here, this is done in three steps: \n"
                     "1) Find the longest line and remove all lines < 10m\n"
                     "2) Merge lines iteratively\n"
@@ -519,20 +525,20 @@ class QpalsLM(object):
                 lt3mod.afterRun = self.add2DLines
 
             if name == "Editing":
-                desc = QtGui.QLabel(
+                desc = QtWidgets.QLabel(
                     "Please start editing the 2D approximations that have been loaded into qgis. Here are some tools "
                     "that might help:")
                 desc.setWordWrap(True)
                 ls.addRow(desc)
 
-                box1 = QtGui.QGroupBox("QuickLineModeller")
-                import QpalsQuickLM
+                box1 = QtWidgets.QGroupBox("QuickLineModeller")
+                from . import QpalsQuickLM
                 self.quicklm = QpalsQuickLM.QpalsQuickLM(project=self.project, layerlist=self.layerlist,
                                                          iface=self.iface)
                 box1.setLayout(self.quicklm.fl)
                 ls.addRow(box1)
-                box2 = QtGui.QGroupBox("qpalsSection")
-                import QpalsSection
+                box2 = QtWidgets.QGroupBox("qpalsSection")
+                from . import QpalsSection
                 self.section = QpalsSection.QpalsSection(project=self.project, layerlist=self.layerlist,
                                                          iface=self.iface)
                 self.section.createWidget()
@@ -540,7 +546,7 @@ class QpalsLM(object):
                 ls.addRow(box2)
 
             if name == "3D-Modelling":
-                desc = QtGui.QLabel(
+                desc = QtWidgets.QLabel(
                     "The 2D approximations can now be used to model 3D breaklines in the pointcloud/the DTM.")
                 desc.setWordWrap(True)
                 ls.addRow(desc)
@@ -568,28 +574,28 @@ class QpalsLM(object):
                 lmmod.afterRun = self.add3DLines
 
             if name == "Editing (3D)":
-                desc = QtGui.QLabel("Before exporting the final product, there are a few tools to check the "
+                desc = QtWidgets.QLabel("Before exporting the final product, there are a few tools to check the "
                                     "quality of the result. This includes a topological check as well as a search"
                                     "for points that have a big height difference to the DTM - and might be erraneous.")
 
                 desc.setWordWrap(True)
                 ls.addRow(desc)
 
-                self.startQualityCheckBtn = QtGui.QPushButton("Start calculation")
+                self.startQualityCheckBtn = QtWidgets.QPushButton("Start calculation")
                 self.startQualityCheckBtn.clicked.connect(self.runProblemSearchAsync)
-                self.QualityCheckbar = QtGui.QProgressBar()
+                self.QualityCheckbar = QtWidgets.QProgressBar()
                 self.QualityCheckDtm = QgsMapLayerComboBox()
                 self.QualityCheckDtm.setFilters(QgsMapLayerProxyModel.RasterLayer)
-                self.QualityCheckThreshold = QtGui.QLineEdit("0.5")
-                ls.addRow(QtGui.QLabel("DTM Layer to compare heights with"), self.QualityCheckDtm)
-                ls.addRow(QtGui.QLabel("Set height difference threshold [m]"), self.QualityCheckThreshold)
-                hb = QtGui.QHBoxLayout()
+                self.QualityCheckThreshold = QtWidgets.QLineEdit("0.5")
+                ls.addRow(QtWidgets.QLabel("DTM Layer to compare heights with"), self.QualityCheckDtm)
+                ls.addRow(QtWidgets.QLabel("Set height difference threshold [m]"), self.QualityCheckThreshold)
+                hb = QtWidgets.QHBoxLayout()
                 hb.addWidget(self.QualityCheckbar)
                 hb.addWidget(self.startQualityCheckBtn)
                 ls.addRow(hb)
-                line = QtGui.QFrame()
-                line.setFrameShape(QtGui.QFrame.HLine)
-                line.setFrameShadow(QtGui.QFrame.Sunken)
+                line = QtWidgets.QFrame()
+                line.setFrameShape(QtWidgets.QFrame.HLine)
+                line.setFrameShadow(QtWidgets.QFrame.Sunken)
                 ls.addRow(line)
 
                 self.editingls = ls
@@ -610,24 +616,24 @@ class QpalsLM(object):
                 ls.addRow("Select Line Layer:", self.edit3d_linelayerbox)
                 ls.addRow("Select Problem Point layer:", self.edit3d_pointlayerbox)
 
-                self.selectNodeBtn = QtGui.QPushButton("Next point")
+                self.selectNodeBtn = QtWidgets.QPushButton("Next point")
                 self.selectNodeBtn.clicked.connect(lambda: self.edit3d_currPointId.setValue(
                     self.edit3d_currPointId.value()+1))
 
-                self.selectPrevNodeBtn = QtGui.QPushButton("Prev point")
+                self.selectPrevNodeBtn = QtWidgets.QPushButton("Prev point")
                 self.selectPrevNodeBtn.clicked.connect(lambda: self.edit3d_currPointId.setValue(
                     self.edit3d_currPointId.value()-1))
-                self.edit3d_countLabel = QtGui.QLabel()
+                self.edit3d_countLabel = QtWidgets.QLabel()
 
-                self.snapToDtmBtn = QtGui.QPushButton("Snap to:")
+                self.snapToDtmBtn = QtWidgets.QPushButton("Snap to:")
                 self.snapToDtmBtn.clicked.connect(self.snapToDtm)
-                self.remonveNodeBtn = QtGui.QPushButton("Remove")
+                self.remonveNodeBtn = QtWidgets.QPushButton("Remove")
                 self.remonveNodeBtn.clicked.connect(self.removeNode)
 
-                nextBox = QtGui.QHBoxLayout()
-                nextBox.addWidget(QtGui.QLabel("Current point:"))
+                nextBox = QtWidgets.QHBoxLayout()
+                nextBox.addWidget(QtWidgets.QLabel("Current point:"))
                 nextBox.addWidget(self.edit3d_currPointId)
-                nextBox.addWidget(QtGui.QLabel("/"))
+                nextBox.addWidget(QtWidgets.QLabel("/"))
                 nextBox.addWidget(self.edit3d_countLabel)
                 nextBox.addStretch()
 
@@ -654,14 +660,14 @@ class QpalsLM(object):
                 self.modules['exp'] = exp2mod
                 ls.addRow(exp2scroll)
 
-            vl = QtGui.QVBoxLayout()
+            vl = QtWidgets.QVBoxLayout()
             vl.addLayout(ls, 1)
-            navbar = QtGui.QHBoxLayout()
-            next = QtGui.QPushButton("Next step >")
+            navbar = QtWidgets.QHBoxLayout()
+            next = QtWidgets.QPushButton("Next step >")
             next.clicked.connect(self.switchToNextTab)
-            prev = QtGui.QPushButton("< Previous step")
+            prev = QtWidgets.QPushButton("< Previous step")
             prev.clicked.connect(self.switchToPrevTab)
-            runcurr = QtGui.QPushButton("Run this step (all modules above)")
+            runcurr = QtWidgets.QPushButton("Run this step (all modules above)")
             runcurr.clicked.connect(lambda: self.run_step(None))
             if idx > 0:
                 navbar.addWidget(prev)
@@ -725,7 +731,7 @@ class QpalsLM(object):
         return modules
 
     def createBatFile(self):
-        saveTo = QtGui.QFileDialog.getSaveFileName(None, caption='Save to file')
+        saveTo = QtWidgets.QFileDialog.getSaveFileName(None, caption='Save to file')
         try:
             f = open(saveTo, 'w')
             f.write("rem BATCH FILE CREATED WITH QPALS\r\n")
@@ -783,12 +789,17 @@ class QpalsLM(object):
                                                           50, 1000)
         self.QualityWorker.progress.connect(self.updateQualityBar)
         self.QualityWorker.finished.connect(self.QualityFinished)
+        self.QualityWorker.error.connect(self.problemSearchError)
         self.QualityThread = QtCore.QThread()
         self.QualityWorker.moveToThread(self.QualityThread)
         self.QualityThread.started.connect(self.QualityWorker.run)
         self.QualityThread.start()
         self.startQualityCheckBtn.setEnabled(False)
         self.startQualityCheckBtn.setText("processing...")
+
+    def problemSearchError(self, err):
+        (msg, e, mod) = err
+        print(msg)
 
     def updateQualityBar(self, fl):
         self.QualityCheckbar.setValue(fl)

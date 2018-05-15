@@ -1,4 +1,4 @@
-from PyQt4 import QtGui, QtCore
+from qgis.PyQt import QtWidgets, QtGui
 import os
 
 
@@ -7,7 +7,7 @@ IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "medi
 lockedIcon = QtGui.QIcon(os.path.join(IconPath, "lockIcon_locked.png"))
 unlockedIcon = QtGui.QIcon(os.path.join(IconPath, "lockIcon_open.png"))
 
-class QpalsParamMsgBtn(QtGui.QToolButton):
+class QpalsParamMsgBtn(QtWidgets.QToolButton):
 
     def __init__(self, popupmessage, parent, *args, **kwargs):
         self.popupmessage = popupmessage
@@ -17,12 +17,12 @@ class QpalsParamMsgBtn(QtGui.QToolButton):
         self.clicked.connect(lambda: self.displayParamMsgBox(popupmessage))
 
     def displayParamMsgBox(self, param):
-        msg = QtGui.QMessageBox(self.parent)
-        msg.setIcon(QtGui.QMessageBox.Question)
+        msg = QtWidgets.QMessageBox(self.parent)
+        msg.setIcon(QtWidgets.QMessageBox.Question)
         msg.setText(param.desc)
         msg.setInformativeText(param.longdesc)
         msg.setWindowTitle(param.name)
-        msg.setStandardButtons(QtGui.QMessageBox.Ok)
+        msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
         msg.exec_()
 
     def __deepcopy__(self, memo={}):
@@ -30,7 +30,7 @@ class QpalsParamMsgBtn(QtGui.QToolButton):
         # Return shallow copy instead
         return self
 
-class QpalsLockIconBtn(QtGui.QToolButton):
+class QpalsLockIconBtn(QtWidgets.QToolButton):
     def __init__(self, param, *args, **kwargs):
         super(QpalsLockIconBtn, self).__init__(*args, **kwargs)
         self.setIcon(unlockedIcon)

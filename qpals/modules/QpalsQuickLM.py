@@ -17,18 +17,20 @@ email                : lukas.winiwarter@tuwien.ac.at
  ***************************************************************************/
  """
 
-from PyQt4 import QtGui
+from builtins import object
+from qgis.PyQt import QtGui, QtWidgets
 from qgis.core import *
 from qgis.gui import *
-from qgis.gui import QgsMapLayerComboBox, QgsMapLayerProxyModel
+from qgis.gui import QgsMapLayerComboBox
+from qgis.core import QgsMapLayerProxyModel
 
 import os
 import ogr
 import tempfile
-from .. import QpalsModuleBase, QpalsParameter
-from ..qt_extensions import QpalsDropTextbox
+from qpals.qpals import QpalsModuleBase, QpalsParameter
+from qpals.qpals.qt_extensions import QpalsDropTextbox
 
-class QpalsQuickLM:
+class QpalsQuickLM(object):
 
     def __init__(self, project, layerlist, iface):
         self.ui = None
@@ -38,18 +40,18 @@ class QpalsQuickLM:
         self.createUi()
 
     def createUi(self):
-        self.selectedChkBox = QtGui.QCheckBox("Use selected lines only")
+        self.selectedChkBox = QtWidgets.QCheckBox("Use selected lines only")
         self.selectedChkBox.setCheckState(2)
         self.cmbLineLayer = QgsMapLayerComboBox()
         self.cmbLineLayer.setFilters(QgsMapLayerProxyModel.LineLayer)
         self.cmbOdmPath =QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist, filterrex=".*\.odm$")
-        self.runBtn = QtGui.QPushButton("Run")
+        self.runBtn = QtWidgets.QPushButton("Run")
         self.runBtn.clicked.connect(self.runLM)
-        self.ui = QtGui.QWidget()
-        self.fl = QtGui.QFormLayout()
+        self.ui = QtWidgets.QWidget()
+        self.fl = QtWidgets.QFormLayout()
         self.ui.setLayout(self.fl)
-        self.fl.addRow(QtGui.QLabel("Line layer:"), self.cmbLineLayer)
-        self.fl.addRow(QtGui.QLabel("Point cloud:"), self.cmbOdmPath)
+        self.fl.addRow(QtWidgets.QLabel("Line layer:"), self.cmbLineLayer)
+        self.fl.addRow(QtWidgets.QLabel("Point cloud:"), self.cmbOdmPath)
         self.fl.addRow(self.selectedChkBox)
         self.fl.addRow(self.runBtn)
 
@@ -79,7 +81,7 @@ class QpalsQuickLM:
                                                  QpalsProject=self.project)
 
         paramlist = []
-        for param in params.iterkeys():
+        for param in params.keys():
             paramlist.append(QpalsParameter.QpalsParameter(param, params[param], None, None, None, None, None))
         Module.params = paramlist
         #print "running module. writing outfile to %s" % params["outFile"]
