@@ -183,6 +183,7 @@ class qpals(object):
         self.linemodelerUIDock.resize(800, 800)
         self.linemodelerUIDock.move(50,50)
         self.linemodelerUIDock.show()
+        self.linemodelerUIDock.visibilityChanged.connect(self.linemodeler.close)
 
     def showWSM(self):
         if not self.wsm:

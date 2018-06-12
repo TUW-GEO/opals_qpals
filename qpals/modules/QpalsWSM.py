@@ -121,9 +121,9 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.attrSel = QtWidgets.QComboBox()
         formL.addRow("attribute", self.attrSel)
 
-        createShd = QtWidgets.QPushButton("create shading")
-        createShd.clicked.connect(self.createShd)
-        formL.addRow(createShd)
+        # createShd = QtWidgets.QPushButton("create shading")
+        # createShd.clicked.connect(self.createShd)
+        # formL.addRow(createShd)
         createSec = QtWidgets.QPushButton("save && create sections")
         createSec.clicked.connect(self.createSec)
         formL.addRow(createSec)
@@ -291,18 +291,18 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.prjBox.setEnabled(True)
         self.WSMProj = QpalsWSMProject()
 
-    def createShd(self):
-        module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsShade.exe"),
-                                                 QpalsProject=self.project)
-        odmpath = self.odmText.text().encode('UTF-8')
-        infile = QpalsParameter('inFile', odmpath, None, None, None, None, None)
-        outFile = QpalsParameter('outFile', odmpath.replace(".odm", "_shd.tif"), None, None, None, None,
-                                           None)
-        module.params += [infile, outFile]
-        thread, worker = module.run_async(status=self.update_status, on_finish=lambda: self.shdFinished(outFile),
-                                                    on_error=self.sec_error)
-        self.threads.append(thread)
-        self.workers.append(worker)
+    # def createShd(self):
+    #     module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsShade.exe"),
+    #                                              QpalsProject=self.project)
+    #     odmpath = self.odmText.text().encode('UTF-8')
+    #     infile = QpalsParameter('inFile', odmpath, None, None, None, None, None)
+    #     outFile = QpalsParameter('outFile', odmpath.replace(".odm", "_shd.tif"), None, None, None, None,
+    #                                        None)
+    #     module.params += [infile, outFile]
+    #     thread, worker = module.run_async(status=self.update_status, on_finish=lambda: self.shdFinished(outFile),
+    #                                                 on_error=self.sec_error)
+    #     self.threads.append(thread)
+    #     self.workers.append(worker)
 
     def shdFinished(self, file):
         self.iface.addRasterLayer(file, os.path.basename(file))

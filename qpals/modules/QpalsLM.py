@@ -134,11 +134,6 @@ class QpalsLM(object):
             if not os.path.isdir(outdir) and outdir:
                 os.makedirs(outdir)
 
-    def close(self):
-        if self.section.ltool.rb:
-            self.section.ltool.canvas.scene().removeItem(self.section.ltool.rb)
-        self.iface.actionPan().trigger()
-
     def switchToPrevTab(self):
         curridx = self.tabs.currentIndex()
         self.tabs.setCurrentIndex(curridx - 1)
@@ -532,6 +527,7 @@ class QpalsLM(object):
                                                          iface=self.iface)
                 self.section.createWidget()
                 box2.setLayout(self.section.ls)
+                box2.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
                 ls.addRow(box2)
 
             if name == "3D-Modelling":
@@ -807,3 +803,8 @@ class QpalsLM(object):
     #     proj.writeEntry("qpals", "linemodelerinst", tabs)
     #     print tabs
 
+    def close(self):
+        # remove rubber band if present
+        if self.section.ltool.rb:
+            self.section.ltool.canvas.scene().removeItem(self.section.ltool.rb)
+        self.iface.actionPan().trigger()

@@ -136,7 +136,7 @@ class plotwindow(object):
                         nodecount += 1
                     if self.connections:
                         self.connections.pop()
-        self.lines = np.array(self.lines)
+            self.lines = np.array(self.lines)
         self.ui = self.getUI()
 
         self.CM = None
@@ -165,6 +165,8 @@ class plotwindow(object):
         policy = self.widg.sizePolicy()
         policy.setVerticalStretch(1)
         self.widg.setSizePolicy(policy)
+        self.widg.setMinimumSize(500, 500)
+        self.widg.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.toolbar = QtWidgets.QHBoxLayout()
         self.toolbar2 = QtWidgets.QHBoxLayout()
         lay.addLayout(self.toolbar)
@@ -245,7 +247,7 @@ class plotwindow(object):
         self.canvas.bgcolor = self.bgColorBtn.text()
         self.p1.set_data(np.vstack((X,Y,Z)).T, face_color=c, symbol=self.markerBox.currentText(),
                          size=self.markerSize.value(), edge_color=None, edge_width=0)
-        if self.lines:
+        if self.lines is not None:
             linesX = self.lines[:, 0] - x_mean
             linesY = self.lines[:, 1] - y_mean
             linesZ = (self.lines[:, 2] - z_mean) * self.zex.value()

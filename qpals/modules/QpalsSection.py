@@ -149,6 +149,7 @@ class QpalsSection(object):
 
         self.scrollwidget = QtWidgets.QScrollArea()
         self.scrollwidget.setWidgetResizable(True)
+        self.scrollwidget.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
         self.scrollwidget.setWidget(self.tabs)
 
         return self.scrollwidget
