@@ -321,7 +321,6 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.WSMProj.odmpath = odmpath
         self.WSMProj.axispath = axispath
         self.WSMProj.savepath = outpath[0]
-        self.WSMProj.shdpath = self.shdText.text()
         self.WSMProj.overlap = self.overlapSpin.value()
         self.WSMProj.depth = self.depthSpin.value()
         self.WSMProj.width = self.widthSpin.value()
