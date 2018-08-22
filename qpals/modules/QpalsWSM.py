@@ -73,6 +73,7 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.dragEnd = (0, 0)
         self.zoomStart = (0, 0)
         self.dragLine = None
+        self.plotcenter_text = None
         self.threads = []
         self.workers = []
 
@@ -519,6 +520,8 @@ class QpalsWSM(QtWidgets.QSplitter):
         xlim, ylim = self.axcenter.get_xlim(), self.axcenter.get_ylim()
 
         self.axcenter.cla()
+        self.axcenter.grid(color=(.75,.75,.75), which='both')
+        self.plotcenter_text = self.axcenter.text(0.02, 0.02, "", horizontalalignment='left', transform=self.axcenter.transAxes)
         self.axcenter.text(0.05, 0.95, '''
 LMB: set section
 MMB: pan
@@ -541,7 +544,6 @@ Del: deconfirm
             self.dragLine.set_linestyle("-")
             self.dragLine.set_color(self.linecolors[currsec.status])
 
-        self.axcenter.set_axis_off()
 
         # reset lims if no points are left in visible area, for x and y separately
         if currsec.xrange[0] > xlim[0] > currsec.xrange[1] or currsec.xrange[0] > xlim[1] > currsec.xrange[1]:
@@ -594,6 +596,8 @@ Del: deconfirm
 
 
     def mousePressed(self, e):
+        if self.dragLine is None:
+            return
         if e.button == 1:
             self.dragStart = (e.xdata, e.ydata)
             self.dragLine.set_linestyle("--")
@@ -602,11 +606,16 @@ Del: deconfirm
             self.zoomStart = [self.axcenter.get_xlim(), self.axcenter.get_ylim()]
 
     def mouseMoved(self, e):
+        if self.dragLine is None:
+            return
         if e.button == 1:
             self.dragEnd = (e.xdata, e.ydata)
             self.dragLine.set_xdata([self.dragEnd[0], self.dragStart[0]])
             self.dragLine.set_ydata([self.dragEnd[1], self.dragStart[1]])
             self.dragLine.set_color(self.linecolors[-1])
+            slope = (self.dragStart[1]-self.dragEnd[1])/(self.dragStart[0]-self.dragEnd[0]) * 100.
+            if self.plotcenter_text is not None and e.xdata is not None and e.ydata is not None:
+                self.plotcenter_text.set_text("Q = %.3f, Z = %.3f, Slope = %.1f%%" % (e.xdata, e.ydata, slope))
         elif e.button == 2:
             xlim, ylim = self.zoomStart
             x_add = (self.dragStart[0] - e.xdata)
@@ -628,8 +637,9 @@ Del: deconfirm
         self.plotcenter.draw()
 
     def mouseReleased(self, e):
-        if e.button != 1:
+        if e.button != 1 or self.plotcenter_text is None:
             return
+        self.plotcenter_text.set_text("")
         widthL = min(e.xdata, self.dragStart[0])
         widthR = max(e.xdata, self.dragStart[0])
 
