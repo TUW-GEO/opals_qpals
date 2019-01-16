@@ -18,6 +18,12 @@ email                : lukas.winiwarter@tuwien.ac.at
  This script initializes the plugin, making it known to QGIS.
 """
 
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtWidgets import *
+from qgis.PyQt.QtGui import *
+import importlib
+import sys, os
+
 
 def name(): 
     return "qpals"
@@ -35,7 +41,48 @@ def qgisMinimumVersion():
     return "2.99"
 
 
-def classFactory(iface): 
+def classFactory(iface):
+    # check requirements
+    for package in ['matplotlib', 'vispy', 'scipy']:
+        try:
+            importlib.import_module(package)
+        except:
+            msg = QMessageBox()
+            msg.setText("A package that is required for qpals could not be found")
+            msg.setInformativeText("Qpals requires the package '%s'. Press 'OK' to attempt installation (might take some time)." % package)
+            msg.setWindowTitle("qpals missing libraries")
+            msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+            ret = msg.exec_()
+            if ret == QMessageBox.Ok:
+                #    import pip
+                exe = sys.executable
+                python_exe = os.path.join(os.path.split(exe)[0], "python-qgis.bat")
+                import subprocess
+                rc = subprocess.check_call([python_exe, '-c', 'import pip; pip.main(["install", "%s"])' % package])
+                msg = QMessageBox()
+                msg.setText("Package installation")
+                msg.setWindowTitle("qpals package installation")
+                msg.setStandardButtons(QMessageBox.Ok)
+                if rc == 0:
+                    msg.setInformativeText("Package installation succeeded")
+                else:
+                    msg.setInformativeText("Package installation failed. Please try manual installation. Not all features of qpals will be available.")
+                ret = msg.exec_()
+
+            #    sys.execuable = exe
+            #else:
+            #    return deactivatedQpals(iface)
+
     # load qpals class from file qpals
     from qpals.qpals import qpals
     return qpals.qpals(iface)
+
+class deactivatedQpals:
+    def __init__(self, iface):
+        self.iface = iface
+
+    def initGui(self):
+        pass
+
+    def unload(self):
+        pass

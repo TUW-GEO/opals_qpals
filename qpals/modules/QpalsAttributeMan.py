@@ -38,6 +38,9 @@ class QpalsAttributeMan(object):
         self.ui = QtWidgets.QDialog()
         self.ui.resize(720, 300)
         self.ui.setWindowTitle("qpals AttributeManager")
+        self.ui.setWindowFlags(self.ui.windowFlags() |
+                              QtCore.Qt.WindowSystemMenuHint |
+                              QtCore.Qt.WindowMinMaxButtonsHint)
         lo = QtWidgets.QFormLayout()
         vb = QtWidgets.QVBoxLayout()
         hb = QtWidgets.QHBoxLayout()

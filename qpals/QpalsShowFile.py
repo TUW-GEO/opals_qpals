@@ -26,7 +26,7 @@ VISUALISATION_METHODS = {
     6: "Minimum bounding rectangle (vector)",
     7: "Convex hull (vector)",
     8: "Alpha shape (vector)",
-    9: "Isolines (vector, based on Z-Value)",
+    9: "Isolines",
 }
 
 class QpalsShowFile(object):
@@ -181,38 +181,53 @@ class QpalsShowFile(object):
                     else:
                         if not drop.endswith(".odm"):
                             drop = self.callImport(drop)
+                        suffix = ""
+                        attribute = "Z" if not hasattr(self, 'cellAttrCmb') else self.cellAttrCmb.currentText()
                         if self.curVisMethod == 3:
                             cellf = self.callCell(drop)
                             visfile = self.callShade(cellf)
+                            suffix = "shading (%s)" % attribute
                         elif self.curVisMethod == 4:
                             cellf = self.callCell(drop)
                             visfile = self.callZColor(cellf)
+                            suffix = "coloring (%s)" % attribute
                         elif self.curVisMethod == 5:
                             visfile = self.callCell(drop)
+                            suffix = "(%s)" % attribute
                         elif self.curVisMethod == 0:
                             (xmin, ymin, xmax, ymax) = self.callInfo(drop)
+                            suffix = "BBox"
                         elif self.curVisMethod == 6:
                             visfile = self.callBounds(drop, "minimumRectangle")
+                            suffix = "MBR"
                         elif self.curVisMethod == 7:
                             visfile = self.callBounds(drop, "convexHull")
+                            suffix = "convex hull"
                         elif self.curVisMethod == 8:
                             visfile = self.callBounds(drop, "alphaShape")
+                            suffix = "alpha shape"
                         elif self.curVisMethod == 9:
                             cellf = self.callCell(drop)
                             visfile = self.callIsolines(cellf)
+                            suffix = "isolines (%s)" % attribute
                         elif self.curVisMethod == 1:
                             visfile = self.callInfo(drop, overview='Z')
+                            suffix = "overview (Z)"
                         elif self.curVisMethod == 2:
                             visfile = self.callInfo(drop, overview='Pcount')
+                            suffix = "overview (pcount)"
 
                         self.updateText("Loading layer into QGIS...")
                         # load layer
                         if self.curVisMethod in [6, 7, 8, 9]:  # vector file
-                            layer = self.iface.addVectorLayer(visfile, os.path.basename(drop), "ogr")
+                            layer = self.iface.addVectorLayer(visfile,
+                                                              os.path.basename(drop) + " - " + suffix, "ogr")
                         elif self.curVisMethod in [1, 2, 3, 4, 5]:
-                            layer = self.iface.addRasterLayer(visfile, os.path.basename(drop))
+                            layer = self.iface.addRasterLayer(visfile,
+                                                              os.path.basename(drop) + " - " + suffix)
                         elif self.curVisMethod == 0:
-                            layer = self.iface.addVectorLayer("Polygon", os.path.basename(drop), "memory")
+                            layer = self.iface.addVectorLayer("Polygon",
+                                                              os.path.basename(drop) + " - " + suffix, "memory")
                             pr = layer.dataProvider()
                             feat = QgsFeature()
                             feat.setGeometry(QgsGeometry.fromPolygonXY([[QgsPointXY(xmin, ymin),

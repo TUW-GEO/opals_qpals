@@ -156,15 +156,20 @@ class ModuleRunWorker(QtCore.QObject):
         self.killed = [False]
 
     def run(self):
+        ret_dict={
+            'stdout': "",
+            'stderr': "",
+            'returncode': 1
+        }
         try:
-            self.module.paramClass.run(statusSignal=self.status, killSignal=self.killed)
+            ret_dict = self.module.paramClass.run(statusSignal=self.status, killSignal=self.killed)
             if not self.killed[0]:
                 self.progress.emit(100)
         except Exception as e:
             self.error.emit(e, str(e), self.module)
             # fix_print_with_import
-            print(("Error:", str(e)))
-        ret = (None, "", self.module)
+            #print(("Error:", str(e)))
+        ret = (ret_dict, "", self.module)
         self.finished.emit(ret)
 
     @pyqtSlot()
@@ -184,15 +189,20 @@ class ModuleBaseRunWorker(QtCore.QObject):
         self.killed = [False]
 
     def run(self):
+        ret_dict={
+            'stdout': "",
+            'stderr': "",
+            'returncode': 1
+        }
         try:
-            self.module.run(statusSignal=self.status, killSignal=self.killed)
+            ret_dict = self.module.run(statusSignal=self.status, killSignal=self.killed)
             if not self.killed[0]:
                 self.progress.emit(100)
         except Exception as e:
             self.error.emit(e, str(e), self.module)
             # fix_print_with_import
-            print(("Error:", str(e)))
-        ret = (None, "", self.module)
+            #print(("Error:", str(e)))
+        ret = (ret_dict, "", self.module)
         self.finished.emit(ret)
 
     @pyqtSlot()
@@ -339,7 +349,7 @@ class QpalsModuleBase(object):
         my_env["PYTHONHOME"] = ""
         proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 stdin=subprocess.PIPE, cwd=self.project.workdir, startupinfo=info, env=my_env)
-        print(my_env)
+        #print(my_env)
         proc.stderr.flush()
         proc.stdin.close()
         if statusSignal is None:
@@ -362,7 +372,7 @@ class QpalsModuleBase(object):
             currstdout = proc.stdout.read()  # read the rest once the process is finished
             stdout += currstdout.decode()
             statusSignal.emit(stdout)
-            stderr = "\n".join(proc.stderr.readlines())
+            stderr = "\n".join([bytes.decode() for bytes in proc.stderr.readlines()])
 
         return {'stdout': stdout,
                 'stderr': stderr,
@@ -645,43 +655,7 @@ class QpalsModuleBase(object):
             valid = True
             if calld['returncode'] != 0:
                 valid = False
-                errormodule = ""
-                if "Error in parameter" in calld['stdout']:
-                    errortext = calld['stdout'].split("Error in parameter ")[1].split("\n")[0]
-                    errormodule = errortext.split(":")[0]
-                    errortext = ":".join(errortext.split(":")[1:])
-                    # print errormodule, errortext
-
-                elif "Ambiguities while matching value" in calld['stdout']:
-                    errortext = calld['stdout'].split("ERROR 0001: std::exception: ")[1].split("\n")[0]
-                    msg = QtWidgets.QMessageBox()
-                    msg.setIcon(QtWidgets.QMessageBox.Question)
-                    msg.setText(errortext.split(".")[0])
-                    msg.setInformativeText(".".join(errortext.split(".")[1:]))
-                    msg.setWindowTitle("Ambiguities while setting parameter values")
-                    msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
-                    msg.exec_()
-                elif "ERROR 1000: the argument " in calld['stdout']:
-                    errortext = calld['stdout'].split("ERROR 1000:")[1].split("\n")[0]
-                    errormodule = errortext.split("for option '")[1].split("' is invalid")[0]
-                elif "Applying parsed value to option " in calld['stdout']:
-                    errortext = calld['stdout']
-                    errormodule = errortext.split("Applying parsed value to option")[1].split()[0]
-                else:
-                    errortext = "Unknown error."
-                    raise Exception('Call failed:\n %s' % calld['stdout'])
-                if len(errortext) > 500:
-                    errortext = errortext[:500] + " ... (%s more characters)." % len(errortext)-500
-                    errortext += "\nRun the module and look at the log for more details."
-                if errormodule:
-                    for param in self.params:
-                        if param.name == errormodule:
-                            param.field.setToolTip(errortext)
-                            param.icon.setIcon(ErrorIcon)
-                            param.field.setStyleSheet('background-color: rgb(255,140,140);')
-                            break
-                self.listitem.setBackground(qtsoftred)
-                self.listitem.setToolTip(errortext)
+                self.parseErrorMessage(calld)
             else:
                 self.listitem.setBackground(qtsoftgreen)
                 parsedXML = parseXML(calld['stderr'])['Specific']
@@ -691,6 +665,51 @@ class QpalsModuleBase(object):
                             param.field.setText(parsedParam.val)
                             break
             return valid
+
+    def parseErrorMessage(self, calld):
+        errormodule = ""
+        if "Error in parameter" in calld['stdout']:
+            errortext = calld['stdout'].split("Error in parameter ")[1].split("\n")[0]
+            errormodule = errortext.split(":")[0]
+            errortext = ":".join(errortext.split(":")[1:])
+            # print errormodule, errortext
+
+        elif "Ambiguities while matching value" in calld['stdout']:
+            errortext = calld['stdout'].split("ERROR 0001: std::exception: ")[1].split("\n")[0]
+            msg = QtWidgets.QMessageBox()
+            msg.setIcon(QtWidgets.QMessageBox.Question)
+            msg.setText(errortext.split(".")[0])
+            msg.setInformativeText(".".join(errortext.split(".")[1:]))
+            msg.setWindowTitle("Ambiguities while setting parameter values")
+            msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msg.exec_()
+        elif "ERROR 1000: the argument " in calld['stdout']:
+            errortext = calld['stdout'].split("ERROR 1000:")[1].split("\n")[0]
+            errormodule = errortext.split("for option '")[1].split("' is invalid")[0]
+        elif "Applying parsed value to option " in calld['stdout']:
+            errortext = calld['stdout']
+            errormodule = errortext.split("Applying parsed value to option")[1].split()[0]
+        elif "Return number too large to be stored with this point record format." in calld['stdout']:
+            errortext = calld['stdout']
+            errormodule = 'oFormat'
+        elif "Validation failed for" in calld['stdout']:
+            errortext = calld['stdout']
+            errormodule = errortext.split("Validation failed for ")[1].split()[0]
+        else:
+            errortext = "Unknown error."
+            raise Exception('Call failed:\n %s' % calld['stdout'])
+        if len(errortext) > 500:
+            errortext = "(%s more characters)..." % (len(errortext) - 500) + errortext[-500:]
+            errortext += "\nRun the module and look at the log for more details."
+        if errormodule:
+            for param in self.params:
+                if param.name == errormodule:
+                    param.field.setToolTip(errortext)
+                    param.icon.setIcon(ErrorIcon)
+                    param.field.setStyleSheet('background-color: rgb(255,140,140);')
+                    break
+        self.listitem.setBackground(qtsoftred)
+        self.listitem.setToolTip(errortext)
 
     def run(self, show=0, onlytext=False, statusSignal=None, killSignal=None):
         paramlist = []
@@ -767,8 +786,11 @@ class QpalsModuleBase(object):
                                                         abort_signal=abort_signal)
 
     def run_async_finished(self, ret):
-        e, msg, mod = ret
-        if not e:
+        calld, msg, mod = ret
+        if calld['returncode'] != 0:
+             self.parseErrorMessage(calld)
+             self.progressbar.setFormat("Error: " + msg)
+        else:
             if self.runbtn:
                 self.runbtn.setText("done")
                 self.runbtn.setEnabled(True)
@@ -776,8 +798,6 @@ class QpalsModuleBase(object):
                 self.progressbar.setValue(100)
             if self.afterRun:
                 self.afterRun()
-        else:
-            self.progressbar.setFormat("Error: " + msg)
 
 
 class QpalsRunBatch(object):

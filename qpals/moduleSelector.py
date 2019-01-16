@@ -83,6 +83,7 @@ class moduleSelector(QtWidgets.QDialog):
         self.getModulesAvailiable()
         self.initUi()
         self.resize(1200, 600)
+
         self.workerrunning = False
         self.threads = []
         self.workers = []
@@ -340,7 +341,7 @@ class moduleSelector(QtWidgets.QDialog):
 
     def resetModule(self, module):
         module.paramClass.reset()
-        module.setBackgroundColor(qtwhite)
+        module.setBackground(qtwhite)
         self.clearLayout(self.moduleparamLayout)
         self.loadModule(module)
 
@@ -411,7 +412,7 @@ class moduleSelector(QtWidgets.QDialog):
 
 
     def runModuleWorkerFinished(self, ret):
-        err, errmsg, module = ret
+        calld, errmsg, module = ret
         moduleClass = module.paramClass
         if moduleClass.visualize and moduleClass.outf:
             if not os.path.isabs(moduleClass.outf):
@@ -419,13 +420,17 @@ class moduleSelector(QtWidgets.QDialog):
             showfile = QpalsShowFile.QpalsShowFile(self.project.iface, self.layerlist, self.project)
             showfile.load(infile_s=[moduleClass.outf])
         self.setWorkerRunning(False)
+        if calld['returncode'] != 0:
+             module.paramClass.parseErrorMessage(calld)
+             self.progressBar.setFormat("Error occurred. Please check log.")
+
         if self.runningRunList == True:
             module.setIcon(self.checkIcon)
             self.currentruncount += 1
             self.runRunList()
 
     def runModuleWorkerError(self, e, message, module):
-        pass
+        print("Error:", e, message)
 
     def runRunList(self):
         self.runningRunList = True
@@ -439,7 +444,7 @@ class moduleSelector(QtWidgets.QDialog):
     def saveRunList(self):
         saveTo = QtWidgets.QFileDialog.getSaveFileName(None, caption='Save to file')
         if True:
-            f = open(saveTo, 'w')
+            f = open(str(saveTo), 'w')
             f.write("rem BATCH FILE CREATED WITH QPALS\r\n")
             for i in range(self.runListWidget.count()):
                 item = self.runListWidget.item(i)
