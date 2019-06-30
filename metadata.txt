@@ -13,13 +13,14 @@ about=IMPORTANT: This plugin requires an installation of OPALS developed by GEO 
  The point cloud processing software OPALS developed by GEO/TU Wien can be easily accessed from within QGIS through
  a custom-made gui. Also, special modules are availiable for specific tasks, i.e. creating sections.
 
-version=1.7.4
+version=1.7.5
 tracker=https://github.com/lwiniwar/qpals/issues
 repository=https://github.com/lwiniwar/qpals
 ; end of mandatory metadata
 
 ; start of optional metadata
 changelog=Prior versions:
+ 1.7.5 fixed file selector, added platform check
  1.7.4 automatic installation of missing modules
  1.7.3 fixes with module selector
  1.7.1 Minor fixes with qpalsSection in qpalsLM
