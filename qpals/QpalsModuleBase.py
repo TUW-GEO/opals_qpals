@@ -390,7 +390,7 @@ class QpalsModuleBase(object):
 
     def makefilebrowser(self, param):
         def showpathbrowser():
-            filename = QtWidgets.QFileDialog.getSaveFileName(None, caption='Select file for %s' % param,
+            filename, _ = QtWidgets.QFileDialog.getSaveFileName(None, caption='Select file for %s' % param,
                                                          directory=self.lastpath,
                                                          options=QtWidgets.QFileDialog.DontConfirmOverwrite)
             if filename:

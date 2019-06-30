@@ -22,6 +22,7 @@ from builtins import object
 import os
 import tempfile
 import subprocess
+import platform
 
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import *
@@ -67,6 +68,17 @@ class qpals(object):
         workdir = proj.readEntry("qpals","workdir", tempfile.gettempdir())[0]
 
         firstrun = False
+        if platform.system() != "Windows":
+            msg = QMessageBox()
+            msg.setText("qpals is currently only supported on Windows, not on '%s'" % platform.system())
+            msg.setInformativeText("Please uninstall qpals again")
+            msg.setWindowTitle("qpals is not supported on your platform")
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.exec_()
+            self.active = False
+            return 
+
+
         if opalspath == "":
             msg = QMessageBox()
             msg.setText("The path to the opals binaries has not been set.")

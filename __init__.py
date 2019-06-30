@@ -58,7 +58,7 @@ def classFactory(iface):
                 exe = sys.executable
                 python_exe = os.path.join(os.path.split(exe)[0], "python-qgis.bat")
                 import subprocess
-                rc = subprocess.check_call([python_exe, '-c', 'import pip; pip.main(["install", "%s"])' % package])
+                rc = subprocess.call([python_exe, '-c', 'import pip; pip.main(["install", "%s"])' % package])
                 msg = QMessageBox()
                 msg.setText("Package installation")
                 msg.setWindowTitle("qpals package installation")
