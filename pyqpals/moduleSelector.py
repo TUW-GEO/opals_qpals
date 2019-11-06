@@ -29,9 +29,9 @@ import re
 
 from qgis.PyQt import QtCore, QtGui, QtWidgets
 
-from qpals.qpals import QpalsShowFile
-from qpals.qpals.QpalsModuleBase import QpalsModuleBase, QpalsRunBatch, ModuleLoadWorker, ModuleRunWorker
-from qpals.qpals.qt_extensions.QpalsListWidgetItem import QpalsListWidgetItem
+from . import QpalsShowFile
+from .QpalsModuleBase import QpalsModuleBase, QpalsRunBatch, ModuleLoadWorker, ModuleRunWorker
+from .qt_extensions.QpalsListWidgetItem import QpalsListWidgetItem
 
 qtwhite = QtGui.QColor(255, 255, 255)
 qtsoftred = QtGui.QColor(255, 140, 140)

@@ -37,12 +37,12 @@ from qgis.gui import *
 from qgis.gui import QgsMapLayerComboBox
 from qgis.core import QgsMapLayerProxyModel
 
-from qpals.qpals.qt_extensions import QpalsDropTextbox, QCollapsibleGroupBox, QToggleSwitch
-from qpals.qpals import QpalsShowFile, QpalsModuleBase, QpalsParameter
-from qpals.qpals.modules.QpalsAttributeMan import getAttributeInformation
-from qpals.qpals.modules.matplotlib_section import plotwindow as mpl_plotwindow
+from ..qt_extensions import QpalsDropTextbox, QCollapsibleGroupBox, QToggleSwitch
+from .. import QpalsShowFile, QpalsModuleBase, QpalsParameter
+from ..modules.QpalsAttributeMan import getAttributeInformation
+from ..modules.matplotlib_section import plotwindow as mpl_plotwindow
 try:
-    from qpals.qpals.modules.vispy_section import plotwindow as vispy_plotwindow
+    from ..modules.vispy_section import plotwindow as vispy_plotwindow
 except:
     vispy_plotwindow = None
 

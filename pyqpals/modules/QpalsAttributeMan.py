@@ -24,8 +24,8 @@ from qgis.core import *
 from qgis.gui import *
 import os
 import operator, webbrowser
-from qpals.qpals.qt_extensions import QpalsDropTextbox
-from qpals.qpals.resources.attribute_types import odm_predef_attributes, odm_data_types
+from ..qt_extensions import QpalsDropTextbox
+from ..resources.attribute_types import odm_predef_attributes, odm_data_types
 
 class QpalsAttributeMan(object):
     def __init__(self, project, iface=None, layerlist=None):
@@ -160,7 +160,7 @@ class QpalsAttributeMan(object):
 
 
 def getAttributeInformation(file, project):
-    from qpals.qpals import QpalsModuleBase, QpalsParameter
+    from .pyqpals.qpals import QpalsModuleBase, QpalsParameter
     infoinst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(project.opalspath, "opalsInfo.exe"),
                                                QpalsProject=project)
     infoinst.params = [QpalsParameter.QpalsParameter('inFile', file,

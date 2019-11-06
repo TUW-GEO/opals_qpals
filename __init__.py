@@ -58,7 +58,7 @@ def classFactory(iface):
                 exe = sys.executable
                 python_exe = os.path.join(os.path.split(exe)[0], "python-qgis.bat")
                 import subprocess
-                rc = subprocess.call([python_exe, '-c', 'import pip; pip.main(["install", "%s"])' % package])
+                rc = subprocess.call([python_exe, '-m', 'pip', 'install', package])
                 msg = QMessageBox()
                 msg.setText("Package installation")
                 msg.setWindowTitle("qpals package installation")
@@ -69,12 +69,8 @@ def classFactory(iface):
                     msg.setInformativeText("Package installation failed. Please try manual installation. Not all features of qpals will be available.")
                 ret = msg.exec_()
 
-            #    sys.execuable = exe
-            #else:
-            #    return deactivatedQpals(iface)
-
     # load qpals class from file qpals
-    from qpals.qpals import qpals
+    from .pyqpals import qpals
     return qpals.qpals(iface)
 
 class deactivatedQpals:

@@ -27,8 +27,8 @@ from qgis.core import QgsMapLayerProxyModel
 import os
 import ogr
 import tempfile
-from qpals.qpals import QpalsModuleBase, QpalsParameter
-from qpals.qpals.qt_extensions import QpalsDropTextbox
+from .. import QpalsModuleBase, QpalsParameter
+from ..qt_extensions import QpalsDropTextbox
 
 class QpalsQuickLM(object):
 

@@ -11,10 +11,10 @@ from qgis.PyQt import QtWidgets
 from qgis.core import *
 from qgis.gui import *
 
-from qpals.qpals import QpalsModuleBase
-from qpals.qpals import QpalsParameter
-from qpals.qpals.qt_extensions import QpalsDropTextbox
-from qpals.qpals.modules.QpalsAttributeMan import getAttributeInformation
+from . import QpalsModuleBase
+from . import QpalsParameter
+from .qt_extensions import QpalsDropTextbox
+from .modules.QpalsAttributeMan import getAttributeInformation
 
 VISUALISATION_METHODS = {
     0: "[fast] Bounding box (vector)",

@@ -31,10 +31,10 @@ from qgis.PyQt.QtGui import *
 from qgis.core import *
 from qgis.gui import *
 
-from qpals.qpals import QpalsProject
-from qpals.qpals import QpalsShowFile
-from qpals.qpals import moduleSelector
-from qpals.qpals.modules import QpalsSection, QpalsLM, QpalsAttributeMan, QpalsQuickLM, QpalsWSM
+from . import QpalsProject
+from . import QpalsShowFile
+from . import moduleSelector
+from .modules import QpalsSection, QpalsLM, QpalsAttributeMan, QpalsQuickLM, QpalsWSM
 
 def ensure_opals_path(path, exe="opalsCell.exe"):
     while not os.path.exists(os.path.join(path, exe)):

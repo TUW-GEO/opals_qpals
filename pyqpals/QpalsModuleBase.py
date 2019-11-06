@@ -24,7 +24,6 @@ standard_library.install_aliases()
 from builtins import str
 from builtins import object
 import os
-import sys
 import shlex
 import subprocess
 import re
@@ -33,10 +32,9 @@ from xml.dom import minidom
 from qgis.PyQt import QtCore, QtGui, QtWidgets
 from qgis.PyQt.QtCore import pyqtSlot
 
-from qpals.qpals.qt_extensions import QTextComboBox, QpalsDropTextbox, QCollapsibleGroupBox
-from qpals.qpals import QpalsParamBtns
-from qpals.qpals import QpalsParameter
-from qpals.qpals.modules.QpalsAttributeMan import getAttributeInformation
+from .qt_extensions import QTextComboBox, QpalsDropTextbox, QCollapsibleGroupBox, QpalsParamBtns
+from . import QpalsParameter
+from .modules.QpalsAttributeMan import getAttributeInformation
 
 IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
 

@@ -25,8 +25,8 @@ from qgis.core import *
 from qgis.gui import *
 import os
 
-from qpals.qpals.QpalsShowFile import VISUALISATION_METHODS
-from qpals.qpals.qt_extensions import QpalsDropTextbox
+from .QpalsShowFile import VISUALISATION_METHODS
+from .qt_extensions import QpalsDropTextbox
 
 
 class QpalsProject(object):
