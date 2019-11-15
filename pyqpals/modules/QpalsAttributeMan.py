@@ -160,7 +160,7 @@ class QpalsAttributeMan(object):
 
 
 def getAttributeInformation(file, project):
-    from .pyqpals.qpals import QpalsModuleBase, QpalsParameter
+    from .. import QpalsModuleBase, QpalsParameter
     infoinst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(project.opalspath, "opalsInfo.exe"),
                                                QpalsProject=project)
     infoinst.params = [QpalsParameter.QpalsParameter('inFile', file,

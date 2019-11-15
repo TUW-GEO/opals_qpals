@@ -141,8 +141,12 @@ class QpalsWSM(QtWidgets.QSplitter):
             self.modeGrp.addButton(btn)
             if mode.startswith('alternating'):
                 btn.setChecked(True)
-
         boxleft.addWidget(modeBox)
+
+        self.rescaleCheck = QtWidgets.QCheckBox("Keep scaling and position of sections")
+        self.rescaleCheck.setChecked(False)
+        boxleft.addWidget(self.rescaleCheck)
+
         saveBtn = QtWidgets.QPushButton("Save progress")
         saveBtn.clicked.connect(self.saveProgress)
         boxleft.addWidget(saveBtn)
@@ -185,6 +189,7 @@ class QpalsWSM(QtWidgets.QSplitter):
         cid2 = self.plotcenter.mpl_connect('motion_notify_event', self.mouseMoved)
         cid3 = self.plotcenter.mpl_connect('button_release_event', self.mouseReleased)
         cid4 = self.plotcenter.mpl_connect('scroll_event', self.mouseScrolled)
+        self.plotcenter.keyPressEvent = self.keyPressEvent  # oh no, this feels bad.. but it works.
 
         #toolbar = NavigationToolbar(self.plotcenter, self.widget)
         centerbox.addWidget(self.plotcenter)
@@ -529,6 +534,8 @@ RMB: zoom
 PgDown/Up: next/prev section
 Enter: confirm
 Del: deconfirm
+WASD: move left end (shift for fine adj.)
+IJKL: move left end (shift for fine adj.) 
 '''[1:-1],
                            verticalalignment='top', horizontalalignment='left', transform=self.axcenter.transAxes)
         if len(currsec.pc[3]) > 0:
@@ -546,10 +553,12 @@ Del: deconfirm
 
 
         # reset lims if no points are left in visible area, for x and y separately
-        if currsec.xrange[0] > xlim[0] > currsec.xrange[1] or currsec.xrange[0] > xlim[1] > currsec.xrange[1]:
+        if currsec.xrange[0] > xlim[0] > currsec.xrange[1] or currsec.xrange[0] > xlim[1] > currsec.xrange[1] or \
+                self.rescaleCheck.isChecked():
             self.axcenter.set_xlim(xlim)
 
-        if currsec.hrange[0] > ylim[0] > currsec.hrange[1] or currsec.hrange[0] > ylim[1] > currsec.hrange[1]:
+        if currsec.hrange[0] > ylim[0] > currsec.hrange[1] or currsec.hrange[0] > ylim[1] > currsec.hrange[1] or \
+                self.rescaleCheck.isChecked():
             self.axcenter.set_ylim(ylim)
 
         self.plotcenter.draw()
@@ -637,6 +646,7 @@ Del: deconfirm
         self.plotcenter.draw()
 
     def mouseReleased(self, e):
+        self.plotcenter.setFocus()
         if e.button != 1 or self.plotcenter_text is None:
             return
         self.plotcenter_text.set_text("")
@@ -667,7 +677,22 @@ Del: deconfirm
         return self.WSMProj.sections[self.currbox.value()]
 
     def keyPressEvent(self, event):
+        if not self.plotcenter.hasFocus():
+            event.ignore()
+            return
         if type(event) == QtGui.QKeyEvent:
+
+            currY = self.dragLine.get_ydata()
+            currX = sorted(self.dragLine.get_xdata())
+            if currX[0] != self.dragLine.get_xdata()[0]:
+                currY = list(reversed(currY))
+            self.dragLine.set_xdata(currX)
+            self.dragLine.set_ydata(currY)
+            Xfac = self.axcenter.get_xlim()
+            Xfac = (Xfac[1] - Xfac[0]) / (1000. if event.modifiers() & QtCore.Qt.ShiftModifier else 100.)
+            Yfac = self.axcenter.get_ylim()
+            Yfac = (Yfac[1] - Yfac[0]) / (1000. if event.modifiers() & QtCore.Qt.ShiftModifier else 100.)
+
             if event.key() in [QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter]:
                 self.getCurrSec().status = 1
                 if self.getCurrSec().left_x is None:
@@ -684,6 +709,26 @@ Del: deconfirm
                 self.nextSec()
             elif event.key() == QtCore.Qt.Key_PageUp:
                 self.prevSec()
+            elif event.key() == QtCore.Qt.Key_W:
+                self.dragLine.set_ydata((currY[0] + Yfac, currY[1]))
+            elif event.key() == QtCore.Qt.Key_A:
+                self.dragLine.set_xdata((currX[0] - Xfac, currX[1]))
+            elif event.key() == QtCore.Qt.Key_S:
+                self.dragLine.set_ydata((currY[0] - Yfac, currY[1]))
+            elif event.key() == QtCore.Qt.Key_D:
+                self.dragLine.set_xdata((currX[0] + Xfac, currX[1]))
+            elif event.key() == QtCore.Qt.Key_I:
+                self.dragLine.set_ydata((currY[0], currY[1] + Yfac))
+            elif event.key() == QtCore.Qt.Key_J:
+                self.dragLine.set_xdata((currX[0], currX[1] - Xfac))
+            elif event.key() == QtCore.Qt.Key_K:
+                self.dragLine.set_ydata((currY[0], currY[1] - Yfac))
+            elif event.key() == QtCore.Qt.Key_L:
+                self.dragLine.set_xdata((currX[0], currX[1] + Xfac))
+            else:
+                pass
+                #print(event.key())
+
             self.plotcenter.draw()
             event.accept()
         else:
