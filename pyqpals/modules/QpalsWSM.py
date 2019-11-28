@@ -536,6 +536,8 @@ Enter: confirm
 Del: deconfirm
 WASD: move left end (shift for fine adj.)
 IJKL: move left end (shift for fine adj.) 
+arrow keys: move plot (shift for fine adj.) 
+arrow keys+[ctrl]: change zoom shift for fine adj.)
 '''[1:-1],
                            verticalalignment='top', horizontalalignment='left', transform=self.axcenter.transAxes)
         if len(currsec.pc[3]) > 0:
@@ -681,7 +683,7 @@ IJKL: move left end (shift for fine adj.)
             event.ignore()
             return
         if type(event) == QtGui.QKeyEvent:
-
+            moved = False
             currY = self.dragLine.get_ydata()
             currX = sorted(self.dragLine.get_xdata())
             if currX[0] != self.dragLine.get_xdata()[0]:
@@ -711,23 +713,60 @@ IJKL: move left end (shift for fine adj.)
                 self.prevSec()
             elif event.key() == QtCore.Qt.Key_W:
                 self.dragLine.set_ydata((currY[0] + Yfac, currY[1]))
+                moved = True
             elif event.key() == QtCore.Qt.Key_A:
                 self.dragLine.set_xdata((currX[0] - Xfac, currX[1]))
+                moved = True
             elif event.key() == QtCore.Qt.Key_S:
                 self.dragLine.set_ydata((currY[0] - Yfac, currY[1]))
+                moved = True
             elif event.key() == QtCore.Qt.Key_D:
                 self.dragLine.set_xdata((currX[0] + Xfac, currX[1]))
+                moved = True
             elif event.key() == QtCore.Qt.Key_I:
                 self.dragLine.set_ydata((currY[0], currY[1] + Yfac))
+                moved = True
             elif event.key() == QtCore.Qt.Key_J:
                 self.dragLine.set_xdata((currX[0], currX[1] - Xfac))
+                moved = True
             elif event.key() == QtCore.Qt.Key_K:
                 self.dragLine.set_ydata((currY[0], currY[1] - Yfac))
+                moved = True
             elif event.key() == QtCore.Qt.Key_L:
                 self.dragLine.set_xdata((currX[0], currX[1] + Xfac))
+                moved = True
+            elif event.key() == QtCore.Qt.Key_Down:
+                if event.modifiers() & QtCore.Qt.ControlModifier:
+                    self.axcenter.set_ylim(self.axcenter.get_ylim()[0] - Yfac, self.axcenter.get_ylim()[1] + Yfac)
+                else:
+                    self.axcenter.set_ylim(self.axcenter.get_ylim() - Yfac)
+            elif event.key() == QtCore.Qt.Key_Up:
+                if event.modifiers() & QtCore.Qt.ControlModifier:
+                    self.axcenter.set_ylim(self.axcenter.get_ylim()[0] + Yfac, self.axcenter.get_ylim()[1] - Yfac)
+                else:
+                    self.axcenter.set_ylim(self.axcenter.get_ylim() + Yfac)
+            elif event.key() == QtCore.Qt.Key_Left:
+                if event.modifiers() & QtCore.Qt.ControlModifier:
+                    self.axcenter.set_xlim(self.axcenter.get_xlim()[0] - Xfac, self.axcenter.get_xlim()[1] + Xfac)
+                else:
+                    self.axcenter.set_xlim(self.axcenter.get_xlim() - Xfac)
+            elif event.key() == QtCore.Qt.Key_Right:
+                if event.modifiers() & QtCore.Qt.ControlModifier:
+                    self.axcenter.set_xlim(self.axcenter.get_xlim()[0] + Xfac, self.axcenter.get_xlim()[1] - Xfac)
+                else:
+                    self.axcenter.set_xlim(self.axcenter.get_xlim() + Xfac)
             else:
                 pass
                 #print(event.key())
+
+            if moved:
+                currY = self.dragLine.get_ydata()
+                currX = sorted(self.dragLine.get_xdata())
+                if currX[0] != self.dragLine.get_xdata()[0]:
+                    currY = list(reversed(currY))
+
+                currsec = self.getCurrSec()
+                currsec.left_x, currsec.right_x, currsec.left_h, currsec.right_h = currX[0], currX[1], currY[0], currY[1]
 
             self.plotcenter.draw()
             event.accept()
