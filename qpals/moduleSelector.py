@@ -438,6 +438,9 @@ class moduleSelector(QtWidgets.QDialog):
 
     def saveRunList(self):
         saveTo = QtWidgets.QFileDialog.getSaveFileName(None, caption='Save to file')
+        if isinstance(saveTo, tuple):
+            saveTo = saveTo[0]
+
         if True:
             f = open(saveTo, 'w')
             f.write("rem BATCH FILE CREATED WITH QPALS\r\n")

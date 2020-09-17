@@ -718,6 +718,8 @@ class QpalsLM(object):
     def createBatFile(self):
         saveTo = QtWidgets.QFileDialog.getSaveFileName(None, caption='Save to file')
         try:
+            if isinstance(saveTo, tuple):
+                saveTo = saveTo[0]
             f = open(saveTo, 'w')
             f.write("rem BATCH FILE CREATED WITH QPALS\r\n")
             modules = self.get_step_modules("all")

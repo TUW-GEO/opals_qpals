@@ -318,7 +318,8 @@ class QpalsWSM(QtWidgets.QSplitter):
             QtWidgets.QMessageBox("Error", "Axis file not found.")
             return
         outpath = QtWidgets.QFileDialog.getSaveFileName(caption="Select output file", filter="*.qpalsWSM")
-
+        if isinstance(outpath, tuple):
+            outpath = outpath[0]
         self.WSMProj.odmpath = odmpath
         self.WSMProj.axispath = axispath
         self.WSMProj.savepath = outpath[0]
