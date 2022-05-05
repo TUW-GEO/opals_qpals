@@ -26,7 +26,7 @@ from xml.dom import minidom
 
 import matplotlib.pyplot as plt
 import numpy as np
-import ogr
+from osgeo import ogr
 import re
 from qgis.PyQt import QtGui, QtWidgets
 from qgis.PyQt.QtGui import QColor

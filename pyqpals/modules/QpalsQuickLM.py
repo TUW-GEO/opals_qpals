@@ -25,7 +25,7 @@ from qgis.gui import QgsMapLayerComboBox
 from qgis.core import QgsMapLayerProxyModel
 
 import os
-import ogr
+from osgeo import ogr
 import tempfile
 from .. import QpalsModuleBase, QpalsParameter
 from ..qt_extensions import QpalsDropTextbox

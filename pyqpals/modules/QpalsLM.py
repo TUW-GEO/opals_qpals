@@ -22,7 +22,7 @@ from builtins import range
 import os
 from collections import OrderedDict
 
-import ogr
+from osgeo import ogr
 import re
 from qgis.PyQt import QtWidgets
 from qgis.PyQt.QtWidgets import QSpinBox

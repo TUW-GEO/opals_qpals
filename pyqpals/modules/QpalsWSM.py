@@ -21,7 +21,7 @@ import os
 import tempfile
 from xml.dom import minidom
 import re
-import ogr, gdal
+from osgeo import ogr, gdal
 import numpy as np
 import pickle, copy
 from scipy.interpolate import InterpolatedUnivariateSpline

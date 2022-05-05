@@ -22,7 +22,7 @@ from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtGui import *
 import importlib
-import sys, os
+import sys, os, glob
 
 
 def name(): 
@@ -43,7 +43,7 @@ def qgisMinimumVersion():
 
 def classFactory(iface):
     # check requirements
-    for package in ['matplotlib', 'vispy', 'scipy']:
+    for package in ['matplotlib', 'vispy', 'scipy', 'semantic_version']:
         try:
             importlib.import_module(package)
         except:
@@ -56,17 +56,21 @@ def classFactory(iface):
             if ret == QMessageBox.Ok:
                 #    import pip
                 exe = sys.executable
-                python_exe = os.path.join(os.path.split(exe)[0], "python-qgis.bat")
-                import subprocess
-                rc = subprocess.call([python_exe, '-m', 'pip', 'install', package])
-                msg = QMessageBox()
-                msg.setText("Package installation")
-                msg.setWindowTitle("qpals package installation")
-                msg.setStandardButtons(QMessageBox.Ok)
-                if rc == 0:
-                    msg.setInformativeText("Package installation succeeded")
+                files = glob.glob(os.path.join(os.path.split(exe)[0], "python-qgis*.bat"))
+                if len(files) == 1:
+                    python_exe = files[0]
+                    import subprocess
+                    rc = subprocess.call([python_exe, '-m', 'pip', 'install', package])
+                    msg = QMessageBox()
+                    msg.setText("Package installation")
+                    msg.setWindowTitle("qpals package installation")
+                    msg.setStandardButtons(QMessageBox.Ok)
+                    if rc == 0:
+                        msg.setInformativeText("Package installation succeeded")
+                    else:
+                        msg.setInformativeText("Package installation failed. Please try manual installation. Not all features of qpals will be available.")
                 else:
-                    msg.setInformativeText("Package installation failed. Please try manual installation. Not all features of qpals will be available.")
+                        msg.setInformativeText("Package installation failed (Unable to locate qgis python startup script). Please try manual installation. Not all features of qpals will be available.")
                 ret = msg.exec_()
 
     # load qpals class from file qpals

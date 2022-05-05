@@ -25,6 +25,8 @@ from qgis.core import *
 from qgis.gui import *
 import os
 
+import semantic_version
+
 from .QpalsShowFile import VISUALISATION_METHODS
 from .qt_extensions import QpalsDropTextbox
 
@@ -44,6 +46,7 @@ class QpalsProject(object):
         self.globals = dict()
         self.PATH = os.environ['PATH']
         self.getEnvVar()
+        self.opalsVersion = semantic_version.Version.coerce('0.0.0')
 
     def getEnvVar(self):
         try:
