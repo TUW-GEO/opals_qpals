@@ -18,6 +18,8 @@ email                : lukas.winiwarter@tuwien.ac.at
  """
 from __future__ import absolute_import
 
+import datetime
+
 from builtins import str
 from builtins import object
 from qgis.PyQt import QtCore, QtGui, QtWidgets
@@ -47,6 +49,7 @@ class QpalsProject(object):
         self.PATH = os.environ['PATH']
         self.getEnvVar()
         self.opalsVersion = semantic_version.Version.coerce('0.0.0')
+        self.opalsBuildDate = datetime.datetime.utcfromtimestamp(0)
 
     def getEnvVar(self):
         try:

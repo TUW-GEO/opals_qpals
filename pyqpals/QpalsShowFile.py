@@ -6,7 +6,7 @@ from builtins import object
 import os
 import tempfile
 
-import semantic_version
+import datetime
 
 from qgis.PyQt import QtGui
 from qgis.PyQt import QtWidgets
@@ -275,12 +275,10 @@ class QpalsShowFile(object):
         self.updateText("Calling module opalsInfo...")
         rundict = {"inFile": infile}
         if overview:
-            if self.project.opalsVersion <= semantic_version.Version.coerce("2.4.0.0"):
+            if self.project.opalsBuildDate <= datetime.datetime(year=2022, month=5, day=5, hour=12, minute=0, second=0):
                 rundict.update({'exportHeader': 'overview%s' % overview})
-                # print("Running opalsInfo --exportHeader (up to Version 2.4.0)")
-            else:
+            else:  #  starting with builds from May 6 2022
                 rundict.update({'exportOverview': 'overview%s' % overview})
-                # print("Running opalsInfo --exportOverview (from Version 2.4.0.1 on)")
         outdict = self.call("opalsInfo", rundict, returnstdout=True, nooutfile=True)
         if overview:
             return infile.replace(".odm", "_overview_%s.tif" % overview)

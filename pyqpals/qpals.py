@@ -18,6 +18,9 @@ email                : lukas.winiwarter@tuwien.ac.at
 """
 from __future__ import print_function
 from __future__ import absolute_import
+
+import datetime
+
 from builtins import object
 import os
 import tempfile
@@ -59,7 +62,9 @@ def ensure_opals_path(path, project):
     res = mod.run()
     opalsVersion = semantic_version.Version.coerce([item.split()[1].split("(")[0] for item in res['stdout'].split('\r\n')
                                              if item.startswith("opalsInfo")][0])
-    return path, opalsVersion
+    opalsBuildDate = datetime.datetime.strptime([item.split("compiled on ")[1] for item in res['stdout'].split('\r\n')
+                                             if item.startswith("compiled on ")][0], '%b %d %Y %I:%M:%S')
+    return path, opalsVersion, opalsBuildDate
 
 
 class qpals(object):
@@ -103,8 +108,9 @@ class qpals(object):
 
         project = QpalsProject.QpalsProject(name="", opalspath=opalspath,
                                                 tempdir=tempdir, workdir=workdir, iface=self.iface)
-        opalspath, opalsVersion = ensure_opals_path(opalspath, project)
+        opalspath, opalsVersion, opalsBuildDate = ensure_opals_path(opalspath, project)
         project.opalsVersion = opalsVersion
+        project.opalsBuildDate = opalsBuildDate
 
         if not opalspath:
             self.active = False
