@@ -283,14 +283,20 @@ class QpalsShowFile(object):
         rundict = {"inFile": infile}
         if overview:
             if self.project.opalsBuildDate <= datetime.datetime(year=2022, month=5, day=5, hour=12, minute=0, second=0):
+                outfile = infile.replace(".odm", "_overview_%s.tif" % overview)
+                if os.path.exists(outfile) and os.stat(outfile).st_ctime == os.stat(infile).st_ctime:
+                    return outfile, False  # skip running opalsInfo if file exists and has same date set
                 rundict.update({'exportHeader': 'overview%s' % overview})
                 outdict = self.call("opalsInfo", rundict, returnstdout=True, nooutfile=True)
-                return infile.replace(".odm", "_overview_%s.tif" % overview), False
-            else:  #  starting with builds from May 6 2022
+                return outfile, False
+            else:  #  starting with builds from May 6 2022outfile = infile.replace(".odm", "_overview_%s.tif" % overview)
+                outfile = infile.replace(".odm", "_overview.tif")
+                if os.path.exists(outfile) and os.stat(outfile).st_ctime == os.stat(infile).st_ctime:
+                    return outfile, False  # skip running opalsInfo if file exists and has same date set
                 rundict.update({'exportOverview': 'all',
                                 'multiBand': '1'})
                 outdict = self.call("opalsInfo", rundict, returnstdout=True, nooutfile=True)
-                return infile.replace(".odm", "_overview.tif"), True
+                return outfile, True
 
         lines = outdict["stdout"].split("\n")
         for i in range(len(lines)):
