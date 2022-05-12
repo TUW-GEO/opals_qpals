@@ -213,11 +213,15 @@ class QpalsShowFile(object):
                             visfile = self.callIsolines(cellf)
                             suffix = "isolines (%s)" % attribute
                         elif self.curVisMethod == 1:
-                            visfile = self.callInfo(drop, overview='Z')
+                            visfile, isMultiBand = self.callInfo(drop, overview='Z')
                             suffix = "overview (Z)"
+                            if isMultiBand:
+                                bandSel = 1
                         elif self.curVisMethod == 2:
-                            visfile = self.callInfo(drop, overview='Pcount')
+                            visfile, isMultiBand = self.callInfo(drop, overview='Pcount')
                             suffix = "overview (pcount)"
+                            if isMultiBand:
+                                bandSel = 2
 
                         self.updateText("Loading layer into QGIS...")
                         # load layer
@@ -227,6 +231,9 @@ class QpalsShowFile(object):
                         elif self.curVisMethod in [1, 2, 3, 4, 5]:
                             layer = self.iface.addRasterLayer(visfile,
                                                               os.path.basename(drop) + " - " + suffix)
+                            if isMultiBand:
+                                bandRenderer = QgsSingleBandGrayRenderer(layer.dataProvider(), bandSel)
+                                layer.setRenderer(bandRenderer)
                         elif self.curVisMethod == 0:
                             layer = self.iface.addVectorLayer("Polygon",
                                                               os.path.basename(drop) + " - " + suffix, "memory")
@@ -277,11 +284,14 @@ class QpalsShowFile(object):
         if overview:
             if self.project.opalsBuildDate <= datetime.datetime(year=2022, month=5, day=5, hour=12, minute=0, second=0):
                 rundict.update({'exportHeader': 'overview%s' % overview})
+                outdict = self.call("opalsInfo", rundict, returnstdout=True, nooutfile=True)
+                return infile.replace(".odm", "_overview_%s.tif" % overview), False
             else:  #  starting with builds from May 6 2022
-                rundict.update({'exportOverview': 'overview%s' % overview})
-        outdict = self.call("opalsInfo", rundict, returnstdout=True, nooutfile=True)
-        if overview:
-            return infile.replace(".odm", "_overview_%s.tif" % overview)
+                rundict.update({'exportOverview': 'all',
+                                'multiBand': '1'})
+                outdict = self.call("opalsInfo", rundict, returnstdout=True, nooutfile=True)
+                return infile.replace(".odm", "_overview.tif"), True
+
         lines = outdict["stdout"].split("\n")
         for i in range(len(lines)):
             line = lines[i]
