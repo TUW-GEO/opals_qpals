@@ -27,7 +27,6 @@ import tempfile
 import subprocess
 import platform
 import semantic_version
-from pathlib import Path
 
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import *
