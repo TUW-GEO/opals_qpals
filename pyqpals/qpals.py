@@ -27,6 +27,7 @@ import tempfile
 import subprocess
 import platform
 import semantic_version
+from pathlib import Path
 
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import *
@@ -63,7 +64,7 @@ def ensure_opals_path(path, project):
     opalsVersion = semantic_version.Version.coerce([item.split()[1].split("(")[0] for item in res['stdout'].split('\r\n')
                                              if item.startswith("opalsInfo")][0])
     opalsBuildDate = datetime.datetime.strptime([item.split("compiled on ")[1] for item in res['stdout'].split('\r\n')
-                                             if item.startswith("compiled on ")][0], '%b %d %Y %I:%M:%S')
+                                             if item.startswith("compiled on ")][0], '%b %d %Y %H:%M:%S')
     return path, opalsVersion, opalsBuildDate
 
 
