@@ -445,7 +445,7 @@ class QpalsModuleBase(object):
     def getUIOneliner(self, param, parent=None, global_common=False):
         l1 = QtWidgets.QLabel(param.name)
         if len(param.choices) == 0:
-            if "path" in param.type.lower():
+            if "path" in param.type.lower() or 'VectorOrRasterFile' in param.type:
                 param.field = QpalsDropTextbox.QpalsDropTextbox(self.layerlist, param.val)
                 param.field.setMinimumContentsLength(20)
                 param.field.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToMinimumContentsLength)
@@ -836,10 +836,18 @@ class QpalsRunBatch(object):
     def validate(self):
         pass
 
-    def run(self):
+    def run(self, **kwargs):
         if os.path.exists(self.t2) and os.path.isdir(self.t2):
             os.chdir(self.t2)
-        os.system(self.t1)
+        rc = os.system(self.t1)
+        return {'returncode': rc,
+                'stdout': "",
+                'stderr': "",
+                }
+
+
+    def parseErrorMessage(self, calld):
+         print(calld)
 
     def __deepcopy__(self, memo={}):
         new = QpalsRunBatch()

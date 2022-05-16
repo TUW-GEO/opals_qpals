@@ -232,7 +232,17 @@ class QpalsShowFile(object):
                             layer = self.iface.addRasterLayer(visfile,
                                                               os.path.basename(drop) + " - " + suffix)
                             if isMultiBand:
-                                bandRenderer = QgsSingleBandGrayRenderer(layer.dataProvider(), bandSel)
+                                provider = layer.dataProvider()
+                                stats = provider.bandStatistics(bandSel, QgsRasterBandStats.All)
+                                min = stats.minimumValue
+                                max = stats.maximumValue
+                                bandRenderer = QgsSingleBandGrayRenderer(provider, bandSel)
+                                ce = QgsContrastEnhancement(provider.dataType(0))
+                                ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchToMinimumMaximum)
+                                ce.setMinimumValue(min)
+                                ce.setMaximumValue(max)
+                                bandRenderer.setContrastEnhancement(ce)
+
                                 layer.setRenderer(bandRenderer)
                         elif self.curVisMethod == 0:
                             layer = self.iface.addVectorLayer("Polygon",
