@@ -234,13 +234,13 @@ class QpalsShowFile(object):
                             if isMultiBand:
                                 provider = layer.dataProvider()
                                 stats = provider.bandStatistics(bandSel, QgsRasterBandStats.All)
-                                min = stats.minimumValue
-                                max = stats.maximumValue
+                                mini = stats.minimumValue
+                                maxi = stats.maximumValue
                                 bandRenderer = QgsSingleBandGrayRenderer(provider, bandSel)
                                 ce = QgsContrastEnhancement(provider.dataType(0))
                                 ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchToMinimumMaximum)
-                                ce.setMinimumValue(min)
-                                ce.setMaximumValue(max)
+                                ce.setMinimumValue(mini)
+                                ce.setMaximumValue(maxi)
                                 bandRenderer.setContrastEnhancement(ce)
 
                                 layer.setRenderer(bandRenderer)
