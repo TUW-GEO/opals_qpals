@@ -447,7 +447,7 @@ class moduleSelector(QtWidgets.QDialog):
             saveTo = saveTo[0]
 
         if True:
-            f = open(str(saveTo), 'w')
+            f = open(saveTo, 'w')
             f.write("rem BATCH FILE CREATED WITH QPALS\r\n")
             for i in range(self.runListWidget.count()):
                 item = self.runListWidget.item(i)
