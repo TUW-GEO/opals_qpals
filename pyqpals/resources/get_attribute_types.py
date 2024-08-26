@@ -48,18 +48,18 @@ attrs = sorted([(str(name), pyDM.AddInfoLayout.getColumnType(str(name)))
 
 # currently, no link exists between pyDM Data types and strings that may be used on the command line, so...
 odm_data_types = {
-pyDM.ColumnType.llong_: "int64",
-pyDM.ColumnType.int_: "int",
-pyDM.ColumnType.uint_: "unsignedInt",
-pyDM.ColumnType.short_: "short",
-pyDM.ColumnType.ushort_: "unsignedShort",
-pyDM.ColumnType.char_: "byte",
-pyDM.ColumnType.uchar_: "unsignedByte",
-pyDM.ColumnType.bit_: "boolean",
-pyDM.ColumnType.float_: "float",
-pyDM.ColumnType.double_: "double",
-pyDM.ColumnType.cstr_: "char",
-pyDM.ColumnType.string_: "string",
+    pyDM.ColumnType.int32  : "int32",
+    pyDM.ColumnType.uint32 : "uint32",
+    pyDM.ColumnType.int8   : "int8",
+    pyDM.ColumnType.uint8  : "uint8",
+    pyDM.ColumnType.int16  : "int16",
+    pyDM.ColumnType.uint16 : "uint16",
+    pyDM.ColumnType.float_ : "float",
+    pyDM.ColumnType.double_: "double",
+    pyDM.ColumnType.string : "string",
+    pyDM.ColumnType.int64  : "int64",
+    pyDM.ColumnType.cstr   : "cstr",
+    pyDM.ColumnType.bool_  : "bool"
 }
 
 with open(sys.argv[1], 'w') as f:

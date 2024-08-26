@@ -25,7 +25,7 @@ from builtins import object
 from qgis.PyQt import QtWidgets
 from distutils.version import LooseVersion
 import matplotlib
-import ogr
+from osgeo import ogr
 import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar

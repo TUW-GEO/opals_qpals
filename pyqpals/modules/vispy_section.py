@@ -27,7 +27,7 @@ from vispy.color import colormap
 from vispy.color import Color, ColorArray
 from qgis.PyQt import QtWidgets, QtCore, QtGui
 from qgis.core import QgsFeatureRequest, QgsGeometry
-import ogr
+from osgeo import ogr
 
 class classesColorMap:
     colors = { # asprs standard classes

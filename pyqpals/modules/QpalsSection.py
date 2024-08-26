@@ -26,7 +26,7 @@ from xml.dom import minidom
 
 import matplotlib.pyplot as plt
 import numpy as np
-import ogr
+from osgeo import ogr
 import re
 from qgis.PyQt import QtGui, QtWidgets
 from qgis.PyQt.QtGui import QColor
@@ -37,12 +37,12 @@ from qgis.gui import *
 from qgis.gui import QgsMapLayerComboBox
 from qgis.core import QgsMapLayerProxyModel
 
-from qpals.qpals.qt_extensions import QpalsDropTextbox, QCollapsibleGroupBox, QToggleSwitch
-from qpals.qpals import QpalsShowFile, QpalsModuleBase, QpalsParameter
-from qpals.qpals.modules.QpalsAttributeMan import getAttributeInformation
-from qpals.qpals.modules.matplotlib_section import plotwindow as mpl_plotwindow
+from ..qt_extensions import QpalsDropTextbox, QCollapsibleGroupBox, QToggleSwitch
+from .. import QpalsShowFile, QpalsModuleBase, QpalsParameter
+from ..modules.QpalsAttributeMan import getAttributeInformation
+from ..modules.matplotlib_section import plotwindow as mpl_plotwindow
 try:
-    from qpals.qpals.modules.vispy_section import plotwindow as vispy_plotwindow
+    from ..modules.vispy_section import plotwindow as vispy_plotwindow
 except:
     vispy_plotwindow = None
 
@@ -97,7 +97,7 @@ class QpalsSection(object):
         self.simpleLineLayerChk = QtWidgets.QCheckBox("Visualize (3D) Line Layer:")
         self.ls.addRow(self.simpleLineLayerChk, self.simpleLineLayer)
         self.showSection = QtWidgets.QCheckBox("Show section")
-        self.filterStr = QtWidgets.QLineEdit("Class[Ground]")
+        self.filterStr = QtWidgets.QLineEdit("")
         self.filterAttrBox = QCollapsibleGroupBox.QCollapsibleGroupBox('Show attribute selection')
         self.filterAttrBox.setLayout(QtWidgets.QGridLayout())
         self.filterAttrBox.setChecked(False) # hide it
@@ -414,6 +414,9 @@ class LineTool(QgsMapTool):
 
         Module.params.append(infile)
         Module.params.append(filter)
+
+        self.secInst.progress.setValue(0)
+        self.secInst.progress.setFormat("Starting opalsView, please stand by...")
         thread, worker = Module.run_async(status=self.update_status,
                                                     on_error=self.sec_error,
                                                     on_finish=self.runviewfinished)
@@ -439,7 +442,7 @@ class LineTool(QgsMapTool):
 
         self.attrs_left = [name for (name, val) in self.secInst.filterAttrs.items() if val.checkState() > 0]
         if len(self.attrs_left) == 0:
-            self.attrs_left = ['Classification']  # one attribute has to be queried
+            self.attrs_left = ['Id']  # one attribute has to be queried
         self.total = len(self.attrs_left)
         self.run_next()
 
@@ -526,8 +529,6 @@ class LineTool(QgsMapTool):
             self.secInst.progress.setFormat("No data found in section area.")
             return False
         if self.attrs_left:
-            self.thread[-1].terminate()
-            self.worker = None
             self.run_next()
         else:
             self.show_pltwindow()

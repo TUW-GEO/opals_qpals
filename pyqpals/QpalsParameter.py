@@ -44,6 +44,11 @@ class QpalsParameter(object):
     def __str__(self):
         return self.name + ": " + self.val
 
+    def __deepcopy__(self, memodict={}):
+        par = QpalsParameter(self.name, self.val, self.choices, self.type,
+                             self.opt, self.desc, self.longdesc, self.flag_mode)
+        return par
+
 def mergeParamLists(baselist, overloadlist):
     for i in range(len(baselist)):
         baseitem = baselist[i]

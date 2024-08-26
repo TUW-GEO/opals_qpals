@@ -19,6 +19,12 @@ class QpalsDropTextbox(QtWidgets.QComboBox):
         self.filterrex = filterrex
         self.reloadLayers()
 
+    def __deepcopy__(self, memodict={}):
+        return QpalsDropTextbox(layerlist=self.layerlist,
+                                text=self.text(),
+                                show_layers=self.showLayers,
+                                filterrex=self.filterrex)
+
     def showPopup(self):
         self.reloadLayers()
         super(QpalsDropTextbox, self).showPopup()

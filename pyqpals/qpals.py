@@ -18,10 +18,15 @@ email                : lukas.winiwarter@tuwien.ac.at
 """
 from __future__ import print_function
 from __future__ import absolute_import
+
+import datetime
+
 from builtins import object
 import os
 import tempfile
 import subprocess
+import platform
+import semantic_version
 
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import *
@@ -30,13 +35,15 @@ from qgis.PyQt.QtGui import *
 from qgis.core import *
 from qgis.gui import *
 
-from qpals.qpals import QpalsProject
-from qpals.qpals import QpalsShowFile
-from qpals.qpals import moduleSelector
-from qpals.qpals.modules import QpalsSection, QpalsLM, QpalsAttributeMan, QpalsQuickLM, QpalsWSM
+from . import QpalsProject
+from . import QpalsModuleBase
+from . import QpalsParameter
+from . import QpalsShowFile
+from . import moduleSelector
+from .modules import QpalsSection, QpalsLM, QpalsAttributeMan, QpalsQuickLM, QpalsWSM
 
-def ensure_opals_path(path, exe="opalsCell.exe"):
-    while not os.path.exists(os.path.join(path, exe)):
+def ensure_opals_path(path, project):
+    while not os.path.exists(os.path.join(path, "opalsInfo.exe")):
         msg = QMessageBox()
         msg.setText("Ooops..")
         msg.setInformativeText("Could not validate opals path. Please make sure to select the folder "
@@ -48,7 +55,16 @@ def ensure_opals_path(path, exe="opalsCell.exe"):
             path = QFileDialog.getExistingDirectory(None, caption='Select path containing opals*.exe binaries')
         else:
             return None
-    return path
+    # get opals Version
+    mod = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(path, "opalsInfo.exe"),
+                                          QpalsProject=project)
+    mod.params = [QpalsParameter.QpalsParameter('-version', '', None, None, None, None, None, flag_mode=True)]
+    res = mod.run()
+    opalsVersion = semantic_version.Version.coerce([item.split()[1].split("(")[0] for item in res['stdout'].split('\r\n')
+                                             if item.startswith("opalsInfo")][0])
+    opalsBuildDate = datetime.datetime.strptime([item.split("compiled on ")[1] for item in res['stdout'].split('\r\n')
+                                             if item.startswith("compiled on ")][0], '%b %d %Y %H:%M:%S')
+    return path, opalsVersion, opalsBuildDate
 
 
 class qpals(object):
@@ -67,6 +83,17 @@ class qpals(object):
         workdir = proj.readEntry("qpals","workdir", tempfile.gettempdir())[0]
 
         firstrun = False
+        if platform.system() != "Windows":
+            msg = QMessageBox()
+            msg.setText("qpals is currently only supported on Windows, not on '%s'" % platform.system())
+            msg.setInformativeText("Please uninstall qpals again")
+            msg.setWindowTitle("qpals is not supported on your platform")
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.exec_()
+            self.active = False
+            return 
+
+
         if opalspath == "":
             msg = QMessageBox()
             msg.setText("The path to the opals binaries has not been set.")
@@ -79,14 +106,17 @@ class qpals(object):
                 s.setValue("qpals/opalspath", opalspath)
                 firstrun = True
 
-        opalspath = ensure_opals_path(opalspath)
+        project = QpalsProject.QpalsProject(name="", opalspath=opalspath,
+                                                tempdir=tempdir, workdir=workdir, iface=self.iface)
+        opalspath, opalsVersion, opalsBuildDate = ensure_opals_path(opalspath, project)
+        project.opalsVersion = opalsVersion
+        project.opalsBuildDate = opalsBuildDate
 
         if not opalspath:
             self.active = False
 
         if self.active:
-            self.prjSet = QpalsProject.QpalsProject(name="", opalspath=opalspath,
-                                                    tempdir=tempdir, workdir=workdir, iface=self.iface)
+            self.prjSet = project
             try:
                 resource_dir = os.path.join(os.path.dirname(__file__), "resources")
                 info = subprocess.STARTUPINFO()

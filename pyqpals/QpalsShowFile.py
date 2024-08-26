@@ -6,15 +6,17 @@ from builtins import object
 import os
 import tempfile
 
+import datetime
+
 from qgis.PyQt import QtGui
 from qgis.PyQt import QtWidgets
 from qgis.core import *
 from qgis.gui import *
 
-from qpals.qpals import QpalsModuleBase
-from qpals.qpals import QpalsParameter
-from qpals.qpals.qt_extensions import QpalsDropTextbox
-from qpals.qpals.modules.QpalsAttributeMan import getAttributeInformation
+from . import QpalsModuleBase
+from . import QpalsParameter
+from .qt_extensions import QpalsDropTextbox
+from .modules.QpalsAttributeMan import getAttributeInformation
 
 VISUALISATION_METHODS = {
     0: "[fast] Bounding box (vector)",
@@ -26,7 +28,7 @@ VISUALISATION_METHODS = {
     6: "Minimum bounding rectangle (vector)",
     7: "Convex hull (vector)",
     8: "Alpha shape (vector)",
-    9: "Isolines (vector, based on Z-Value)",
+    9: "Isolines",
 }
 
 class QpalsShowFile(object):
@@ -181,38 +183,70 @@ class QpalsShowFile(object):
                     else:
                         if not drop.endswith(".odm"):
                             drop = self.callImport(drop)
+                        suffix = ""
+                        attribute = "Z" if not hasattr(self, 'cellAttrCmb') else self.cellAttrCmb.currentText()
                         if self.curVisMethod == 3:
                             cellf = self.callCell(drop)
                             visfile = self.callShade(cellf)
+                            suffix = "shading (%s)" % attribute
                         elif self.curVisMethod == 4:
                             cellf = self.callCell(drop)
                             visfile = self.callZColor(cellf)
+                            suffix = "coloring (%s)" % attribute
                         elif self.curVisMethod == 5:
                             visfile = self.callCell(drop)
+                            suffix = "(%s)" % attribute
                         elif self.curVisMethod == 0:
                             (xmin, ymin, xmax, ymax) = self.callInfo(drop)
+                            suffix = "BBox"
                         elif self.curVisMethod == 6:
                             visfile = self.callBounds(drop, "minimumRectangle")
+                            suffix = "MBR"
                         elif self.curVisMethod == 7:
                             visfile = self.callBounds(drop, "convexHull")
+                            suffix = "convex hull"
                         elif self.curVisMethod == 8:
                             visfile = self.callBounds(drop, "alphaShape")
+                            suffix = "alpha shape"
                         elif self.curVisMethod == 9:
                             cellf = self.callCell(drop)
                             visfile = self.callIsolines(cellf)
+                            suffix = "isolines (%s)" % attribute
                         elif self.curVisMethod == 1:
-                            visfile = self.callInfo(drop, overview='Z')
+                            visfile, isMultiBand = self.callInfo(drop, overview='Z')
+                            suffix = "overview (Z)"
+                            if isMultiBand:
+                                bandSel = 1
                         elif self.curVisMethod == 2:
-                            visfile = self.callInfo(drop, overview='Pcount')
+                            visfile, isMultiBand = self.callInfo(drop, overview='Pcount')
+                            suffix = "overview (pcount)"
+                            if isMultiBand:
+                                bandSel = 2
 
                         self.updateText("Loading layer into QGIS...")
                         # load layer
                         if self.curVisMethod in [6, 7, 8, 9]:  # vector file
-                            layer = self.iface.addVectorLayer(visfile, os.path.basename(drop), "ogr")
+                            layer = self.iface.addVectorLayer(visfile,
+                                                              os.path.basename(drop) + " - " + suffix, "ogr")
                         elif self.curVisMethod in [1, 2, 3, 4, 5]:
-                            layer = self.iface.addRasterLayer(visfile, os.path.basename(drop))
+                            layer = self.iface.addRasterLayer(visfile,
+                                                              os.path.basename(drop) + " - " + suffix)
+                            if isMultiBand:
+                                provider = layer.dataProvider()
+                                stats = provider.bandStatistics(bandSel, QgsRasterBandStats.All)
+                                mini = stats.minimumValue
+                                maxi = stats.maximumValue
+                                bandRenderer = QgsSingleBandGrayRenderer(provider, bandSel)
+                                ce = QgsContrastEnhancement(provider.dataType(0))
+                                ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchToMinimumMaximum)
+                                ce.setMinimumValue(mini)
+                                ce.setMaximumValue(maxi)
+                                bandRenderer.setContrastEnhancement(ce)
+
+                                layer.setRenderer(bandRenderer)
                         elif self.curVisMethod == 0:
-                            layer = self.iface.addVectorLayer("Polygon", os.path.basename(drop), "memory")
+                            layer = self.iface.addVectorLayer("Polygon",
+                                                              os.path.basename(drop) + " - " + suffix, "memory")
                             pr = layer.dataProvider()
                             feat = QgsFeature()
                             feat.setGeometry(QgsGeometry.fromPolygonXY([[QgsPointXY(xmin, ymin),
@@ -258,10 +292,22 @@ class QpalsShowFile(object):
         self.updateText("Calling module opalsInfo...")
         rundict = {"inFile": infile}
         if overview:
-            rundict.update({'exportHeader': 'overview%s' % overview})
-        outdict = self.call("opalsInfo", rundict, returnstdout=True, nooutfile=True)
-        if overview:
-            return infile.replace(".odm", "_overview_%s.tif" % overview)
+            if self.project.opalsBuildDate <= datetime.datetime(year=2022, month=5, day=5, hour=12, minute=0, second=0):
+                outfile = infile.replace(".odm", "_overview_%s.tif" % overview)
+                if os.path.exists(outfile) and os.stat(outfile).st_ctime == os.stat(infile).st_ctime:
+                    return outfile, False  # skip running opalsInfo if file exists and has same date set
+                rundict.update({'exportHeader': 'overview%s' % overview})
+                outdict = self.call("opalsInfo", rundict, returnstdout=True, nooutfile=True)
+                return outfile, False
+            else:  #  starting with builds from May 6 2022outfile = infile.replace(".odm", "_overview_%s.tif" % overview)
+                outfile = infile.replace(".odm", "_overview.tif")
+                if os.path.exists(outfile) and os.stat(outfile).st_ctime == os.stat(infile).st_ctime:
+                    return outfile, False  # skip running opalsInfo if file exists and has same date set
+                rundict.update({'exportOverview': 'all',
+                                'multiBand': '1'})
+                outdict = self.call("opalsInfo", rundict, returnstdout=True, nooutfile=True)
+                return outfile, True
+
         lines = outdict["stdout"].split("\n")
         for i in range(len(lines)):
             line = lines[i]

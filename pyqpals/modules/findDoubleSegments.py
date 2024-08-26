@@ -1,6 +1,6 @@
 from __future__ import print_function
 from builtins import range
-import ogr
+from osgeo import ogr
 import os, sys, glob
 import numpy as np
 from qgis.PyQt import QtCore

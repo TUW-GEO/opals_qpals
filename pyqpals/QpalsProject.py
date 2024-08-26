@@ -18,6 +18,8 @@ email                : lukas.winiwarter@tuwien.ac.at
  """
 from __future__ import absolute_import
 
+import datetime
+
 from builtins import str
 from builtins import object
 from qgis.PyQt import QtCore, QtGui, QtWidgets
@@ -25,8 +27,10 @@ from qgis.core import *
 from qgis.gui import *
 import os
 
-from qpals.qpals.QpalsShowFile import VISUALISATION_METHODS
-from qpals.qpals.qt_extensions import QpalsDropTextbox
+import semantic_version
+
+from .QpalsShowFile import VISUALISATION_METHODS
+from .qt_extensions import QpalsDropTextbox
 
 
 class QpalsProject(object):
@@ -44,6 +48,8 @@ class QpalsProject(object):
         self.globals = dict()
         self.PATH = os.environ['PATH']
         self.getEnvVar()
+        self.opalsVersion = semantic_version.Version.coerce('0.0.0')
+        self.opalsBuildDate = datetime.datetime.utcfromtimestamp(0)
 
     def getEnvVar(self):
         try:
