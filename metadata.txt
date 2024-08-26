@@ -2,25 +2,26 @@
 
 [general]
 name=qpals-nightly
-email=lukas.winiwarter@geo.tuwien.ac.at
+email=lukas.winiwarter@uibk.ac.at
 author=Lukas Winiwarter
 qgisMinimumVersion=2.99
 description=OPALS software integrated into QGIS
 about=IMPORTANT: This plugin requires an installation of OPALS developed by GEO at TU Wien.
- You can get an evaluation copy (processing up to 1.000.000 points) at photo.geo.tuwien.ac.at/opals .
+ You can get an evaluation copy (processing up to 1.000.000 points) at opals.geo.tuwien.ac.at
  When the plugin is first loaded, you will be prompted to set a path to your opals installation.
 
  The point cloud processing software OPALS developed by GEO/TU Wien can be easily accessed from within QGIS through
- a custom-made gui. Also, special modules are availiable for specific tasks, i.e. creating sections.
+ a custom-made gui. Also, special modules are available for specific tasks, i.e. creating sections.
 
-version=1.8.5
-tracker=https://github.com/lwiniwar/qpals/issues
-repository=https://github.com/lwiniwar/qpals
+version=1.8.6
+tracker=https://github.com/TUW-GEO/opals_qpals/issues
+repository=https://github.com/TUW-GEO/opals_qpals
 ; end of mandatory metadata
 
 ; start of optional metadata
 changelog=Prior versions:
- 1.8.5 updates to raster overview vis: now streches to min/max of band. fixed bug with "run cmd".
+ 1.8.6 small improvement in automatic installation of requirements and metadata updated
+ 1.8.5 updates to raster overview vis: now stretches to min/max of band. fixed bug with "run cmd".
  1.8.4 quick visualisation with opalsInfo: uses multiband raster for newer versions and skips if raster file already exists
  1.8.3 added build date check for opals
  1.8.2 added version check for opals for renaming of the -exportHeader option
@@ -55,7 +56,7 @@ changelog=Prior versions:
 tags=lidar,laser scanning,opals,als,point cloud
 
 ; these metadata can be empty, they will eventually become mandatory.
-homepage=https://github.com/lwiniwar/qpals
+homepage=https://github.com/TUW-GEO/opals_qpals
 icon=media/opalsIcon.png
 
 ; experimental flag (applies to the single version)
