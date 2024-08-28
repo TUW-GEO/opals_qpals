@@ -339,7 +339,7 @@ class QpalsModuleBase(object):
         info = subprocess.STARTUPINFO()
         info.dwFlags = subprocess.STARTF_USESHOWWINDOW
         info.wShowWindow = show  # 0=HIDE
-        # print " ".join([self.execName] + list(args))
+        # print( " ".join([self.execName] + list(args)) )
         my_env = os.environ.copy()
         my_env["GDAL_DRIVER_PATH"] = ""  # clear gdal driver paths, since this messes with some opals modules
         my_env["PATH"] = self.project.PATH

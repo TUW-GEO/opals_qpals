@@ -111,6 +111,7 @@ class qpals(object):
                 s.setValue("qpals/opalspath", opalspath)
                 firstrun = True
 
+        logMessage(f"qpals.__init__ opalspath={opalspath}")
         project = QpalsProject.QpalsProject(name="", opalspath=opalspath,
                                                 tempdir=tempdir, workdir=workdir, iface=self.iface)
         opalspath, opalsVersion, opalsBuildDate = ensure_opals_path(opalspath, project)
@@ -119,6 +120,11 @@ class qpals(object):
 
         if not opalspath:
             self.active = False
+        else:
+            if opalspath != project.opalspath:
+                logMessage(f"opalspath has changed from {project.opalspath} to {opalspath}")
+                project.opalspath = opalspath
+                s.setValue("qpals/opalspath", opalspath)
 
         if self.active:
             self.prjSet = project
