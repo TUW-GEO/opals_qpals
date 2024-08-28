@@ -442,9 +442,12 @@ class moduleSelector(QtWidgets.QDialog):
             self.currentruncount = 0
 
     def saveRunList(self):
-        saveTo = QtWidgets.QFileDialog.getSaveFileName(None, caption='Save to file')[0]
+        saveTo = QtWidgets.QFileDialog.getSaveFileName(None, caption='Save to file')
+        if isinstance(saveTo, tuple):
+            saveTo = saveTo[0]
+
         if True:
-            f = open(str(saveTo), 'w')
+            f = open(saveTo, 'w')
             f.write("rem BATCH FILE CREATED WITH QPALS\r\n")
             for i in range(self.runListWidget.count()):
                 item = self.runListWidget.item(i)

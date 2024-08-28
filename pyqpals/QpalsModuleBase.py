@@ -392,6 +392,8 @@ class QpalsModuleBase(object):
                                                          directory=self.lastpath,
                                                          options=QtWidgets.QFileDialog.DontConfirmOverwrite)
             if filename:
+                if isinstance(filename, tuple):
+                    filename = filename[0]
                 for par in self.params:
                     if par.name == param:
                         par.field.setText(filename)
