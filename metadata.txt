@@ -1,7 +1,7 @@
 ; the next section is mandatory
 
 [general]
-name=qpals
+name=qpals-nightly
 email=lukas.winiwarter@uibk.ac.at
 author=Lukas Winiwarter
 qgisMinimumVersion=2.99
