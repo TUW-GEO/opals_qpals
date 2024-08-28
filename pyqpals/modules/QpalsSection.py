@@ -69,7 +69,7 @@ class QpalsSection(object):
         ### SIMPLE ###
         self.ls = QtWidgets.QFormLayout()
         self.ls.addRow(QtWidgets.QLabel("Choose input file:"))
-        self.txtinfileSimple = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist, filterrex=".*\.odm$")
+        self.txtinfileSimple = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist, filterrex=".*\\.odm$")
         hboxsimple1 = QtWidgets.QHBoxLayout()
         hboxsimple1.addWidget(self.txtinfileSimple, 1)
         self.txtinfileSimple.textChanged.connect(self.simpleIsLoaded)
