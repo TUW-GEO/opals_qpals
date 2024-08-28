@@ -95,7 +95,7 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.odmText = QpalsDropTextbox(layerlist=self.layerlist)
         self.odmText.currentTextChanged.connect(self.odmFileChanged)
         formL.addRow("odm", self.odmText)
-        self.axisText = QpalsDropTextbox(layerlist=self.layerlist, filterrex='.*[\.shp]')
+        self.axisText = QpalsDropTextbox(layerlist=self.layerlist, filterrex='.*[\\.shp]')
         formL.addRow("axis shp", self.axisText)
 
         self.widthSpin = QtWidgets.QDoubleSpinBox()
