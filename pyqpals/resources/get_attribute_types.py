@@ -73,7 +73,7 @@ Automatically generated file from \n%s \non %s
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
-\"\"\" \n""" % (__file__,datetime.datetime.now().strftime("%Y-%m-%d")))
+\"\"\" \n""" % (__file__.replace("\\", "/"),datetime.datetime.now().strftime("%Y-%m-%d")))
     f.write("odm_predef_attributes = {\n")
     for (attr, type) in attrs:
         if attr != "null":
