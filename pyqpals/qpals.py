@@ -70,6 +70,18 @@ def ensure_opals_path(path, project):
     return path, opalsVersion, opalsBuildDate
 
 
+class qpalsSettings(QSettings):
+    def __init__(self, plugin_name):
+        QSettings.__init__(self)
+        self.plugin_name = plugin_name
+        self.path_label = f"{self.plugin_name}/opalspath"
+    def getOpalsPath(self):
+        return self.value(self.path_label, "")
+
+    def setOpalsPath(self, opalspath):
+        self.setValue(self.path_label, opalspath)
+
+
 class qpals(object):
     def __init__(self, iface, plugin_name):
         # Save reference to the QGIS interface
@@ -81,9 +93,9 @@ class qpals(object):
         self.help_action = None
         self.plugin_name = plugin_name
         QgsProject.instance().readProject.connect(self.projectloaded)
-        s = QSettings()
+        s = qpalsSettings(plugin_name)
         proj = QgsProject.instance()
-        opalspath = s.value("qpals/opalspath", "")
+        opalspath = s.getOpalsPath()
         tempdir = proj.readEntry("qpals","tempdir", tempfile.gettempdir())[0]
         workdir = proj.readEntry("qpals","workdir", tempfile.gettempdir())[0]
 
@@ -108,7 +120,7 @@ class qpals(object):
             ret = msg.exec_()
             if ret == QMessageBox.Ok:
                 opalspath = QFileDialog.getExistingDirectory(None, caption='Select path containing opals*.exe binaries')
-                s.setValue("qpals/opalspath", opalspath)
+                s.setOpalsPath(opalspath)
                 firstrun = True
 
         logMessage(f"qpals.__init__ opalspath={opalspath}")
@@ -124,7 +136,7 @@ class qpals(object):
             if opalspath != project.opalspath:
                 logMessage(f"opalspath has changed from {project.opalspath} to {opalspath}")
                 project.opalspath = opalspath
-                s.setValue("qpals/opalspath", opalspath)
+                s.setOpalsPath(opalspath)
 
         if self.active:
             self.prjSet = project
