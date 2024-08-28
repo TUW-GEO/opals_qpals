@@ -49,7 +49,7 @@ class QpalsProject(object):
         self.PATH = os.environ['PATH']
         self.getEnvVar()
         self.opalsVersion = semantic_version.Version.coerce('0.0.0')
-        self.opalsBuildDate = datetime.datetime.utcfromtimestamp(0)
+        self.opalsBuildDate = datetime.datetime.fromtimestamp(0, datetime.timezone.utc)
 
     def getEnvVar(self):
         try:

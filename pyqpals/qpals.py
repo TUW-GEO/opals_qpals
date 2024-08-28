@@ -42,7 +42,10 @@ from . import QpalsShowFile
 from . import moduleSelector
 from .modules import QpalsSection, QpalsLM, QpalsAttributeMan, QpalsQuickLM, QpalsWSM
 
+from .. import logMessage   # import qpals log function
+
 def ensure_opals_path(path, project):
+    logMessage("ensure_opals_path called")
     while not os.path.exists(os.path.join(path, "opalsInfo.exe")):
         msg = QMessageBox()
         msg.setText("Ooops..")
@@ -54,7 +57,7 @@ def ensure_opals_path(path, project):
         if ret == QMessageBox.Ok:
             path = QFileDialog.getExistingDirectory(None, caption='Select path containing opals*.exe binaries')
         else:
-            return None
+            return None, None, None
     # get opals Version
     mod = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(path, "opalsInfo.exe"),
                                           QpalsProject=project)
@@ -68,7 +71,7 @@ def ensure_opals_path(path, project):
 
 
 class qpals(object):
-    def __init__(self, iface):
+    def __init__(self, iface, plugin_name):
         # Save reference to the QGIS interface
         self.iface = iface
         self.active = True
@@ -76,6 +79,7 @@ class qpals(object):
         self.linemodeler = None
         self.wsm = None
         self.help_action = None
+        self.plugin_name = plugin_name
         QgsProject.instance().readProject.connect(self.projectloaded)
         s = QSettings()
         proj = QgsProject.instance()
@@ -235,9 +239,8 @@ class qpals(object):
         if self.active:
             self.menu = QMenu(self.iface.mainWindow())
             self.menu.setObjectName("qpalsMenu")
-            version_name = os.path.split(os.path.dirname(os.path.abspath(os.path.join(__file__, ".."))))[1]
 
-            self.menu.setTitle(version_name)
+            self.menu.setTitle(self.plugin_name)
 
             IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
             opalsIcon = QIcon(os.path.join(IconPath, "opalsIcon.png"))
@@ -317,7 +320,7 @@ class qpals(object):
             # create help action
             self.help_action = QAction(
                 opalsIcon,
-                f"{version_name}...",
+                f"{self.plugin_name}...",
                 self.iface.mainWindow()
             )
             # Add the action to the Help menu

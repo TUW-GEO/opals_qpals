@@ -26,6 +26,7 @@ import sys, os, glob
 
 from qgis.core import QgsMessageLog, Qgis
 
+plugin_name = "qpals-default"   # just default value in case reading metadata file fails
 
 def check_packages(packages):
     installed_packages = []
@@ -39,14 +40,33 @@ def check_packages(packages):
     return installed_packages, missing_packages
 
 
+def logMessage(message, level=Qgis.Info):
+    global plugin_name
+    QgsMessageLog.logMessage(message, plugin_name, level=level)
+
 def classFactory(iface):
+    global plugin_name
+
+    # load plugin from metadata.txt
+    metadata_file = os.path.join(os.path.dirname(__file__), "metadata.txt")
+    try:
+        with open(metadata_file) as f:
+            for line in f:
+                if line.strip().startswith('name='):
+                    plugin_name = line.split("=")[1].strip()
+                    logMessage(f"plugin name extracted: {plugin_name}")
+                    break
+    except Exception as e:
+        logMessage(f"Exception occurred while reading metadata.txt: {e}", level=Qgis.Critical)
+        pass
+
     # check requirements
-    QgsMessageLog.logMessage('check requirements', 'qpals', level=Qgis.Info)
+    logMessage('check requirements', level=Qgis.Info)
 
     packages = ['matplotlib', 'vispy', 'scipy', 'semantic_version']
     _, missing_packages = check_packages(packages)
 
-    QgsMessageLog.logMessage(f'missing packages={missing_packages}', 'qpals', level=Qgis.Info)
+    logMessage(f'missing packages={missing_packages}', level=Qgis.Info)
 
     if missing_packages:
         msg = QMessageBox()
@@ -70,12 +90,11 @@ def classFactory(iface):
                 msg.setStandardButtons(QMessageBox.Ok)
                 if rc == 0:
                     _, missing_packages = check_packages(missing_packages)
-                    QgsMessageLog.logMessage(f'missing packages after installation={missing_packages}', 'qpals', level=Qgis.Warning)
+                    logMessage(f'missing packages after installation={missing_packages}', level=Qgis.Warning)
                     if missing_packages:
                         site.main()     # importing doesn't work if user site directory didn't exist before. So try re-initializing
                         _, missing_packages = check_packages(missing_packages)
-                        QgsMessageLog.logMessage(f'missing packages after site.main()={missing_packages}', 'qpals',
-                                                 level=Qgis.Warning)
+                        logMessage(f'missing packages after site.main()={missing_packages}', level=Qgis.Warning)
                         if missing_packages:
                             msg.setInformativeText("Package installation succeeded but importing failed. Try to restart QGIS")
 
@@ -88,19 +107,8 @@ def classFactory(iface):
             if not installation_ok:
                 ret = msg.exec_()
             else:
-                QgsMessageLog.logMessage(f'packages installed successful', 'qpals',
-                                         level=Qgis.Info)
+                logMessage(f'packages installed successful', level=Qgis.Info)
 
     # load qpals class from file qpals
     from .pyqpals import qpals
-    return qpals.qpals(iface)
-
-class deactivatedQpals:
-    def __init__(self, iface):
-        self.iface = iface
-
-    def initGui(self):
-        pass
-
-    def unload(self):
-        pass
+    return qpals.qpals(iface, plugin_name)
