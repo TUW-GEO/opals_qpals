@@ -75,6 +75,7 @@ class qpals(object):
         self.layerlist = dict()
         self.linemodeler = None
         self.wsm = None
+        self.help_action = None
         QgsProject.instance().readProject.connect(self.projectloaded)
         s = QSettings()
         proj = QgsProject.instance()
@@ -313,9 +314,30 @@ class qpals(object):
             self.iface.mainWindow().addDockWidget(Qt.LeftDockWidgetArea, self.dropspace)
             self.dropspace.setContentsMargins(9, 9, 9, 9)
 
+            # create help action
+            self.help_action = QAction(
+                opalsIcon,
+                f"{version_name}...",
+                self.iface.mainWindow()
+            )
+            # Add the action to the Help menu
+            self.iface.pluginHelpMenu().addAction(self.help_action)
+            self.help_action.triggered.connect(self.show_help)
+
 
     def unload(self):
         if self.active:
+            # remove help entry
+            self.iface.pluginHelpMenu().removeAction(self.help_action)
+            del self.help_action
+
             # Remove the plugin menu item and icon
             self.menu.deleteLater()
             self.dropspace.deleteLater()
+
+
+
+    @staticmethod
+    def show_help():
+        """ Open the online help. """
+        QDesktopServices.openUrl(QUrl('https://opals.geo.tuwien.ac.at/html/stable/usr_qpals.html'))
