@@ -172,8 +172,9 @@ def getAttributeInformation(file, project):
         header_passed = False
         attrs = []
         entries = []
+        #print(outtext)
         for line in outtext.split("\n"):
-            if line.startswith("Attribute "):
+            if line.startswith("Attribute ") or line.startswith("Attributes"):
                 header_passed = True
                 entries = line.split()
             elif header_passed:
