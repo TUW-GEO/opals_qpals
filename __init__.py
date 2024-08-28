@@ -26,20 +26,6 @@ import sys, os, glob
 
 from qgis.core import QgsMessageLog, Qgis
 
-def name(): 
-    return "qpals"
-
-
-def description():
-    return "integrates the opals software as a qgis plugin"
-
-
-def version(): 
-    return "Version 2.0"
-
-
-def qgisMinimumVersion():
-    return "2.99"
 
 def check_packages(packages):
     installed_packages = []
