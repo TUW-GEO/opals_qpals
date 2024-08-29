@@ -40,31 +40,31 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 """
 
 from builtins import str
-import pyDM
 import sys
 import datetime
+import os
+
+
+try:
+    from opals import pyDM
+except:
+    # append opals-distro path in case pyDM import failed
+    opals_distro_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'distro'))
+    sys.path.append(opals_distro_folder)
+    #now try to reimport
+    from opals import pyDM
+
+
+# currently, no link exists between pyDM Data types and strings that may be used on the command line, so...
+
 attrs = sorted([(str(name), pyDM.AddInfoLayout.getColumnType(str(name)))
                 for name in pyDM.ColumnSemantic.names], key=lambda x: x[0])
 
-# currently, no link exists between pyDM Data types and strings that may be used on the command line, so...
-odm_data_types = {
-    pyDM.ColumnType.int32  : "int32",
-    pyDM.ColumnType.uint32 : "uint32",
-    pyDM.ColumnType.int8   : "int8",
-    pyDM.ColumnType.uint8  : "uint8",
-    pyDM.ColumnType.int16  : "int16",
-    pyDM.ColumnType.uint16 : "uint16",
-    pyDM.ColumnType.float_ : "float",
-    pyDM.ColumnType.double_: "double",
-    pyDM.ColumnType.string : "string",
-    pyDM.ColumnType.int64  : "int64",
-    pyDM.ColumnType.cstr   : "cstr",
-    pyDM.ColumnType.bool_  : "bool"
-}
+odm_data_types = {v : k.replace("_","") for k,v in pyDM.ColumnType.names.items()}
 
-with open(sys.argv[1], 'w') as f:
-    f.write("""\"\"\"
-Automatically generated file from \n%s \non %s 
+# construct file content
+content_new = """\"\"\"
+Automatically generated file by %s at %s 
 /***************************************************************************
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
@@ -73,12 +73,27 @@ Automatically generated file from \n%s \non %s
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
-\"\"\" \n""" % (__file__.replace("\\", "/"),datetime.datetime.now().strftime("%Y-%m-%d")))
-    f.write("odm_predef_attributes = {\n")
-    for (attr, type) in attrs:
-        if attr != "null":
-            f.write("    '%s': '%s',\n" % (attr, odm_data_types[type]))
-    f.write("}\nodm_data_types = [\n")
-    for type in list(odm_data_types.values()):
-        f.write("    '%s',\n" % type)
-    f.write("]\n")
+\"\"\" \n""" % (os.path.split(__file__)[1], datetime.datetime.now().strftime("%Y-%m-%d"))
+content_new += "odm_predef_attributes = {\n"
+for (attr, type) in attrs:
+    if attr != "null":
+        content_new += "    '%s': '%s',\n" % (attr, odm_data_types[type])
+content_new += "}\nodm_data_types = [\n"
+for type in list(odm_data_types.values()):
+    content_new += "    '%s',\n" % type
+content_new += "]\n"
+
+write_file = True
+if os.path.exists(sys.argv[1]):
+    with open(sys.argv[1]) as f:
+        content_old = f.read()
+
+    if content_old == content_new:
+        print(f"{sys.argv[1]} is update to date")
+        write_file = False
+
+if write_file:
+    print(f"Writing {sys.argv[1]}...", end="")
+    with open(sys.argv[1], 'w') as f:
+        f.write(content_new)
+    print("done")

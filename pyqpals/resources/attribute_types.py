@@ -1,7 +1,5 @@
 """
-Automatically generated file from 
-D:/swdvlp64_cmake/opals/qpals/plugin/pyqpals/resources/get_attribute_types.py 
-on 2024-08-28 
+Automatically generated file by get_attribute_types.py at 2024-08-29 
 /***************************************************************************
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
