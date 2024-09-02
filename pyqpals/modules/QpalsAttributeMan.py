@@ -26,6 +26,7 @@ import os
 import operator, webbrowser
 from ..qt_extensions import QpalsDropTextbox
 from ..resources.attribute_types import odm_predef_attributes, odm_data_types
+from ... import logMessage   # import qpals log function
 
 class QpalsAttributeMan(object):
     def __init__(self, project, iface=None, layerlist=None):
@@ -174,16 +175,23 @@ def getAttributeInformation(file, project):
         entries = []
         #print(outtext)
         for line in outtext.split("\n"):
-            if line.startswith("Attribute ") or line.startswith("Attributes"):
+            if line.startswith("Attribute "):       # old opals version
                 header_passed = True
                 entries = line.split()
+            elif line.startswith("Attributes"):     # new opals version
+                header_passed = True
             elif header_passed:
-                data = line.split()
-                if len(data) == 0:  # end of attribute list
-                    break
-                attrs.append(data)
+                if not entries:
+                    entries = line.split()
+                else:
+                    data = line.split()
+                    if len(data) == 0:  # end of attribute list
+                        break
+                    attrs.append(data)
         if not header_passed:
             raise NotImplementedError
+        logMessage(f"entries={entries}")
+        logMessage(f"attrs={attrs}")
         return attrs, entries
     except Exception as e:
         raise e
