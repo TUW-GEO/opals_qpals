@@ -33,6 +33,7 @@ from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtGui import QCursor, QBitmap
 from qgis.core import *
 from qgis.core import QgsProject as QgsMapLayerRegistry
+from qgis.core import Qgis
 from qgis.gui import *
 from qgis.gui import QgsMapLayerComboBox
 from qgis.core import QgsMapLayerProxyModel
@@ -326,14 +327,14 @@ class LineTool(QgsMapTool):
         if self.rb and not all([self.p1, self.p2, self.p3]):
             self.canvas.scene().removeItem(self.rb)
         if self.p1 and not self.p2:
-            self.rb = QgsRubberBand(self.canvas, False)
+            self.rb = QgsRubberBand(self.canvas, Qgis.GeometryType.Polygon)
             points = [self.p1, self.toLayerCoordinates(self.layer,event.pos())]
             points = [QgsPoint(pt) for pt in points]
             self.rb.setToGeometry(QgsGeometry.fromPolyline(points), None)
             self.rb.setColor(QColor(0, 128, 255))
             self.rb.setWidth(1)
         elif self.p1 and self.p2 and not self.p3:
-            self.rb = QgsRubberBand(self.canvas, False)
+            self.rb = QgsRubberBand(self.canvas, Qgis.GeometryType.Polygon)
             p0 = self.toLayerCoordinates(self.layer,event.pos())
             x0 = p0.x()
             x1 = self.p1.x()
