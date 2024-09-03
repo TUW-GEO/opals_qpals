@@ -35,6 +35,8 @@ from matplotlib.pyplot import cm
 from mpl_toolkits.mplot3d import Axes3D
 from qgis.core import QgsFeatureRequest, QgsGeometry
 
+from ... import logMessage   # import qpals log function
+
 class HighlightSelected(lines.VertexSelector):
     def __init__(self, line, lineId, fmt='bo', **kwargs):
         lines.VertexSelector.__init__(self, line)
@@ -235,7 +237,8 @@ class plotwindow(object):
         self.ax.cla()
         self.ann = None
         if self.colorbar:
-            self.colorbar.remove()
+            self.figure.delaxes(self.colorbar.ax)
+            #self.colorbar.remove()
         X = self.data['X']
         Y = self.data['Y']
         Z = self.data['Z'] * self.zex.value()

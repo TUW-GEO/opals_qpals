@@ -46,6 +46,8 @@ from .. import QpalsModuleBase
 from ..QpalsParameter import QpalsParameter
 from .matplotlib_section import plotwindow as mpl_plotwindow
 
+from ... import logMessage   # import qpals log function
+
 bm = QtGui.QBitmap(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'media', 'cursor-cross.png'))
 
 class QpalsWSM(QtWidgets.QSplitter):
@@ -206,6 +208,7 @@ class QpalsWSM(QtWidgets.QSplitter):
                   self.attrSel.currentText(): np.array([0])}
         mins = {self.attrSel.currentText(): 0}
         maxes = {self.attrSel.currentText(): 1}
+        #logMessage(f"mpl_plotwindow({self.project}, {self.iface}, {data3d}, {mins}, {maxes})")
         self.pltwindow_3d = mpl_plotwindow(self.project, self.iface, data3d, mins, maxes)
         self.plotright = self.pltwindow_3d.ui
 
