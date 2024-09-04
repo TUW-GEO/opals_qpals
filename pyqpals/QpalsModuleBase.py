@@ -32,7 +32,7 @@ from xml.dom import minidom
 from qgis.PyQt import QtCore, QtGui, QtWidgets
 from qgis.PyQt.QtCore import pyqtSlot
 
-from .qt_extensions import QTextComboBox, QpalsDropTextbox, QCollapsibleGroupBox, QpalsParamBtns, QMultiSelectComboBox
+from .qt_extensions import QTextComboBox, QpalsDropTextbox, QCollapsibleGroupBox, QpalsParamBtns, QMultiSelectComboBox, QTextCheckBox
 from . import QpalsParameter
 from .modules.QpalsAttributeMan import getAttributeInformation
 
@@ -477,6 +477,14 @@ class QpalsModuleBase(object):
                 else:
                     param.field.editTextChanged.connect(self.updateVals)
 
+            elif "bool" == param.type.lower():
+                param.field = QTextCheckBox.QTextCheckBox()
+                param.field.setText(param.val)
+                if global_common:
+                    param.field.textChanged.connect(self.updateCommonGlobals)
+                else:
+                    param.field.textChanged.connect(self.updateVals)
+
             else:
                 param.field = QtWidgets.QLineEdit(param.val)
                 if global_common:
@@ -487,24 +495,17 @@ class QpalsModuleBase(object):
         else:
             isMultiSel = param.type.startswith("Vector")
             if isMultiSel:
-                #print(f"name={param.name} type={param.type} val={param.val}")
                 param.field = QMultiSelectComboBox.QMultiSelectComboBox()
             else:
                 param.field = QTextComboBox.QTextComboBox()
             for choice in param.choices:
                 param.field.addItem(choice)
             param.field.setText(param.val)
-            if isMultiSel:
-                if global_common:
-                    param.field.checkedItemsChanged.connect(self.updateCommonGlobals)
-                else:
-                    param.field.checkedItemsChanged.connect(self.updateVals)
+            # 'QString' is necessary so that the text and not the index will be passed as parameter
+            if global_common:
+                param.field.activated['QString'].connect(self.updateCommonGlobals)
             else:
-                # 'QString' is necessary so that the text and not the index will be passed as parameter
-                if global_common:
-                    param.field.activated['QString'].connect(self.updateCommonGlobals)
-                else:
-                    param.field.activated['QString'].connect(self.updateVals)
+                param.field.activated['QString'].connect(self.updateVals)
 
         param.icon = QpalsParamBtns.QpalsParamMsgBtn(param, parent)
         param.icon.setToolTip(param.opt)
