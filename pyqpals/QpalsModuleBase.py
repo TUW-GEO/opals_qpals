@@ -342,10 +342,14 @@ class QpalsModuleBase(object):
         info.wShowWindow = show  # 0=HIDE
         # print( " ".join([self.execName] + list(args)) )
         my_env = os.environ.copy()
+        opalsroot = os.path.realpath(os.path.join(self.project.opalspath, ".."))
         my_env["GDAL_DRIVER_PATH"] = ""  # clear gdal driver paths, since this messes with some opals modules
         my_env["PATH"] = self.project.PATH
-        my_env["PYTHONPATH"] = str(os.path.realpath(os.path.join(self.project.opalspath , "..")))
+        my_env["PYTHONPATH"] = str(opalsroot)
         my_env["PYTHONHOME"] = ""
+        my_env["GDAL_DATA"] = str(os.path.join(opalsroot, "addons", "crs"))
+        my_env["PROJ_LIB"] = my_env["GDAL_DATA"]
+
         proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 stdin=subprocess.PIPE, cwd=self.project.workdir, startupinfo=info, env=my_env)
         #print(my_env)

@@ -68,7 +68,7 @@ class QpalsShowFile(object):
         self.visMethod = None
         self.curVisMethod = -1
         if project:
-            self.curVisMethod = project.vismethod
+            self.curVisMethod = VisualisationMethod(project.vismethod)
             self.cellSize = project.viscells
             self.cellMethod = project.viscellm
             self.isoInt = project.visisoint
