@@ -189,6 +189,7 @@ def getAttributeInformation(file, project):
                         break
                     attrs.append(data)
         if not header_passed:
+            logMessage(f"getAttributeInformation:file={file},outtext={outtext}", level=Qgis.Critical)
             raise NotImplementedError
         logMessage(f"entries={entries}")
         logMessage(f"attrs={attrs}")

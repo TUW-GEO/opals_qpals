@@ -32,7 +32,7 @@ from xml.dom import minidom
 from qgis.PyQt import QtCore, QtGui, QtWidgets
 from qgis.PyQt.QtCore import pyqtSlot
 
-from .qt_extensions import QTextComboBox, QpalsDropTextbox, QCollapsibleGroupBox, QpalsParamBtns
+from .qt_extensions import QTextComboBox, QpalsDropTextbox, QCollapsibleGroupBox, QpalsParamBtns, QMultiSelectComboBox
 from . import QpalsParameter
 from .modules.QpalsAttributeMan import getAttributeInformation
 
@@ -89,6 +89,7 @@ def parseXML(xml):
             if choices:
                 for choice in choices:
                     choiceList.append(getTagContent(choice))
+            #print(f"name={opt.attributes['Name'].value} type={opt.attributes['Type'].value}")
             elements.append(QpalsParameter.QpalsParameter(opt.attributes['Name'].value, valString, choiceList,
                                                           opt.attributes['Type'].value, opt.attributes['Opt'].value,
                                                           opt.attributes['Desc'].value,
@@ -480,15 +481,26 @@ class QpalsModuleBase(object):
                     param.field.textChanged.connect(self.updateVals)
                 param.field.editingFinished.connect(self.validate)
         else:
-            param.field = QTextComboBox.QTextComboBox()
+            isMultiSel = param.type.startswith("Vector")
+            if isMultiSel:
+                #print(f"name={param.name} type={param.type} val={param.val}")
+                param.field = QMultiSelectComboBox.QMultiSelectComboBox()
+            else:
+                param.field = QTextComboBox.QTextComboBox()
             for choice in param.choices:
                 param.field.addItem(choice)
             param.field.setText(param.val)
-            # 'QString' is necessary so that the text and not the index will be passed as parameter
-            if global_common:
-                param.field.activated['QString'].connect(self.updateCommonGlobals)
+            if isMultiSel:
+                if global_common:
+                    param.field.checkedItemsChanged.connect(self.updateCommonGlobals)
+                else:
+                    param.field.checkedItemsChanged.connect(self.updateVals)
             else:
-                param.field.activated['QString'].connect(self.updateVals)
+                # 'QString' is necessary so that the text and not the index will be passed as parameter
+                if global_common:
+                    param.field.activated['QString'].connect(self.updateCommonGlobals)
+                else:
+                    param.field.activated['QString'].connect(self.updateVals)
 
         param.icon = QpalsParamBtns.QpalsParamMsgBtn(param, parent)
         param.icon.setToolTip(param.opt)
@@ -528,6 +540,7 @@ class QpalsModuleBase(object):
         if attrp and attri:
             attrp.field.clear()
             attrp.field.addItems(["X", "Y", "Z"])
+            attrp.field.setCurrentIndex(2)
             try:
                 attrs, entries = getAttributeInformation(attri.val, self.project)
                 if attrs:
@@ -581,8 +594,12 @@ class QpalsModuleBase(object):
                     param.field.setStyleSheet('background-color: rgb(200,255,200);')
 
     def updateVals(self, string):
+        if isinstance(string, list):
+            string = ";".join(string)
+        #print(f"updateVals={string}")
         for param in self.params:
             if string == param.field.text():
+                #print(f"string={string}  param.field.text()={param.field.text()}")
                 if param.val != param.field.text():
                     self.revalidate = True
                     param.changed = True
@@ -596,6 +613,7 @@ class QpalsModuleBase(object):
                         except:  # file on different drive or other problem - use full path
                             pass
                     param.val = param.field.text()
+                    #print(f"name={param.name} has changed to val={param}")
 
     def validate_async(self):
         # print "val_async> ",
@@ -668,12 +686,22 @@ class QpalsModuleBase(object):
 
     def parseErrorMessage(self, calld):
         errormodule = ""
-        if "Error in parameter" in calld['stdout']:
+        if "Apply values to option" in calld['stdout']:
+            print(calld['stdout'])
+            reMessage = re.compile("(?P<message>ERROR.*)Scope stack", re.DOTALL)
+            reParameter = re.compile("Apply values to option\s+(?P<param>\w+)\.")
+            maMsg = reMessage.search(calld['stdout'])
+            maParam = reParameter.search(calld['stdout'])
+            if maMsg and maParam:
+                errortext = maMsg.group("message").strip()
+                errormodule = maParam.group("param")
+            else:
+                print(f"Cannot parse message: {calld['stdout']}")
+        elif "Error in parameter" in calld['stdout']:
             errortext = calld['stdout'].split("Error in parameter ")[1].split("\n")[0]
             errormodule = errortext.split(":")[0]
             errortext = ":".join(errortext.split(":")[1:])
             # print errormodule, errortext
-
         elif "Ambiguities while matching value" in calld['stdout']:
             errortext = calld['stdout'].split("ERROR 0001: std::exception: ")[1].split("\n")[0]
             msg = QtWidgets.QMessageBox()
