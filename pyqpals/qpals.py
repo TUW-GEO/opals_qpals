@@ -356,9 +356,9 @@ class qpals(object):
             self.menu.deleteLater()
             self.dropspace.deleteLater()
 
-
-
-    @staticmethod
-    def show_help():
+    def show_help(self):
         """ Open the online help. """
-        QDesktopServices.openUrl(QUrl('https://opals.geo.tuwien.ac.at/html/stable/usr_qpals.html'))
+        s = qpalsSettings(self.plugin_name)
+        opalspath = s.getOpalsPath()
+        #QDesktopServices.openUrl(QUrl('https://opals.geo.tuwien.ac.at/html/stable/usr_qpals.html'))
+        QDesktopServices.openUrl(QUrl('file:///' + os.path.join(opalspath, "..", "doc", "html", "usr_qpals.html"))) # use local help
