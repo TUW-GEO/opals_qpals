@@ -36,6 +36,8 @@ from .qt_extensions import QTextComboBox, QpalsDropTextbox, QCollapsibleGroupBox
 from . import QpalsParameter
 from .modules.QpalsAttributeMan import getAttributeInformation
 
+from .. import logMessage   # import qpals log function
+
 IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
 
 WaitIcon = QtGui.QIcon(os.path.join(IconPath, "wait_icon.png"))
@@ -89,7 +91,7 @@ def parseXML(xml):
             if choices:
                 for choice in choices:
                     choiceList.append(getTagContent(choice))
-            #print(f"name={opt.attributes['Name'].value} type={opt.attributes['Type'].value}")
+            #logMessage(f"{opt.attributes['Name'].value} -> {opt.attributes['Type'].value}")
             elements.append(QpalsParameter.QpalsParameter(opt.attributes['Name'].value, valString, choiceList,
                                                           opt.attributes['Type'].value, opt.attributes['Opt'].value,
                                                           opt.attributes['Desc'].value,
@@ -353,6 +355,7 @@ class QpalsModuleBase(object):
         proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 stdin=subprocess.PIPE, cwd=self.project.workdir, startupinfo=info, env=my_env)
         #print(my_env)
+        #logMessage(f"{[self.execName] + list(args)}")
         proc.stderr.flush()
         proc.stdin.close()
         if statusSignal is None:
