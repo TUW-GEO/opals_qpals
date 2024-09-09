@@ -44,9 +44,10 @@ from .modules import QpalsSection, QpalsLM, QpalsAttributeMan, QpalsQuickLM, Qpa
 
 from .. import logMessage   # import qpals log function
 
+EXT = ".exe" if os.name == "nt" else ""
 def ensure_opals_path(path, project):
     logMessage("ensure_opals_path called")
-    while not os.path.exists(os.path.join(path, "opalsInfo.exe")):
+    while not os.path.exists(os.path.join(path, "opalsInfo"+EXT)):
         msg = QMessageBox()
         msg.setText("Ooops..")
         msg.setInformativeText("Could not validate opals path. Please make sure to select the folder "
@@ -59,13 +60,14 @@ def ensure_opals_path(path, project):
         else:
             return None, None, None
     # get opals Version
-    mod = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(path, "opalsInfo.exe"),
+    mod = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(path, "opalsInfo"+EXT),
                                           QpalsProject=project)
     mod.params = [QpalsParameter.QpalsParameter('-version', '', None, None, None, None, None, flag_mode=True)]
     res = mod.run()
-    opalsVersion = semantic_version.Version.coerce([item.split()[1].split("(")[0] for item in res['stdout'].split('\r\n')
+    logMessage(f"{res}")
+    opalsVersion = semantic_version.Version.coerce([item.split()[1].split("(")[0] for item in res['stdout'].split(os.linesep)
                                              if item.startswith("opalsInfo")][0])
-    opalsBuildDate = datetime.datetime.strptime([item.split("compiled on ")[1] for item in res['stdout'].split('\r\n')
+    opalsBuildDate = datetime.datetime.strptime([item.split("compiled on ")[1] for item in res['stdout'].split(os.linesep)
                                              if item.startswith("compiled on ")][0], '%b %d %Y %H:%M:%S')
     return path, opalsVersion, opalsBuildDate
 
@@ -100,16 +102,6 @@ class qpals(object):
         workdir = proj.readEntry("qpals","workdir", tempfile.gettempdir())[0]
 
         firstrun = False
-        if platform.system() != "Windows":
-            msg = QMessageBox()
-            msg.setText("qpals is currently only supported on Windows, not on '%s'" % platform.system())
-            msg.setInformativeText("Please uninstall qpals again")
-            msg.setWindowTitle("qpals is not supported on your platform")
-            msg.setStandardButtons(QMessageBox.Ok)
-            msg.exec_()
-            self.active = False
-            return 
-
 
         if opalspath == "":
             msg = QMessageBox()
