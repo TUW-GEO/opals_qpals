@@ -738,10 +738,10 @@ class QpalsLM(object):
             if isinstance(saveTo, tuple):
                 saveTo = saveTo[0]
             f = open(saveTo, 'w')
-            f.write("rem BATCH FILE CREATED WITH QPALS\r\n")
+            f.write(f"rem BATCH FILE CREATED WITH QPALS{os.linesep}")
             modules = self.get_step_modules("all")
             for module in modules:
-                f.write(str(module) + "\r\n")
+                f.write(f"{str(module)}{os.linesep}")
             f.close()
         except Exception as e:
             raise Exception("Saving to batch failed.", e)

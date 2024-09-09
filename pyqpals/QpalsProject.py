@@ -52,15 +52,19 @@ class QpalsProject(object):
         self.opalsBuildDate = datetime.datetime.fromtimestamp(0, datetime.timezone.utc)
 
     def getEnvVar(self):
-        try:
-            import winreg as wreg
-            key = wreg.OpenKey(wreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
-                               0, wreg.KEY_READ)
-            self.PATH = wreg.QueryValueEx(key, "Path")[0]
-            # self.PATH = str(self.opalspath + ";" + self.PATH)
-            self.PATH = str(os.path.join(self.opalspath, "..") + ";" + self.PATH)
-        except Exception as e:
-            raise e
+        if os.name == 'nt':
+            try:
+                import winreg as wreg
+                key = wreg.OpenKey(wreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+                                   0, wreg.KEY_READ)
+                self.PATH = wreg.QueryValueEx(key, "Path")[0]
+                # self.PATH = str(self.opalspath + ";" + self.PATH)
+                self.PATH = str(os.path.join(self.opalspath, "..") + ";" + self.PATH)
+            except Exception as e:
+                raise e
+        else:
+            self.PATH = str(os.path.join(self.opalspath, "..")) + ":" + os.environ['PATH']
+            #print(f"self.PATH = {self.PATH}")
 
     def getUI(self):
         self.ui = QtWidgets.QDialog()

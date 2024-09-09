@@ -21,6 +21,8 @@ from .modules.QpalsAttributeMan import getAttributeInformation
 
 from .. import logMessage   # import qpals log function
 
+EXT = ".exe" if os.name == "nt" else ""
+
 class VisualisationMethod(Enum):
     RASTER_FAST_BBOX = 0
     RASTER_FAST_ZCOLOR = 1
@@ -113,7 +115,7 @@ class QpalsShowFile(object):
         self.isoInteLbl = QtWidgets.QLabel("Set isoline interval:")
         self.isoInteBox = QtWidgets.QLineEdit()
         self.isoInteBox.setText("10")
-        cellInst = QpalsModuleBase.QpalsModuleBase(os.path.join(self.project.opalspath, "opalsCell.exe"), self.project)
+        cellInst = QpalsModuleBase.QpalsModuleBase(os.path.join(self.project.opalspath, "opalsCell"+EXT), self.project)
         cellInst.load()
         for param in cellInst.params:
             if param.name.lower() == "cellsize":
@@ -379,7 +381,7 @@ class QpalsShowFile(object):
             QtWidgets.QApplication.processEvents()
 
     def call(self, module, params, outext="", returnstdout=False, nooutfile=False):
-        Module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, module+".exe"), QpalsProject=self.project)
+        Module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, module+EXT), QpalsProject=self.project)
         if "outFile" not in params and not nooutfile:
             file = tempfile.NamedTemporaryFile(delete=False)
             params["outFile"] = file.name + outext

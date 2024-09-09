@@ -78,7 +78,10 @@ def classFactory(iface):
         if ret == QMessageBox.Ok:
             #    import pip
             exe = sys.executable
-            files = glob.glob(os.path.join(os.path.split(exe)[0], "python-qgis*.bat"))
+            if os.name == 'nt':
+                files = glob.glob(os.path.join(os.path.split(exe)[0], "python-qgis*.bat"))
+            else:
+                files = [exe]   # under linux the system python version is used
             installation_ok = False
             if len(files) == 1:
                 python_exe = files[0]

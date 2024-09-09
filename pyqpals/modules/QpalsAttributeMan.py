@@ -28,6 +28,7 @@ from ..qt_extensions import QpalsDropTextbox
 from ..resources.attribute_types import odm_predef_attributes, odm_data_types
 from ... import logMessage   # import qpals log function
 
+EXT = ".exe" if os.name == "nt" else ""
 class QpalsAttributeMan(object):
     def __init__(self, project, iface=None, layerlist=None):
         self.project = project
@@ -115,7 +116,7 @@ class QpalsAttributeMan(object):
         if attrname not in odm_predef_attributes:
             attrname += "(%s)" % attrtype
         attrformula = self.formulabox.text()
-        addinfoinst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsAddInfo.exe"),
+        addinfoinst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsAddInfo"+EXT),
                                                    QpalsProject=self.project)
         addinfoinst.params = [QpalsParameter.QpalsParameter('inFile', self.pointcloud.text(),
                                                          None, None, None, None, None),
@@ -162,7 +163,7 @@ class QpalsAttributeMan(object):
 
 def getAttributeInformation(file, project):
     from .. import QpalsModuleBase, QpalsParameter
-    infoinst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(project.opalspath, "opalsInfo.exe"),
+    infoinst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(project.opalspath, "opalsInfo" + EXT),
                                                QpalsProject=project)
     infoinst.params = [QpalsParameter.QpalsParameter('inFile', file,
                                                      None, None, None, None, None)]

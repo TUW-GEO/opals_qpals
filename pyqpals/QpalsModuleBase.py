@@ -48,6 +48,7 @@ qtwhite = QtGui.QColor(255, 255, 255)
 qtsoftred = QtGui.QColor(255, 140, 140)
 qtsoftgreen = QtGui.QColor(140, 255, 140)
 
+EXT = ".exe" if os.name == "nt" else ""
 
 def get_percentage(s):
     t = re.compile(r"(\d+)%")
@@ -297,7 +298,7 @@ class QpalsModuleBase(object):
         scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
         scroll.setWidgetResizable(True)
         status = QtWidgets.QListWidgetItem("hidden status")
-        mod = cls(execName=os.path.join(project.opalspath, module_name + ".exe"),
+        mod = cls(execName=os.path.join(project.opalspath, module_name + EXT),
                   QpalsProject=project)
         mod.listitem = status
         mod.load()
@@ -339,10 +340,13 @@ class QpalsModuleBase(object):
                 break
 
     def call(self, show=0, statusSignal=None, killSignal=None, *args):
-        info = subprocess.STARTUPINFO()
-        info.dwFlags = subprocess.STARTF_USESHOWWINDOW
-        info.wShowWindow = show  # 0=HIDE
-        # print( " ".join([self.execName] + list(args)) )
+        startup = {}
+        if os.name == "nt":
+            info = subprocess.STARTUPINFO()
+            info.dwFlags = subprocess.STARTF_USESHOWWINDOW
+            info.wShowWindow = show  # 0=HIDE
+            startup["startupinfo"] = info
+        #print( " ".join([self.execName] + list(args)) )
         my_env = os.environ.copy()
         opalsroot = os.path.realpath(os.path.join(self.project.opalspath, ".."))
         my_env["GDAL_DRIVER_PATH"] = ""  # clear gdal driver paths, since this messes with some opals modules
@@ -353,7 +357,7 @@ class QpalsModuleBase(object):
         my_env["PROJ_LIB"] = my_env["GDAL_DATA"]
 
         proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                stdin=subprocess.PIPE, cwd=self.project.workdir, startupinfo=info, env=my_env)
+                                stdin=subprocess.PIPE, cwd=self.project.workdir, env=my_env, **startup)
         #print(my_env)
         #logMessage(f"{[self.execName] + list(args)}")
         proc.stderr.flush()
@@ -361,6 +365,7 @@ class QpalsModuleBase(object):
         if statusSignal is None:
             stdout, stderr = proc.communicate()
             stdout = stdout.decode()
+            #logMessage(f"stdout={stdout}")
         else:
             stdout = ""
             killflag = False
@@ -697,7 +702,7 @@ class QpalsModuleBase(object):
         if "Apply values to option" in calld['stdout']:
             print(calld['stdout'])
             reMessage = re.compile("(?P<message>ERROR.*)Scope stack", re.DOTALL)
-            reParameter = re.compile("Apply values to option\s+(?P<param>\w+)\.")
+            reParameter = re.compile(r"Apply values to option\s+(?P<param>\w+)\.")
             maMsg = reMessage.search(calld['stdout'])
             maParam = reParameter.search(calld['stdout'])
             if maMsg and maParam:
@@ -895,6 +900,6 @@ class QpalsRunBatch(object):
 
     def __str__(self):
         if os.path.isdir(self.t2):
-            return "cd %s /D\r\n%s" % (self.t2, self.t1)
+            return f"cd {self.t2} /D{os.linesep}{self.t1}"
         else:
             return self.t1

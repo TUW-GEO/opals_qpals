@@ -49,6 +49,7 @@ except:
 
 from ... import logMessage   # import qpals log function
 
+EXT = ".exe" if os.name == "nt" else ""
 
 class QpalsSection(object):
 
@@ -131,7 +132,7 @@ class QpalsSection(object):
         ######
         self.status = QtWidgets.QListWidgetItem("hidden status")
         lo.addRow(QtWidgets.QLabel("Step 2. Create sections"))
-        self.secInst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsSection.exe"), QpalsProject=self.project)
+        self.secInst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsSection"+EXT), QpalsProject=self.project)
         self.secInst.load()
         self.secInst.listitem = self.status
         secUi = self.secInst.getParamUi()
@@ -411,7 +412,7 @@ class LineTool(QgsMapTool):
         if self.secInst.filterStr.text() != "":
             regionFilter = regionFilter + " and " + self.secInst.filterStr.text()
         Module = QpalsModuleBase.QpalsModuleBase(
-            execName=os.path.join(self.secInst.project.opalspath, "opalsView.exe"),
+            execName=os.path.join(self.secInst.project.opalspath, "opalsView"+EXT),
             QpalsProject=self.secInst.project)
         infile = QpalsParameter.QpalsParameter('inFile', self.secInst.txtinfileSimple.text(), None, None, None,
                                                None, None)
@@ -465,7 +466,7 @@ class LineTool(QgsMapTool):
                                                                                               self.count,
                                                                                               self.total))
         Module = QpalsModuleBase.QpalsModuleBase(
-            execName=os.path.join(self.secInst.project.opalspath, "opalsSection.exe"),
+            execName=os.path.join(self.secInst.project.opalspath, "opalsSection"+EXT),
             QpalsProject=self.secInst.project)
         infile = QpalsParameter.QpalsParameter('inFile', self.secInst.txtinfileSimple.text(), None, None, None,
                                                None, None)
