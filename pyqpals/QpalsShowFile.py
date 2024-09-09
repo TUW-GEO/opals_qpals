@@ -136,8 +136,12 @@ class QpalsShowFile(object):
 
         self.visMethod.setCurrentIndex(1)
 
+
     def inFileUpdated(self):
         newFile = self.dropspace.text()
+        #print(f"newFile={newFile};")
+        if newFile.startswith("file://"):
+            newFile = newFile.replace("file://", "").strip()
         if newFile.endswith(".odm"):
             try:
                 attrs, _ = getAttributeInformation(newFile, self.project)
@@ -182,7 +186,14 @@ class QpalsShowFile(object):
 
 
     def loadHelper(self):
-        return self.load(self.dropspace.text().split(";"))
+        files = self.dropspace.text().replace('\r\n', ';').replace('\n', ';').split(";")
+        print(f"dropspace={files}")
+        for idx, f in enumerate(files):
+            if f.startswith("file://"):
+                f = f.replace("file://", "").strip()
+                files[idx] = f
+        print(f"loadHelper={files}")
+        return self.load(files)
 
     def load(self, infile_s=None):
         try:
