@@ -276,8 +276,8 @@ class QpalsModuleBase(object):
         info.dwFlags = subprocess.STARTF_USESHOWWINDOW
         info.wShowWindow = 0  # 0=HIDE
         proc = subprocess.Popen([execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                stdin=subprocess.PIPE, cwd=project.workdir, startupinfo=info)
-        proc.stdin.close()
+                                cwd=project.workdir, startupinfo=info)
+        #proc.stdin.close()     # since we do not open a pipe to stdin, we don't need to close it
         stdout, stderr = proc.communicate()
         if proc.returncode != 0:
             raise Exception('Call failed:\n %s' % stdout)
@@ -357,11 +357,11 @@ class QpalsModuleBase(object):
         my_env["PROJ_LIB"] = my_env["GDAL_DATA"]
 
         proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                stdin=subprocess.PIPE, cwd=self.project.workdir, env=my_env, **startup)
-        #print(my_env)
+                                cwd=self.project.workdir, env=my_env, **startup)
+        #logMessage(f"{my_env}")
         #logMessage(f"{[self.execName] + list(args)}")
         proc.stderr.flush()
-        proc.stdin.close()
+        #proc.stdin.close()     # since we do not open a pipe to stdin, we don't need to close it
         if statusSignal is None:
             stdout, stderr = proc.communicate()
             stdout = stdout.decode()
