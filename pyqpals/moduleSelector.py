@@ -36,8 +36,6 @@ from .qt_extensions.QpalsListWidgetItem import QpalsListWidgetItem
 qtwhite = QtGui.QColor(255, 255, 255)
 qtsoftred = QtGui.QColor(255, 140, 140)
 
-
-
 def apply_backspace(s):
     while True:
         # if you find a character followed by a backspace, remove both
@@ -65,8 +63,16 @@ class moduleSelector(QtWidgets.QDialog):
     abort_signal = QtCore.pyqtSignal(name='abort_signal')
 
     def getModulesAvailiable(self):
-        for opalsexe in glob.glob(os.path.join(self.project.opalspath, "opals*.exe")):
-            self.modulesAvailiable.append({'name': os.path.basename(opalsexe).split(".exe")[0],
+        if os.name == "nt":
+            search_ext = ".exe"
+        else:
+            search_ext = ".so"
+        for opalsexe in glob.glob(os.path.join(self.project.opalspath, "opals*"+search_ext)):
+            name = os.path.basename(opalsexe).split(search_ext)[0]
+            if os.name != "nt":
+                opalsexe = opalsexe.replace(search_ext,"")
+            #print(f"opalsexe={opalsexe}")
+            self.modulesAvailiable.append({'name': name,
                                            'icon': self.opalsIcon,
                                            'class': QpalsModuleBase(opalsexe,self.project, layerlist=self.layerlist)})
         self.modulesAvailiable.append({'name': "User-defined cmd", 'icon': self.cmdIcon, 'class': QpalsRunBatch()})
@@ -94,7 +100,6 @@ class moduleSelector(QtWidgets.QDialog):
 
 
     def initUi(self):
-
         groupSelect = QtWidgets.QGroupBox()
         self.moduleList = QtWidgets.QListWidget()
         for moduleDict in self.modulesAvailiable:
@@ -290,6 +295,7 @@ class moduleSelector(QtWidgets.QDialog):
                                                       "Module" + self.curmodule.text()[5:] + ".html"))
 
     def loadModule(self, module):
+        #print(f"module={module}")
         if module:  # can happen if it gets filtered away
             form = QtWidgets.QVBoxLayout()
             self.moduleparamBox.setTitle("Parameters for " + module.text())
@@ -448,11 +454,11 @@ class moduleSelector(QtWidgets.QDialog):
 
         if True:
             f = open(saveTo, 'w')
-            f.write("rem BATCH FILE CREATED WITH QPALS\r\n")
+            f.write(f"rem BATCH FILE CREATED WITH QPALS{os.linesep}")
             for i in range(self.runListWidget.count()):
                 item = self.runListWidget.item(i)
                 module = item.paramClass
-                f.write(str(module) + "\r\n")
+                f.write(f"{str(module)}{os.linesep}")
             f.close()
 
     def loadRunList(self):
