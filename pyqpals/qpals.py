@@ -175,12 +175,15 @@ class qpals(object):
 
     def showModuleSelector(self):
         self.modSel = moduleSelector.moduleSelector(self.iface, self.layerlist, self.prjSet)
-        self.modSelWindow = QDockWidget("qpals ModuleSelector", self.iface.mainWindow(), Qt.WindowMinimizeButtonHint)
-        self.modSelWindow.setWidget(self.modSel)
-        self.modSelWindow.setAllowedAreas(Qt.NoDockWidgetArea)  # don't let it dock
-        self.modSelWindow.setMinimumSize(800, 400)
-        self.modSelWindow.setFloating(True)
-        self.modSelWindow.show()
+        self.modSel.show()
+        #self.modSel = moduleSelector.moduleSelector(self.iface, self.layerlist, self.prjSet)
+        #self.modSel.show()
+        #self.modSelWindow = QgsDockWidget("qpals ModuleSelector", self.iface.mainWindow(), Qt.WindowMinimizeButtonHint)
+        #self.modSelWindow.setWidget(self.modSel)
+        #self.modSelWindow.setAllowedAreas(Qt.NoDockWidgetArea)  # don't let it dock
+        #self.modSelWindow.setMinimumSize(800, 400)
+        #self.modSelWindow.setFloating(True)
+        #self.modSelWindow.show()
 
     def showproject(self):
         self.prjUI = self.prjSet.getUI()
@@ -326,6 +329,7 @@ class qpals(object):
             self.dropspace.setWidget(self.dropobject.ui)
             self.iface.mainWindow().addDockWidget(Qt.LeftDockWidgetArea, self.dropspace)
             self.dropspace.setContentsMargins(9, 9, 9, 9)
+            self.dropspace.objectName = "qpals Visualizer"
 
             # create help action
             self.help_action = QAction(
