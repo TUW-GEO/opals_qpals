@@ -23,7 +23,10 @@ from builtins import str
 from builtins import range
 from builtins import object
 from qgis.PyQt import QtWidgets
-from distutils.version import LooseVersion
+import sys
+#from distutils.version import LooseVersion
+import importlib.metadata
+from packaging.version import parse as parse_version
 import matplotlib
 from osgeo import ogr
 import numpy as np
@@ -36,6 +39,13 @@ from mpl_toolkits.mplot3d import Axes3D
 from qgis.core import QgsFeatureRequest, QgsGeometry
 
 from ... import logMessage   # import qpals log function
+
+
+def get_module_version(module):
+    if (sys.version_info[0] >= 3 and sys.version_info[1] >= 8) or (sys.version_info[0] > 3):
+        return parse_version(importlib.metadata.version(module))
+    else:
+        return parse_version(globals()[module].__version__)
 
 class HighlightSelected(lines.VertexSelector):
     def __init__(self, line, lineId, fmt='bo', **kwargs):
@@ -245,7 +255,7 @@ class plotwindow(object):
         self.curplot = self.ax.scatter(X, Y, Z,
                                        c=self.data[newattr], cmap=colormap,
                                        vmin=low, vmax=hi, marker=self.marker.currentText(), s=self.markerSize.value(), picker=0)
-        if LooseVersion(matplotlib.__version__) >= LooseVersion('1.4.0'):
+        if get_module_version("matplotlib") >= parse_version('1.4.0'):
             self.colorbar = self.figure.colorbar(self.curplot)
         self.selectors = []
         if self.lines:

@@ -272,7 +272,8 @@ class QpalsShowFile(object):
                                                               os.path.basename(drop) + " - " + suffix)
                             if isMultiBand:
                                 provider = layer.dataProvider()
-                                stats = provider.bandStatistics(bandSel, QgsRasterBandStats.All)
+                                #stats = provider.bandStatistics(bandSel, QgsRasterBandStats.All)   # results in reprecated warning
+                                stats = provider.bandStatistics(bandSel)
                                 mini = stats.minimumValue
                                 maxi = stats.maximumValue
                                 bandRenderer = QgsSingleBandGrayRenderer(provider, bandSel)
