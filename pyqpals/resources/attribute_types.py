@@ -1,5 +1,5 @@
 """
-Automatically generated file by get_attribute_types.py at 2024-08-29 
+Automatically generated file by get_attribute_types.py at 2024-09-09 
 /***************************************************************************
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *

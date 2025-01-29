@@ -13,13 +13,14 @@ about=IMPORTANT: This plugin requires an installation of OPALS developed by GEO 
  The point cloud processing software OPALS developed by GEO/TU Wien can be easily accessed from within QGIS through
  a custom-made gui. Also, special modules are available for specific tasks, i.e. creating sections.
 
-version=1.8.6
+version=1.9.0
 tracker=https://github.com/TUW-GEO/opals_qpals/issues
 repository=https://github.com/TUW-GEO/opals_qpals
 ; end of mandatory metadata
 
 ; start of optional metadata
 changelog=Prior versions:
+ 1.9.0 several small changes and fixes to get the qpals to work correctly again
  1.8.6 small improvement in automatic installation of requirements and metadata updated
  1.8.5 updates to raster overview vis: now stretches to min/max of band. fixed bug with "run cmd".
  1.8.4 quick visualisation with opalsInfo: uses multiband raster for newer versions and skips if raster file already exists
@@ -68,5 +69,5 @@ deprecated=False
 ; if empty, it will be automatically set to major version + .99
 qgisMaximumVersion=3.99
 
-; hash=7b08fc4ff26101d5a17e30b0ac8a13fe045f7694e4fb46d2efaf041f7429e523aabe53bf4c22ae68ab25cdd571628065a21bc48b4c175ea3d6f651b42b195d30
-; hash_date=29.08.2024
+; hash=2c94e6b25ddcb94bfb9cac3d309e96807d20359b09af72542684ee1622a2a9ec0828eb9ca040319e3935887135071b1918386afc3784711e6ea36c15590aacbf
+; hash_date=19.10.2024
