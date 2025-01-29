@@ -38,6 +38,17 @@ from ..QpalsMultiModuleRunner import qpalsMultiModuleRunner as qMMR
 from . import findDoubleSegments
 
 
+def asPolyline(geom):
+    if geom.isMultipart():
+        polylines = geom.asMultiPolyline()
+        if len(polylines) > 1:
+            print(f"len(polylines)={len(polylines)}")
+            raise Exception("MuliPartPolyline not supported")
+        polyline = polylines[0]
+    else:
+        polyline = geom.asPolyline()
+    return polyline
+
 
 def closestpoint(layer, layerPoint):
     # get closest feature
@@ -54,10 +65,10 @@ def closestpoint(layer, layerPoint):
         # get closest segment
         shortestDistance = float("inf")
         closestPointID = None
-        polyline = closestFeature.geometry().asPolyline()
+        polyline = asPolyline(closestFeature.geometry())
         for i in range(len(polyline)):
             point = polyline[i]
-            dist = QgsGeometry.fromPoint(point).distance(layerPoint)
+            dist = QgsGeometry.fromPointXY(point).distance(layerPoint)
             if dist < shortestDistance:
                 shortestDistance = dist
                 closestPointID = i
@@ -152,7 +163,7 @@ class QpalsLM(object):
                 pointGeom = pointGeom.asMultiPoint()[0]
             else:
                 pointGeom = pointGeom.asPoint()
-            pid, feat = closestpoint(llayer, QgsGeometry.fromPoint(pointGeom))
+            pid, feat = closestpoint(llayer, QgsGeometry.fromPointXY(pointGeom))
             linegeom = feat.geometry().asWkb().data()
             olinegeom = ogr.CreateGeometryFromWkb(linegeom)
             dx = rlayer.rasterUnitsPerPixelX()
@@ -164,17 +175,23 @@ class QpalsLM(object):
             yll = rlayer.extent().yMinimum() + 0.5*dy
             xoffs = (pointGeom.x()-xll) % dx
             yoffs = (pointGeom.y()-yll) % dy
-            dtm_val_ll = rlayer.dataProvider().identify(QgsPoint(xpos-dx/2, ypos-dy/2), QgsRaster.IdentifyFormatValue).results()[1]
-            dtm_val_ur = rlayer.dataProvider().identify(QgsPoint(xpos+dx/2, ypos+dy/2), QgsRaster.IdentifyFormatValue).results()[1]
-            dtm_val_lr = rlayer.dataProvider().identify(QgsPoint(xpos+dx/2, ypos-dy/2), QgsRaster.IdentifyFormatValue).results()[1]
-            dtm_val_ul = rlayer.dataProvider().identify(QgsPoint(xpos-dx/2, ypos+dy/2), QgsRaster.IdentifyFormatValue).results()[1]
+            dtm_val_ll = rlayer.dataProvider().identify(QgsPointXY(xpos-dx/2, ypos-dy/2), QgsRaster.IdentifyFormatValue).results()[1]
+            dtm_val_ur = rlayer.dataProvider().identify(QgsPointXY(xpos+dx/2, ypos+dy/2), QgsRaster.IdentifyFormatValue).results()[1]
+            dtm_val_lr = rlayer.dataProvider().identify(QgsPointXY(xpos+dx/2, ypos-dy/2), QgsRaster.IdentifyFormatValue).results()[1]
+            dtm_val_ul = rlayer.dataProvider().identify(QgsPointXY(xpos-dx/2, ypos+dy/2), QgsRaster.IdentifyFormatValue).results()[1]
             a00 = dtm_val_ll
             a10 = dtm_val_lr - dtm_val_ll
             a01 = dtm_val_ul - dtm_val_ll
             a11 = dtm_val_ur + dtm_val_ll - (dtm_val_lr+dtm_val_ul)
             dtm_bilinear = a00 + a10*xoffs + a01*yoffs + a11*xoffs*yoffs
-            x, y = olinegeom.GetPoint_2D(pid)
-            olinegeom.SetPoint(pid, x,y,dtm_bilinear)
+            #print(f"olinegeom={olinegeom} / pid={pid} / olinegeom.GetGeometryType() = {olinegeom.GetGeometryType()}")
+            if olinegeom.GetGeometryName() == 'LINESTRING':
+                line = olinegeom
+            elif olinegeom.GetGeometryName() == 'MULTILINESTRING':
+                line = olinegeom.GetGeometryRef(0)
+            pt = line.GetPoint(pid)
+            #print(f"pt={type(pt)} / pt={pt}")
+            line.SetPoint(pid, pt[0], pt[1], dtm_bilinear)
             llayer.beginEditCommand("Snap point height to DTM")
             updatedGeom = QgsGeometry()
             updatedGeom.fromWkb(olinegeom.ExportToWkb())
@@ -482,7 +499,7 @@ class QpalsLM(object):
                                                                                     "method",
                                                                                     "maxAngleDev",
                                                                                     "snapRadius",
-                                                                                    "merge\..*"])
+                                                                                    "merge\\..*"])
                 lt2scroll.setFixedHeight(lt2scroll.height() - 200)
                 self.modules['lt2'] = lt2mod
                 ls.addRow(lt2scroll)
@@ -721,10 +738,10 @@ class QpalsLM(object):
             if isinstance(saveTo, tuple):
                 saveTo = saveTo[0]
             f = open(saveTo, 'w')
-            f.write("rem BATCH FILE CREATED WITH QPALS\r\n")
+            f.write(f"rem BATCH FILE CREATED WITH QPALS{os.linesep}")
             modules = self.get_step_modules("all")
             for module in modules:
-                f.write(str(module) + "\r\n")
+                f.write(f"{str(module)}{os.linesep}")
             f.close()
         except Exception as e:
             raise Exception("Saving to batch failed.", e)
@@ -789,7 +806,7 @@ class QpalsLM(object):
         print(msg)
 
     def updateQualityBar(self, fl):
-        self.QualityCheckbar.setValue(fl)
+        self.QualityCheckbar.setValue(int(fl))
 
     def QualityFinished(self):
         self.startQualityCheckBtn.setEnabled(True)

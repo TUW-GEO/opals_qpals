@@ -32,9 +32,11 @@ from xml.dom import minidom
 from qgis.PyQt import QtCore, QtGui, QtWidgets
 from qgis.PyQt.QtCore import pyqtSlot
 
-from .qt_extensions import QTextComboBox, QpalsDropTextbox, QCollapsibleGroupBox, QpalsParamBtns
+from .qt_extensions import QTextComboBox, QpalsDropTextbox, QCollapsibleGroupBox, QpalsParamBtns, QMultiSelectComboBox, QTextCheckBox
 from . import QpalsParameter
 from .modules.QpalsAttributeMan import getAttributeInformation
+
+from .. import logMessage   # import qpals log function
 
 IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
 
@@ -46,6 +48,7 @@ qtwhite = QtGui.QColor(255, 255, 255)
 qtsoftred = QtGui.QColor(255, 140, 140)
 qtsoftgreen = QtGui.QColor(140, 255, 140)
 
+EXT = ".exe" if os.name == "nt" else ""
 
 def get_percentage(s):
     t = re.compile(r"(\d+)%")
@@ -89,6 +92,7 @@ def parseXML(xml):
             if choices:
                 for choice in choices:
                     choiceList.append(getTagContent(choice))
+            #logMessage(f"{opt.attributes['Name'].value} -> {opt.attributes['Type'].value}")
             elements.append(QpalsParameter.QpalsParameter(opt.attributes['Name'].value, valString, choiceList,
                                                           opt.attributes['Type'].value, opt.attributes['Opt'].value,
                                                           opt.attributes['Desc'].value,
@@ -272,8 +276,8 @@ class QpalsModuleBase(object):
         info.dwFlags = subprocess.STARTF_USESHOWWINDOW
         info.wShowWindow = 0  # 0=HIDE
         proc = subprocess.Popen([execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                stdin=subprocess.PIPE, cwd=project.workdir, startupinfo=info)
-        proc.stdin.close()
+                                cwd=project.workdir, startupinfo=info)
+        #proc.stdin.close()     # since we do not open a pipe to stdin, we don't need to close it
         stdout, stderr = proc.communicate()
         if proc.returncode != 0:
             raise Exception('Call failed:\n %s' % stdout)
@@ -294,7 +298,7 @@ class QpalsModuleBase(object):
         scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
         scroll.setWidgetResizable(True)
         status = QtWidgets.QListWidgetItem("hidden status")
-        mod = cls(execName=os.path.join(project.opalspath, module_name + ".exe"),
+        mod = cls(execName=os.path.join(project.opalspath, module_name + EXT),
                   QpalsProject=project)
         mod.listitem = status
         mod.load()
@@ -336,23 +340,32 @@ class QpalsModuleBase(object):
                 break
 
     def call(self, show=0, statusSignal=None, killSignal=None, *args):
-        info = subprocess.STARTUPINFO()
-        info.dwFlags = subprocess.STARTF_USESHOWWINDOW
-        info.wShowWindow = show  # 0=HIDE
-        # print " ".join([self.execName] + list(args))
+        startup = {}
+        if os.name == "nt":
+            info = subprocess.STARTUPINFO()
+            info.dwFlags = subprocess.STARTF_USESHOWWINDOW
+            info.wShowWindow = show  # 0=HIDE
+            startup["startupinfo"] = info
+        #print( " ".join([self.execName] + list(args)) )
         my_env = os.environ.copy()
+        opalsroot = os.path.realpath(os.path.join(self.project.opalspath, ".."))
         my_env["GDAL_DRIVER_PATH"] = ""  # clear gdal driver paths, since this messes with some opals modules
         my_env["PATH"] = self.project.PATH
-        my_env["PYTHONPATH"] = str(os.path.realpath(os.path.join(self.project.opalspath , "..")))
+        my_env["PYTHONPATH"] = str(opalsroot)
         my_env["PYTHONHOME"] = ""
+        my_env["GDAL_DATA"] = str(os.path.join(opalsroot, "addons", "crs"))
+        my_env["PROJ_LIB"] = my_env["GDAL_DATA"]
+
         proc = subprocess.Popen([self.execName] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                stdin=subprocess.PIPE, cwd=self.project.workdir, startupinfo=info, env=my_env)
-        #print(my_env)
+                                cwd=self.project.workdir, env=my_env, **startup)
+        #logMessage(f"{my_env}")
+        #logMessage(f"{[self.execName] + list(args)}")
         proc.stderr.flush()
-        proc.stdin.close()
+        #proc.stdin.close()     # since we do not open a pipe to stdin, we don't need to close it
         if statusSignal is None:
             stdout, stderr = proc.communicate()
             stdout = stdout.decode()
+            #logMessage(f"stdout={stdout}")
         else:
             stdout = ""
             killflag = False
@@ -472,6 +485,14 @@ class QpalsModuleBase(object):
                 else:
                     param.field.editTextChanged.connect(self.updateVals)
 
+            elif "bool" == param.type.lower():
+                param.field = QTextCheckBox.QTextCheckBox()
+                param.field.setText(param.val)
+                if global_common:
+                    param.field.textChanged.connect(self.updateCommonGlobals)
+                else:
+                    param.field.textChanged.connect(self.updateVals)
+
             else:
                 param.field = QtWidgets.QLineEdit(param.val)
                 if global_common:
@@ -480,7 +501,11 @@ class QpalsModuleBase(object):
                     param.field.textChanged.connect(self.updateVals)
                 param.field.editingFinished.connect(self.validate)
         else:
-            param.field = QTextComboBox.QTextComboBox()
+            isMultiSel = param.type.startswith("Vector")
+            if isMultiSel:
+                param.field = QMultiSelectComboBox.QMultiSelectComboBox()
+            else:
+                param.field = QTextComboBox.QTextComboBox()
             for choice in param.choices:
                 param.field.addItem(choice)
             param.field.setText(param.val)
@@ -528,6 +553,7 @@ class QpalsModuleBase(object):
         if attrp and attri:
             attrp.field.clear()
             attrp.field.addItems(["X", "Y", "Z"])
+            attrp.field.setCurrentIndex(2)
             try:
                 attrs, entries = getAttributeInformation(attri.val, self.project)
                 if attrs:
@@ -581,8 +607,12 @@ class QpalsModuleBase(object):
                     param.field.setStyleSheet('background-color: rgb(200,255,200);')
 
     def updateVals(self, string):
+        if isinstance(string, list):
+            string = ";".join(string)
+        #print(f"updateVals={string}")
         for param in self.params:
             if string == param.field.text():
+                #print(f"string={string}  param.field.text()={param.field.text()}")
                 if param.val != param.field.text():
                     self.revalidate = True
                     param.changed = True
@@ -596,6 +626,7 @@ class QpalsModuleBase(object):
                         except:  # file on different drive or other problem - use full path
                             pass
                     param.val = param.field.text()
+                    #print(f"name={param.name} has changed to val={param}")
 
     def validate_async(self):
         # print "val_async> ",
@@ -668,12 +699,22 @@ class QpalsModuleBase(object):
 
     def parseErrorMessage(self, calld):
         errormodule = ""
-        if "Error in parameter" in calld['stdout']:
+        if "Apply values to option" in calld['stdout']:
+            print(calld['stdout'])
+            reMessage = re.compile("(?P<message>ERROR.*)Scope stack", re.DOTALL)
+            reParameter = re.compile(r"Apply values to option\s+(?P<param>\w+)\.")
+            maMsg = reMessage.search(calld['stdout'])
+            maParam = reParameter.search(calld['stdout'])
+            if maMsg and maParam:
+                errortext = maMsg.group("message").strip()
+                errormodule = maParam.group("param")
+            else:
+                print(f"Cannot parse message: {calld['stdout']}")
+        elif "Error in parameter" in calld['stdout']:
             errortext = calld['stdout'].split("Error in parameter ")[1].split("\n")[0]
             errormodule = errortext.split(":")[0]
             errortext = ":".join(errortext.split(":")[1:])
             # print errormodule, errortext
-
         elif "Ambiguities while matching value" in calld['stdout']:
             errortext = calld['stdout'].split("ERROR 0001: std::exception: ")[1].split("\n")[0]
             msg = QtWidgets.QMessageBox()
@@ -859,6 +900,6 @@ class QpalsRunBatch(object):
 
     def __str__(self):
         if os.path.isdir(self.t2):
-            return "cd %s /D\r\n%s" % (self.t2, self.t1)
+            return f"cd {self.t2} /D{os.linesep}{self.t1}"
         else:
             return self.t1

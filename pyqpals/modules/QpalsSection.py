@@ -28,11 +28,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from osgeo import ogr
 import re
-from qgis.PyQt import QtGui, QtWidgets
+from qgis.PyQt import QtGui, QtWidgets, Qt, QtCore
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtGui import QCursor, QBitmap
 from qgis.core import *
 from qgis.core import QgsProject as QgsMapLayerRegistry
+from qgis.core import Qgis
 from qgis.gui import *
 from qgis.gui import QgsMapLayerComboBox
 from qgis.core import QgsMapLayerProxyModel
@@ -46,6 +47,9 @@ try:
 except:
     vispy_plotwindow = None
 
+from ... import logMessage   # import qpals log function
+
+EXT = ".exe" if os.name == "nt" else ""
 
 class QpalsSection(object):
 
@@ -69,7 +73,7 @@ class QpalsSection(object):
         ### SIMPLE ###
         self.ls = QtWidgets.QFormLayout()
         self.ls.addRow(QtWidgets.QLabel("Choose input file:"))
-        self.txtinfileSimple = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist, filterrex=".*\.odm$")
+        self.txtinfileSimple = QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist, filterrex=".*\\.odm$")
         hboxsimple1 = QtWidgets.QHBoxLayout()
         hboxsimple1.addWidget(self.txtinfileSimple, 1)
         self.txtinfileSimple.textChanged.connect(self.simpleIsLoaded)
@@ -103,16 +107,16 @@ class QpalsSection(object):
         self.filterAttrBox.setChecked(False) # hide it
         self.filterAttrs = {}
         self.progress = QtWidgets.QProgressBar()
-        self.stateSwitch = QToggleSwitch.QToggleSwitch("vispy", "matplotlib")
-        self.showSection.stateChanged.connect(self.checkBoxChanged)
-        self.showSection.setCheckState(2)
-        self.showSection.setTristate(False)
+        #self.stateSwitch = QToggleSwitch.QToggleSwitch("vispy", "matplotlib")
+        #self.showSection.stateChanged.connect(self.checkBoxChanged)
+        #self.showSection.setCheckState(2)
+        #self.showSection.setTristate(False)
         self.ls.addRow(self.showSection)
         self.ls.addRow("Filter String:", self.filterStr)
         self.ls.addRow(self.filterAttrBox)
         self.ls.addRow(hb)
         self.ls.addRow(self.progress)
-        self.ls.addRow(self.stateSwitch)
+        #self.ls.addRow(self.stateSwitch)
         self.simple_widget.setLayout(self.ls)
         ### ADVANCED ###
         lo = QtWidgets.QFormLayout()
@@ -128,7 +132,7 @@ class QpalsSection(object):
         ######
         self.status = QtWidgets.QListWidgetItem("hidden status")
         lo.addRow(QtWidgets.QLabel("Step 2. Create sections"))
-        self.secInst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsSection.exe"), QpalsProject=self.project)
+        self.secInst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsSection"+EXT), QpalsProject=self.project)
         self.secInst.load()
         self.secInst.listitem = self.status
         secUi = self.secInst.getParamUi()
@@ -159,15 +163,15 @@ class QpalsSection(object):
             self.ltool.canvas.scene().removeItem(self.ltool.rb)
         self.iface.actionPan().trigger()
 
-    def checkBoxChanged(self):
-        if self.showSection.checkState() == 2:
-            # on
-            if self.ltool.rb:
-                self.ltool.canvas.scene().addItem(self.ltool.rb)
-        else:
-            #off
-            if self.ltool.rb:
-                self.ltool.canvas.scene().removeItem(self.ltool.rb)
+    #def checkBoxChanged(self):
+    #    if self.showSection.checkState() == 2:
+    #        # on
+    #        if self.ltool.rb:
+    #            self.ltool.canvas.scene().addItem(self.ltool.rb)
+    #    else:
+    #        #off
+    #        if self.ltool.rb:
+    #            self.ltool.canvas.scene().removeItem(self.ltool.rb)
 
 
     def simpleIsLoaded(self):
@@ -214,7 +218,7 @@ class QpalsSection(object):
         self.runShdBtn.setEnabled(False)
         self.runShdBtn.setText("Calculating shading...")
         showfile = QpalsShowFile.QpalsShowFile(self.project.iface, self.layerlist, self.project)
-        showfile.curVisMethod = QpalsShowFile.QpalsShowFile.METHOD_SHADING
+        showfile.curVisMethod = QpalsShowFile.VisualisationMethod.RASTER_SHADING
         showfile.cellSizeBox = QtWidgets.QLineEdit("1")
         self.secInst.getParam("inFile").val = self.txtinfile.text()
         self.secInst.getParam("inFile").field.setText(self.txtinfile.text())
@@ -260,8 +264,8 @@ class QpalsSection(object):
             ring = box.GetGeometryRef(0)
             for i in range(ring.GetPointCount()):
                 pt = ring.GetPoint(i)
-                points.append(QgsPoint(pt[0], pt[1]))
-            feat.setGeometry(QgsGeometry.fromPolygon([points]))
+                points.append(QgsPointXY(pt[0], pt[1]))
+            feat.setGeometry(QgsGeometry.fromPolygonXY([points]))
             pr.addFeatures([feat])
             self.sections[featcnt] = {'wkt': pointcloud.ExportToWkt(),
                                       'name': origin.GetY()}
@@ -273,7 +277,7 @@ class QpalsSection(object):
 
         self.secLayer.updateExtents()
         self.secLayer.setCustomProperty("qpals-odmpath", "section")
-        self.secLayer.setLayerTransparency(50)
+        self.secLayer.setOpacity(0.5)
         QgsMapLayerRegistry.instance().addMapLayer(self.secLayer)
         self.iface.mapCanvas().refresh()
 
@@ -283,6 +287,8 @@ class QpalsSection(object):
     def activateTool(self):
         self.secLayer.removeSelection()
         tool = PointTool(self.iface.mapCanvas(), self.secLayer, self.sections)
+        c = QCursor(self.bm, self.bm)
+        self.iface.mapCanvas().setCursor(c)
         self.iface.mapCanvas().setMapTool(tool)
 
     def activateLineTool(self):
@@ -326,14 +332,14 @@ class LineTool(QgsMapTool):
         if self.rb and not all([self.p1, self.p2, self.p3]):
             self.canvas.scene().removeItem(self.rb)
         if self.p1 and not self.p2:
-            self.rb = QgsRubberBand(self.canvas, False)
+            self.rb = QgsRubberBand(self.canvas, Qgis.GeometryType.Polygon)
             points = [self.p1, self.toLayerCoordinates(self.layer,event.pos())]
             points = [QgsPoint(pt) for pt in points]
             self.rb.setToGeometry(QgsGeometry.fromPolyline(points), None)
             self.rb.setColor(QColor(0, 128, 255))
             self.rb.setWidth(1)
         elif self.p1 and self.p2 and not self.p3:
-            self.rb = QgsRubberBand(self.canvas, False)
+            self.rb = QgsRubberBand(self.canvas, Qgis.GeometryType.Polygon)
             p0 = self.toLayerCoordinates(self.layer,event.pos())
             x0 = p0.x()
             x1 = self.p1.x()
@@ -406,7 +412,7 @@ class LineTool(QgsMapTool):
         if self.secInst.filterStr.text() != "":
             regionFilter = regionFilter + " and " + self.secInst.filterStr.text()
         Module = QpalsModuleBase.QpalsModuleBase(
-            execName=os.path.join(self.secInst.project.opalspath, "opalsView.exe"),
+            execName=os.path.join(self.secInst.project.opalspath, "opalsView"+EXT),
             QpalsProject=self.secInst.project)
         infile = QpalsParameter.QpalsParameter('inFile', self.secInst.txtinfileSimple.text(), None, None, None,
                                                None, None)
@@ -460,7 +466,7 @@ class LineTool(QgsMapTool):
                                                                                               self.count,
                                                                                               self.total))
         Module = QpalsModuleBase.QpalsModuleBase(
-            execName=os.path.join(self.secInst.project.opalspath, "opalsSection.exe"),
+            execName=os.path.join(self.secInst.project.opalspath, "opalsSection"+EXT),
             QpalsProject=self.secInst.project)
         infile = QpalsParameter.QpalsParameter('inFile', self.secInst.txtinfileSimple.text(), None, None, None,
                                                None, None)
@@ -536,25 +542,42 @@ class LineTool(QgsMapTool):
     def show_pltwindow(self):
         self.secInst.progress.setFormat("")
         self.pltwindow = None
-        if self.secInst.stateSwitch.state:
-            if vispy_plotwindow is not None:
-                self.pltwindow = vispy_plotwindow(self.secInst.project, self.secInst.iface, self.data, self.mins, self.maxes,
-                                                  linelayer=None if self.secInst.simpleLineLayerChk.checkState() != 2 else \
-                                                      self.secInst.simpleLineLayer.currentLayer(),
-                                                  aoi=self.aoi,
-                                                  trafo=self.trafo)
-            else:
-                self.secInst.progress.setFormat("Could not load vispy. Please install the package in the"
-                                                " osgeo shell or use matplotlib!")
+        if vispy_plotwindow is not None:
+            self.pltwindow = vispy_plotwindow(self.secInst.project, self.secInst.iface, self.data, self.mins,
+                                              self.maxes,
+                                              linelayer=None if self.secInst.simpleLineLayerChk.checkState() != 2 else \
+                                                  self.secInst.simpleLineLayer.currentLayer(),
+                                              aoi=self.aoi,
+                                              trafo=self.trafo)
         else:
-            self.pltwindow = mpl_plotwindow(self.secInst.project, self.secInst.iface, self.data, self.mins, self.maxes,
-                                            linelayer=None if self.secInst.simpleLineLayerChk.checkState() != 2 else \
-                                                self.secInst.simpleLineLayer.currentLayer(),
-                                            aoi=self.aoi,
-                                            trafo=self.trafo)
+            self.secInst.progress.setFormat("Could not load vispy. Please install the package in the"
+                                            " osgeo shell or use matplotlib!")
+
+        # if self.secInst.stateSwitch.state:
+        #     if vispy_plotwindow is not None:
+        #         self.pltwindow = vispy_plotwindow(self.secInst.project, self.secInst.iface, self.data, self.mins, self.maxes,
+        #                                           linelayer=None if self.secInst.simpleLineLayerChk.checkState() != 2 else \
+        #                                               self.secInst.simpleLineLayer.currentLayer(),
+        #                                           aoi=self.aoi,
+        #                                           trafo=self.trafo)
+        #     else:
+        #         self.secInst.progress.setFormat("Could not load vispy. Please install the package in the"
+        #                                         " osgeo shell or use matplotlib!")
+        # else:
+        #     self.pltwindow = mpl_plotwindow(self.secInst.project, self.secInst.iface, self.data, self.mins, self.maxes,
+        #                                     linelayer=None if self.secInst.simpleLineLayerChk.checkState() != 2 else \
+        #                                         self.secInst.simpleLineLayer.currentLayer(),
+        #                                     aoi=self.aoi,
+        #                                     trafo=self.trafo)
         if self.pltwindow:
             self.secInst.ls.addRow(self.pltwindow.ui)
+            # vispy widget doesn't show point directly. only after interacting with widget
+            # (e.g. mouse click) points get visible. Is there a way do to it by code? jo, 3.9.24
 
+            #self.pltwindow.ui.update()
+            #self.pltwindow.ui.show()
+            #self.pltwindow.canvas.update()
+            #self.pltwindow.view.camera.view_changed()
 
 
 
@@ -610,11 +633,12 @@ class PointTool(QgsMapTool):
 
             # Loop through all features in the layer
             for f in self.layer.getFeatures():
-                dist = f.geometry().distance(QgsGeometry.fromPoint(layerPoint))
+                dist = f.geometry().distance(QgsGeometry.fromPointXY(layerPoint))
                 if dist < shortestDistance:
                     shortestDistance = dist
                     closestFeatureId = f.id()
 
+            self.layer.removeSelection()
             self.layer.select(closestFeatureId)
 
             # parse wkt

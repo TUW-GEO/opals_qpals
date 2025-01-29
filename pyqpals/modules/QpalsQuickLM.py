@@ -44,7 +44,7 @@ class QpalsQuickLM(object):
         self.selectedChkBox.setCheckState(2)
         self.cmbLineLayer = QgsMapLayerComboBox()
         self.cmbLineLayer.setFilters(QgsMapLayerProxyModel.LineLayer)
-        self.cmbOdmPath =QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist, filterrex=".*\.odm$")
+        self.cmbOdmPath =QpalsDropTextbox.QpalsDropTextbox(layerlist=self.layerlist, filterrex=".*\\.odm$")
         self.runBtn = QtWidgets.QPushButton("Run")
         self.runBtn.clicked.connect(self.runLM)
         self.ui = QtWidgets.QWidget()

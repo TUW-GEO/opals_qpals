@@ -42,8 +42,12 @@ from . import QpalsShowFile
 from . import moduleSelector
 from .modules import QpalsSection, QpalsLM, QpalsAttributeMan, QpalsQuickLM, QpalsWSM
 
+from .. import logMessage   # import qpals log function
+
+EXT = ".exe" if os.name == "nt" else ""
 def ensure_opals_path(path, project):
-    while not os.path.exists(os.path.join(path, "opalsInfo.exe")):
+    logMessage("ensure_opals_path called")
+    while not os.path.exists(os.path.join(path, "opalsInfo"+EXT)):
         msg = QMessageBox()
         msg.setText("Ooops..")
         msg.setInformativeText("Could not validate opals path. Please make sure to select the folder "
@@ -54,45 +58,50 @@ def ensure_opals_path(path, project):
         if ret == QMessageBox.Ok:
             path = QFileDialog.getExistingDirectory(None, caption='Select path containing opals*.exe binaries')
         else:
-            return None
+            return None, None, None
     # get opals Version
-    mod = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(path, "opalsInfo.exe"),
+    mod = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(path, "opalsInfo"+EXT),
                                           QpalsProject=project)
     mod.params = [QpalsParameter.QpalsParameter('-version', '', None, None, None, None, None, flag_mode=True)]
     res = mod.run()
-    opalsVersion = semantic_version.Version.coerce([item.split()[1].split("(")[0] for item in res['stdout'].split('\r\n')
+    logMessage(f"{res}")
+    opalsVersion = semantic_version.Version.coerce([item.split()[1].split("(")[0] for item in res['stdout'].split(os.linesep)
                                              if item.startswith("opalsInfo")][0])
-    opalsBuildDate = datetime.datetime.strptime([item.split("compiled on ")[1] for item in res['stdout'].split('\r\n')
+    opalsBuildDate = datetime.datetime.strptime([item.split("compiled on ")[1] for item in res['stdout'].split(os.linesep)
                                              if item.startswith("compiled on ")][0], '%b %d %Y %H:%M:%S')
     return path, opalsVersion, opalsBuildDate
 
 
+class qpalsSettings(QSettings):
+    def __init__(self, plugin_name):
+        QSettings.__init__(self)
+        self.plugin_name = plugin_name
+        self.path_label = f"{self.plugin_name}/opalspath"
+    def getOpalsPath(self):
+        return self.value(self.path_label, "")
+
+    def setOpalsPath(self, opalspath):
+        self.setValue(self.path_label, opalspath)
+
+
 class qpals(object):
-    def __init__(self, iface):
+    def __init__(self, iface, plugin_name):
         # Save reference to the QGIS interface
         self.iface = iface
         self.active = True
         self.layerlist = dict()
         self.linemodeler = None
         self.wsm = None
+        self.help_action = None
+        self.plugin_name = plugin_name
         QgsProject.instance().readProject.connect(self.projectloaded)
-        s = QSettings()
+        s = qpalsSettings(plugin_name)
         proj = QgsProject.instance()
-        opalspath = s.value("qpals/opalspath", "")
+        opalspath = s.getOpalsPath()
         tempdir = proj.readEntry("qpals","tempdir", tempfile.gettempdir())[0]
         workdir = proj.readEntry("qpals","workdir", tempfile.gettempdir())[0]
 
         firstrun = False
-        if platform.system() != "Windows":
-            msg = QMessageBox()
-            msg.setText("qpals is currently only supported on Windows, not on '%s'" % platform.system())
-            msg.setInformativeText("Please uninstall qpals again")
-            msg.setWindowTitle("qpals is not supported on your platform")
-            msg.setStandardButtons(QMessageBox.Ok)
-            msg.exec_()
-            self.active = False
-            return 
-
 
         if opalspath == "":
             msg = QMessageBox()
@@ -103,9 +112,10 @@ class qpals(object):
             ret = msg.exec_()
             if ret == QMessageBox.Ok:
                 opalspath = QFileDialog.getExistingDirectory(None, caption='Select path containing opals*.exe binaries')
-                s.setValue("qpals/opalspath", opalspath)
+                s.setOpalsPath(opalspath)
                 firstrun = True
 
+        logMessage(f"qpals.__init__ opalspath={opalspath}")
         project = QpalsProject.QpalsProject(name="", opalspath=opalspath,
                                                 tempdir=tempdir, workdir=workdir, iface=self.iface)
         opalspath, opalsVersion, opalsBuildDate = ensure_opals_path(opalspath, project)
@@ -114,6 +124,11 @@ class qpals(object):
 
         if not opalspath:
             self.active = False
+        else:
+            if opalspath != project.opalspath:
+                logMessage(f"opalspath has changed from {project.opalspath} to {opalspath}")
+                project.opalspath = opalspath
+                s.setOpalsPath(opalspath)
 
         if self.active:
             self.prjSet = project
@@ -160,12 +175,15 @@ class qpals(object):
 
     def showModuleSelector(self):
         self.modSel = moduleSelector.moduleSelector(self.iface, self.layerlist, self.prjSet)
-        self.modSelWindow = QDockWidget("qpals ModuleSelector", self.iface.mainWindow(), Qt.WindowMinimizeButtonHint)
-        self.modSelWindow.setWidget(self.modSel)
-        self.modSelWindow.setAllowedAreas(Qt.NoDockWidgetArea)  # don't let it dock
-        self.modSelWindow.setMinimumSize(800, 400)
-        self.modSelWindow.setFloating(True)
-        self.modSelWindow.show()
+        self.modSel.show()
+        #self.modSel = moduleSelector.moduleSelector(self.iface, self.layerlist, self.prjSet)
+        #self.modSel.show()
+        #self.modSelWindow = QgsDockWidget("qpals ModuleSelector", self.iface.mainWindow(), Qt.WindowMinimizeButtonHint)
+        #self.modSelWindow.setWidget(self.modSel)
+        #self.modSelWindow.setAllowedAreas(Qt.NoDockWidgetArea)  # don't let it dock
+        #self.modSelWindow.setMinimumSize(800, 400)
+        #self.modSelWindow.setFloating(True)
+        #self.modSelWindow.show()
 
     def showproject(self):
         self.prjUI = self.prjSet.getUI()
@@ -234,9 +252,8 @@ class qpals(object):
         if self.active:
             self.menu = QMenu(self.iface.mainWindow())
             self.menu.setObjectName("qpalsMenu")
-            version_name = os.path.split(os.path.dirname(os.path.abspath(os.path.join(__file__, ".."))))[1]
 
-            self.menu.setTitle(version_name)
+            self.menu.setTitle(self.plugin_name)
 
             IconPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "media")
             opalsIcon = QIcon(os.path.join(IconPath, "opalsIcon.png"))
@@ -312,10 +329,32 @@ class qpals(object):
             self.dropspace.setWidget(self.dropobject.ui)
             self.iface.mainWindow().addDockWidget(Qt.LeftDockWidgetArea, self.dropspace)
             self.dropspace.setContentsMargins(9, 9, 9, 9)
+            self.dropspace.objectName = "qpals Visualizer"
+
+            # create help action
+            self.help_action = QAction(
+                opalsIcon,
+                f"{self.plugin_name}...",
+                self.iface.mainWindow()
+            )
+            # Add the action to the Help menu
+            self.iface.pluginHelpMenu().addAction(self.help_action)
+            self.help_action.triggered.connect(self.show_help)
 
 
     def unload(self):
         if self.active:
+            # remove help entry
+            self.iface.pluginHelpMenu().removeAction(self.help_action)
+            del self.help_action
+
             # Remove the plugin menu item and icon
             self.menu.deleteLater()
             self.dropspace.deleteLater()
+
+    def show_help(self):
+        """ Open the online help. """
+        s = qpalsSettings(self.plugin_name)
+        opalspath = s.getOpalsPath()
+        #QDesktopServices.openUrl(QUrl('https://opals.geo.tuwien.ac.at/html/stable/usr_qpals.html'))
+        QDesktopServices.openUrl(QUrl('file:///' + os.path.join(opalspath, "..", "doc", "html", "usr_qpals.html"))) # use local help

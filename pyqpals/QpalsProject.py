@@ -29,7 +29,7 @@ import os
 
 import semantic_version
 
-from .QpalsShowFile import VISUALISATION_METHODS
+from .QpalsShowFile import VisualisationMethod
 from .qt_extensions import QpalsDropTextbox
 
 
@@ -49,18 +49,22 @@ class QpalsProject(object):
         self.PATH = os.environ['PATH']
         self.getEnvVar()
         self.opalsVersion = semantic_version.Version.coerce('0.0.0')
-        self.opalsBuildDate = datetime.datetime.utcfromtimestamp(0)
+        self.opalsBuildDate = datetime.datetime.fromtimestamp(0, datetime.timezone.utc)
 
     def getEnvVar(self):
-        try:
-            import winreg as wreg
-            key = wreg.OpenKey(wreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
-                               0, wreg.KEY_READ)
-            self.PATH = wreg.QueryValueEx(key, "Path")[0]
-            # self.PATH = str(self.opalspath + ";" + self.PATH)
-            self.PATH = str(os.path.join(self.opalspath, "..") + ";" + self.PATH)
-        except Exception as e:
-            raise e
+        if os.name == 'nt':
+            try:
+                import winreg as wreg
+                key = wreg.OpenKey(wreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+                                   0, wreg.KEY_READ)
+                self.PATH = wreg.QueryValueEx(key, "Path")[0]
+                # self.PATH = str(self.opalspath + ";" + self.PATH)
+                self.PATH = str(os.path.join(self.opalspath, "..") + ";" + self.PATH)
+            except Exception as e:
+                raise e
+        else:
+            self.PATH = str(os.path.join(self.opalspath, "..")) + ":" + os.environ['PATH']
+            #print(f"self.PATH = {self.PATH}")
 
     def getUI(self):
         self.ui = QtWidgets.QDialog()
@@ -86,19 +90,8 @@ class QpalsProject(object):
         self.txtName = QtWidgets.QLineEdit(self.name)
 
         self.selVisMethod = QtWidgets.QComboBox()
-
-        self.selVisMethod.addItem(VISUALISATION_METHODS[0])
-        self.selVisMethod.addItem(VISUALISATION_METHODS[1])
-        self.selVisMethod.addItem(VISUALISATION_METHODS[2])
-        self.selVisMethod.addItem(VISUALISATION_METHODS[3])
-        self.selVisMethod.addItem(VISUALISATION_METHODS[4])
-        self.selVisMethod.addItem(VISUALISATION_METHODS[5])
-        self.selVisMethod.addItem(VISUALISATION_METHODS[6])
-        self.selVisMethod.addItem(VISUALISATION_METHODS[7])
-        self.selVisMethod.addItem(VISUALISATION_METHODS[8])
-        self.selVisMethod.addItem(VISUALISATION_METHODS[9])
-
-
+        for m in VisualisationMethod:
+            self.selVisMethod.addItem(f"{str(m)}")
 
         self.cellSizeLbl = QtWidgets.QLabel("Set cell size:")
         self.cellSizeBox = QtWidgets.QLineEdit()

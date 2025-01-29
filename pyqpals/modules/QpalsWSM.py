@@ -29,7 +29,7 @@ from scipy.optimize import fminbound
 
 from qgis.PyQt import QtWidgets, QtCore, QtGui
 from qgis.gui import QgsRubberBand, QgsMapTool
-from qgis.core import QgsPointXY, QgsGeometry
+from qgis.core import QgsPointXY, QgsGeometry, Qgis
 from qgis.PyQt.QtCore import pyqtSlot
 
 
@@ -45,6 +45,8 @@ from ..modules.QpalsAttributeMan import getAttributeInformation
 from .. import QpalsModuleBase
 from ..QpalsParameter import QpalsParameter
 from .matplotlib_section import plotwindow as mpl_plotwindow
+
+from ... import logMessage   # import qpals log function
 
 bm = QtGui.QBitmap(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'media', 'cursor-cross.png'))
 
@@ -95,7 +97,7 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.odmText = QpalsDropTextbox(layerlist=self.layerlist)
         self.odmText.currentTextChanged.connect(self.odmFileChanged)
         formL.addRow("odm", self.odmText)
-        self.axisText = QpalsDropTextbox(layerlist=self.layerlist, filterrex='.*[\.shp]')
+        self.axisText = QpalsDropTextbox(layerlist=self.layerlist, filterrex='.*[\\.shp]')
         formL.addRow("axis shp", self.axisText)
 
         self.widthSpin = QtWidgets.QDoubleSpinBox()
@@ -206,6 +208,7 @@ class QpalsWSM(QtWidgets.QSplitter):
                   self.attrSel.currentText(): np.array([0])}
         mins = {self.attrSel.currentText(): 0}
         maxes = {self.attrSel.currentText(): 1}
+        #logMessage(f"mpl_plotwindow({self.project}, {self.iface}, {data3d}, {mins}, {maxes})")
         self.pltwindow_3d = mpl_plotwindow(self.project, self.iface, data3d, mins, maxes)
         self.plotright = self.pltwindow_3d.ui
 
@@ -283,6 +286,7 @@ class QpalsWSM(QtWidgets.QSplitter):
 
     def loadProject(self):
         inpath = QtWidgets.QFileDialog.getOpenFileName(caption="Select input file", filter="*.qpalsWSM")
+        logMessage(f"QpalsWSM.loadProject: '{inpath}'")
         self.WSMProj = QpalsWSMProject.load(inpath[0])
         self.odmText.setText(self.WSMProj.odmpath)
         self.axisText.setText(self.WSMProj.axispath)
@@ -327,7 +331,7 @@ class QpalsWSM(QtWidgets.QSplitter):
             outpath = outpath[0]
         self.WSMProj.odmpath = odmpath
         self.WSMProj.axispath = axispath
-        self.WSMProj.savepath = outpath[0]
+        self.WSMProj.savepath = outpath
         self.WSMProj.overlap = self.overlapSpin.value()
         self.WSMProj.depth = self.depthSpin.value()
         self.WSMProj.width = self.widthSpin.value()
@@ -417,7 +421,7 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.sectionsRbs = []
         # add new rubberbands
         for id, sec in enumerate(self.WSMProj.sections):
-            rb = QgsRubberBand(self.iface.mapCanvas(), False)
+            rb = QgsRubberBand(self.iface.mapCanvas(), Qgis.GeometryType.Line)  # used to be ,false)
             rb_geom = QgsGeometry()
             rb_geom.fromWkb(sec.aoi)
             rb.setToGeometry(rb_geom, None)
@@ -479,6 +483,9 @@ class QpalsWSM(QtWidgets.QSplitter):
         self.expBtn.setEnabled(True)
 
     def odmFileChanged(self, odmFile):
+        logMessage(f"odmFileChanged: '{odmFile}'")
+        if not odmFile:
+            return
         attrs, _ = getAttributeInformation(odmFile, self.project)
         while self.attrSel.count() > 0:
             self.attrSel.removeItem(0)
@@ -799,6 +806,7 @@ class QpalsWSMProject:
         self.dY = 1
 
     def save(self):
+        logMessage(f"QpalsWSMProject.save('{self.savepath}')")
         with open(self.savepath, 'wb') as f:
             pickle.dump(self, f)
 

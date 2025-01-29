@@ -26,7 +26,9 @@ import os
 import operator, webbrowser
 from ..qt_extensions import QpalsDropTextbox
 from ..resources.attribute_types import odm_predef_attributes, odm_data_types
+from ... import logMessage   # import qpals log function
 
+EXT = ".exe" if os.name == "nt" else ""
 class QpalsAttributeMan(object):
     def __init__(self, project, iface=None, layerlist=None):
         self.project = project
@@ -114,7 +116,7 @@ class QpalsAttributeMan(object):
         if attrname not in odm_predef_attributes:
             attrname += "(%s)" % attrtype
         attrformula = self.formulabox.text()
-        addinfoinst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsAddInfo.exe"),
+        addinfoinst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, "opalsAddInfo"+EXT),
                                                    QpalsProject=self.project)
         addinfoinst.params = [QpalsParameter.QpalsParameter('inFile', self.pointcloud.text(),
                                                          None, None, None, None, None),
@@ -161,7 +163,7 @@ class QpalsAttributeMan(object):
 
 def getAttributeInformation(file, project):
     from .. import QpalsModuleBase, QpalsParameter
-    infoinst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(project.opalspath, "opalsInfo.exe"),
+    infoinst = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(project.opalspath, "opalsInfo" + EXT),
                                                QpalsProject=project)
     infoinst.params = [QpalsParameter.QpalsParameter('inFile', file,
                                                      None, None, None, None, None)]
@@ -172,17 +174,26 @@ def getAttributeInformation(file, project):
         header_passed = False
         attrs = []
         entries = []
+        #print(outtext)
         for line in outtext.split("\n"):
-            if line.startswith("Attribute "):
+            if line.startswith("Attribute "):       # old opals version
                 header_passed = True
                 entries = line.split()
+            elif line.startswith("Attributes"):     # new opals version
+                header_passed = True
             elif header_passed:
-                data = line.split()
-                if len(data) == 0:  # end of attribute list
-                    break
-                attrs.append(data)
+                if not entries:
+                    entries = line.split()
+                else:
+                    data = line.split()
+                    if len(data) == 0:  # end of attribute list
+                        break
+                    attrs.append(data)
         if not header_passed:
+            logMessage(f"getAttributeInformation:file={file},outtext={outtext}", level=Qgis.Critical)
             raise NotImplementedError
+        logMessage(f"entries={entries}")
+        logMessage(f"attrs={attrs}")
         return attrs, entries
     except Exception as e:
         raise e

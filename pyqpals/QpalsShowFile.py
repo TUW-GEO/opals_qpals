@@ -7,6 +7,7 @@ import os
 import tempfile
 
 import datetime
+from enum import Enum
 
 from qgis.PyQt import QtGui
 from qgis.PyQt import QtWidgets
@@ -18,28 +19,47 @@ from . import QpalsParameter
 from .qt_extensions import QpalsDropTextbox
 from .modules.QpalsAttributeMan import getAttributeInformation
 
-VISUALISATION_METHODS = {
-    0: "[fast] Bounding box (vector)",
-    1: "[fast] Z-Overview (raster)",
-    2: "[fast] Point count overview (raster)",
-    3: "Shading (raster)",
-    4: "Z-Color (raster)",
-    5: "Z-Value (raw height values)(raster)",
-    6: "Minimum bounding rectangle (vector)",
-    7: "Convex hull (vector)",
-    8: "Alpha shape (vector)",
-    9: "Isolines",
-}
+from .. import logMessage   # import qpals log function
+
+EXT = ".exe" if os.name == "nt" else ""
+
+class VisualisationMethod(Enum):
+    RASTER_FAST_BBOX = 0
+    RASTER_FAST_ZCOLOR = 1
+    RASTER_FAST_PDENS = 2
+    RASTER_SHADING = 3
+    RASTER_ZCOLOR = 4
+    RASTER_ZVALUE = 5
+    VECTOR_MBR = 6
+    VECTOR_CONVEX_HULL = 7
+    VECTOR_ALPHA_SHAPE = 8
+    VECTOR_ISOLINES = 9
+
+    @staticmethod
+    def labels():
+        return {  0: "[fast] Bounding box (vector)",
+                  1: "[fast] Z-Overview (raster)",
+                  2: "[fast] Point count overview (raster)",
+                  3: "Shading (raster)",
+                  4: "Z-Color (raster)",
+                  5: "Z-Value (raw height values)(raster)",
+                  6: "Minimum bounding rectangle (vector)",
+                  7: "Convex hull (vector)",
+                  8: "Alpha shape (vector)",
+                  9: "Isolines",
+                  }
+
+    def __str__(self):
+        return self.labels()[self.value]
+
+    def isRaster(self):
+        return self.value >= self.RASTER_FAST_BBOX.value and self.value <= self.RASTER_ZVALUE.value
+
+    def isVector(self):
+        return not self.isRaster()
+
 
 class QpalsShowFile(object):
-    METHOD_SHADING = 0
-    METHOD_Z_COLOR = 1
-    METHOD_Z = 2
-    METHOD_BOX = 3
-    METHOD_MBR = 4
-    METHOD_CONVEX_HULL = 5
-    METHOD_ALPHA_SHAPE = 6
-
     features = [
         "min", "max", "diff", "mean", "median", "sum", "variance", "rms", "pdens", "pcount",
         "minority", "majority", "entropy"
@@ -50,7 +70,7 @@ class QpalsShowFile(object):
         self.visMethod = None
         self.curVisMethod = -1
         if project:
-            self.curVisMethod = project.vismethod
+            self.curVisMethod = VisualisationMethod(project.vismethod)
             self.cellSize = project.viscells
             self.cellMethod = project.viscellm
             self.isoInt = project.visisoint
@@ -81,16 +101,8 @@ class QpalsShowFile(object):
         self.dropspace.editingFinished.connect(self.inFileUpdated)
         lo.addRow(self.dropspace)
         self.visMethod = QtWidgets.QComboBox()
-        self.visMethod.addItem(VISUALISATION_METHODS[0])
-        self.visMethod.addItem(VISUALISATION_METHODS[1])
-        self.visMethod.addItem(VISUALISATION_METHODS[2])
-        self.visMethod.addItem(VISUALISATION_METHODS[3])
-        self.visMethod.addItem(VISUALISATION_METHODS[4])
-        self.visMethod.addItem(VISUALISATION_METHODS[5])
-        self.visMethod.addItem(VISUALISATION_METHODS[6])
-        self.visMethod.addItem(VISUALISATION_METHODS[7])
-        self.visMethod.addItem(VISUALISATION_METHODS[8])
-        self.visMethod.addItem(VISUALISATION_METHODS[9])
+        for m in VisualisationMethod:
+            self.visMethod.addItem(f"{str(m)}")
         self.visMethod.currentIndexChanged.connect(self.updatevisMethod)
         self.cellSizeLbl = QtWidgets.QLabel("Set cell size:")
         self.cellSizeBox = QtWidgets.QLineEdit()
@@ -103,7 +115,7 @@ class QpalsShowFile(object):
         self.isoInteLbl = QtWidgets.QLabel("Set isoline interval:")
         self.isoInteBox = QtWidgets.QLineEdit()
         self.isoInteBox.setText("10")
-        cellInst = QpalsModuleBase.QpalsModuleBase(os.path.join(self.project.opalspath, "opalsCell.exe"), self.project)
+        cellInst = QpalsModuleBase.QpalsModuleBase(os.path.join(self.project.opalspath, "opalsCell"+EXT), self.project)
         cellInst.load()
         for param in cellInst.params:
             if param.name.lower() == "cellsize":
@@ -124,8 +136,12 @@ class QpalsShowFile(object):
 
         self.visMethod.setCurrentIndex(1)
 
+
     def inFileUpdated(self):
         newFile = self.dropspace.text()
+        #print(f"newFile={newFile};")
+        if newFile.startswith("file://"):
+            newFile = newFile.replace("file://", "").strip()
         if newFile.endswith(".odm"):
             try:
                 attrs, _ = getAttributeInformation(newFile, self.project)
@@ -141,8 +157,12 @@ class QpalsShowFile(object):
 
 
     def updatevisMethod(self):
-        self.curVisMethod = self.visMethod.currentIndex()
-        if self.curVisMethod in [3, 4, 5, 9]:
+        logMessage(f"index={self.visMethod.currentIndex()}")
+        self.curVisMethod = VisualisationMethod(self.visMethod.currentIndex())
+        logMessage(f"self.curVisMethod={self.curVisMethod}")
+        if self.curVisMethod in [VisualisationMethod.RASTER_SHADING, VisualisationMethod.RASTER_ZCOLOR,
+                                 VisualisationMethod.RASTER_ZVALUE, VisualisationMethod.VECTOR_ISOLINES]:
+            #[3, 4, 5, 9]:
             self.cellSizeLbl.show()
             self.cellSizeBox.show()
             self.cellFeatLbl.show()
@@ -157,7 +177,7 @@ class QpalsShowFile(object):
             self.cellAttrCmb.hide()
             self.cellAttrLbl.hide()
 
-        if self.curVisMethod in [9]:
+        if self.curVisMethod == VisualisationMethod.VECTOR_ISOLINES:
             self.isoInteLbl.show()
             self.isoInteBox.show()
         else:
@@ -166,7 +186,14 @@ class QpalsShowFile(object):
 
 
     def loadHelper(self):
-        return self.load(self.dropspace.text().split(";"))
+        files = self.dropspace.text().replace('\r\n', ';').replace('\n', ';').split(";")
+        print(f"dropspace={files}")
+        for idx, f in enumerate(files):
+            if f.startswith("file://"):
+                f = f.replace("file://", "").strip()
+                files[idx] = f
+        print(f"loadHelper={files}")
+        return self.load(files)
 
     def load(self, infile_s=None):
         try:
@@ -175,6 +202,7 @@ class QpalsShowFile(object):
                 self.okBtn.setText("Loading...")
                 self.okBtn.setEnabled(False)
             for drop in infile_s:
+                isMultiBand = None
                 if drop:
                     if drop.endswith(".tif") or drop.endswith(".tiff"):
                         layer = self.iface.addRasterLayer(drop, os.path.basename(drop))
@@ -185,39 +213,39 @@ class QpalsShowFile(object):
                             drop = self.callImport(drop)
                         suffix = ""
                         attribute = "Z" if not hasattr(self, 'cellAttrCmb') else self.cellAttrCmb.currentText()
-                        if self.curVisMethod == 3:
+                        if self.curVisMethod == VisualisationMethod.RASTER_SHADING:
                             cellf = self.callCell(drop)
                             visfile = self.callShade(cellf)
                             suffix = "shading (%s)" % attribute
-                        elif self.curVisMethod == 4:
+                        elif self.curVisMethod == VisualisationMethod.RASTER_ZCOLOR:
                             cellf = self.callCell(drop)
                             visfile = self.callZColor(cellf)
                             suffix = "coloring (%s)" % attribute
-                        elif self.curVisMethod == 5:
+                        elif self.curVisMethod == VisualisationMethod.RASTER_ZVALUE:
                             visfile = self.callCell(drop)
                             suffix = "(%s)" % attribute
-                        elif self.curVisMethod == 0:
+                        elif self.curVisMethod == VisualisationMethod.RASTER_FAST_BBOX:
                             (xmin, ymin, xmax, ymax) = self.callInfo(drop)
                             suffix = "BBox"
-                        elif self.curVisMethod == 6:
+                        elif self.curVisMethod == VisualisationMethod.VECTOR_MBR:
                             visfile = self.callBounds(drop, "minimumRectangle")
                             suffix = "MBR"
-                        elif self.curVisMethod == 7:
+                        elif self.curVisMethod == VisualisationMethod.VECTOR_CONVEX_HULL:
                             visfile = self.callBounds(drop, "convexHull")
                             suffix = "convex hull"
-                        elif self.curVisMethod == 8:
+                        elif self.curVisMethod == VisualisationMethod.VECTOR_ALPHA_SHAPE:
                             visfile = self.callBounds(drop, "alphaShape")
                             suffix = "alpha shape"
-                        elif self.curVisMethod == 9:
+                        elif self.curVisMethod == VisualisationMethod.VECTOR_ISOLINES:
                             cellf = self.callCell(drop)
                             visfile = self.callIsolines(cellf)
                             suffix = "isolines (%s)" % attribute
-                        elif self.curVisMethod == 1:
+                        elif self.curVisMethod == VisualisationMethod.RASTER_FAST_ZCOLOR:
                             visfile, isMultiBand = self.callInfo(drop, overview='Z')
                             suffix = "overview (Z)"
                             if isMultiBand:
                                 bandSel = 1
-                        elif self.curVisMethod == 2:
+                        elif self.curVisMethod == VisualisationMethod.RASTER_FAST_PDENS:
                             visfile, isMultiBand = self.callInfo(drop, overview='Pcount')
                             suffix = "overview (pcount)"
                             if isMultiBand:
@@ -225,15 +253,27 @@ class QpalsShowFile(object):
 
                         self.updateText("Loading layer into QGIS...")
                         # load layer
-                        if self.curVisMethod in [6, 7, 8, 9]:  # vector file
+                        if self.curVisMethod == VisualisationMethod.RASTER_FAST_BBOX:
+                            layer = self.iface.addVectorLayer("Polygon",
+                                                              os.path.basename(drop) + " - " + suffix, "memory")
+                            pr = layer.dataProvider()
+                            feat = QgsFeature()
+                            feat.setGeometry(QgsGeometry.fromPolygonXY([[QgsPointXY(xmin, ymin),
+                                                                         QgsPointXY(xmax, ymin),
+                                                                         QgsPointXY(xmax, ymax),
+                                                                         QgsPointXY(xmin, ymax)]]))
+                            pr.addFeatures([feat])
+                            layer.updateExtents()
+                        elif self.curVisMethod.isVector(): # in [6, 7, 8, 9]:  # vector file
                             layer = self.iface.addVectorLayer(visfile,
                                                               os.path.basename(drop) + " - " + suffix, "ogr")
-                        elif self.curVisMethod in [1, 2, 3, 4, 5]:
+                        elif self.curVisMethod.isRaster(): # in [1, 2, 3, 4, 5]:
                             layer = self.iface.addRasterLayer(visfile,
                                                               os.path.basename(drop) + " - " + suffix)
                             if isMultiBand:
                                 provider = layer.dataProvider()
-                                stats = provider.bandStatistics(bandSel, QgsRasterBandStats.All)
+                                #stats = provider.bandStatistics(bandSel, QgsRasterBandStats.All)   # results in reprecated warning
+                                stats = provider.bandStatistics(bandSel)
                                 mini = stats.minimumValue
                                 maxi = stats.maximumValue
                                 bandRenderer = QgsSingleBandGrayRenderer(provider, bandSel)
@@ -244,23 +284,12 @@ class QpalsShowFile(object):
                                 bandRenderer.setContrastEnhancement(ce)
 
                                 layer.setRenderer(bandRenderer)
-                        elif self.curVisMethod == 0:
-                            layer = self.iface.addVectorLayer("Polygon",
-                                                              os.path.basename(drop) + " - " + suffix, "memory")
-                            pr = layer.dataProvider()
-                            feat = QgsFeature()
-                            feat.setGeometry(QgsGeometry.fromPolygonXY([[QgsPointXY(xmin, ymin),
-                                                                       QgsPointXY(xmax, ymin),
-                                                                       QgsPointXY(xmax, ymax),
-                                                                       QgsPointXY(xmin, ymax)]]))
-                            pr.addFeatures([feat])
-                            layer.updateExtents()
 
                     if layer:
                         layer.setCustomProperty("qpals-odmpath", drop)
                         QgsProject.instance().addMapLayer(layer)
 
-                        if self.curVisMethod in [0, 6, 7, 8]:
+                        if self.curVisMethod == VisualisationMethod.RASTER_FAST_BBOX or self.curVisMethod.isVector(): # in [0, 6, 7, 8]:
                             layer.setCustomProperty("labeling", "pal")
                             layer.setCustomProperty("labeling/enabled", "true")
                             layer.setCustomProperty("labeling/isExpression", "true")
@@ -275,6 +304,7 @@ class QpalsShowFile(object):
             self.iface.messageBar().pushMessage('Something went wrong! See the message log for more information.',
                                                 duration=3)
             print(e)
+            raise e
 
         if self.ui:
             self.okBtn.setText("Load")
@@ -308,7 +338,9 @@ class QpalsShowFile(object):
                 outdict = self.call("opalsInfo", rundict, returnstdout=True, nooutfile=True)
                 return outfile, True
 
+        outdict = self.call("opalsInfo", rundict, returnstdout=True, nooutfile=True)
         lines = outdict["stdout"].split("\n")
+        logMessage(f"lines={lines}")
         for i in range(len(lines)):
             line = lines[i]
             if line.startswith("Minimum"):
@@ -320,6 +352,7 @@ class QpalsShowFile(object):
                 maxX = float(linearr[1])
                 maxY = float(linearr[2])
                 break
+        logMessage(f"bbox={(minX, minY, maxX, maxY)}")
         return minX, minY, maxX, maxY
 
     def callBounds(self, infile, shapetype):
@@ -360,7 +393,7 @@ class QpalsShowFile(object):
             QtWidgets.QApplication.processEvents()
 
     def call(self, module, params, outext="", returnstdout=False, nooutfile=False):
-        Module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, module+".exe"), QpalsProject=self.project)
+        Module = QpalsModuleBase.QpalsModuleBase(execName=os.path.join(self.project.opalspath, module+EXT), QpalsProject=self.project)
         if "outFile" not in params and not nooutfile:
             file = tempfile.NamedTemporaryFile(delete=False)
             params["outFile"] = file.name + outext
