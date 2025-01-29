@@ -244,19 +244,21 @@ class plotwindow(object):
         self.scale_max.setText(str(hi))
         self.currattr = newattr
         colormap = self.colormap.currentText()
-        self.ax.cla()
         self.ann = None
         if self.colorbar:
-            self.figure.delaxes(self.colorbar.ax)
-            #self.colorbar.remove()
+            self.colorbar.remove()
+            self.ax.clear()
+            #logMessage(f"newattr={newattr}")
         X = self.data['X']
         Y = self.data['Y']
         Z = self.data['Z'] * self.zex.value()
+        #logMessage(f"{Z}")
         self.curplot = self.ax.scatter(X, Y, Z,
                                        c=self.data[newattr], cmap=colormap,
                                        vmin=low, vmax=hi, marker=self.marker.currentText(), s=self.markerSize.value(), picker=0)
         if get_module_version("matplotlib") >= parse_version('1.4.0'):
             self.colorbar = self.figure.colorbar(self.curplot)
+
         self.selectors = []
         if self.lines:
             for (i, line) in enumerate(self.lines):
