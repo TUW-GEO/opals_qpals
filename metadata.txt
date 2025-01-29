@@ -69,5 +69,5 @@ deprecated=False
 ; if empty, it will be automatically set to major version + .99
 qgisMaximumVersion=3.99
 
-; hash=2c94e6b25ddcb94bfb9cac3d309e96807d20359b09af72542684ee1622a2a9ec0828eb9ca040319e3935887135071b1918386afc3784711e6ea36c15590aacbf
-; hash_date=19.10.2024
+; hash=967f7038c6b4574268a3e20fafe8cb8ea5f17a6e4d1d691cc270addc99fdf9bd9a8fbf5eabc86e76f01653bce2758d220c7a27e4b31007d4e666e4821b5b5a0c
+; hash_date=29.01.2025
